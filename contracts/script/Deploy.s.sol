@@ -3,8 +3,7 @@ pragma solidity ^0.8.24;
 
 /**
  * @title  Deploy — Inkd Protocol deployment script
- * @notice Deploys InkdToken, InkdVault, and InkdRegistry with UUPS proxies.
- *         Sets up correct permissions between contracts.
+ * @notice Deploys InkdToken (ERC-20), InkdTreasury, and InkdRegistry with UUPS proxies.
  *
  *         Usage (Base Sepolia):
  *           forge script script/Deploy.s.sol:Deploy \
@@ -12,18 +11,11 @@ pragma solidity ^0.8.24;
  *             --broadcast \
  *             --verify \
  *             -vvvv
- *
- *         Usage (Base Mainnet):
- *           forge script script/Deploy.s.sol:Deploy \
- *             --rpc-url base \
- *             --broadcast \
- *             --verify \
- *             -vvvv
  */
 
 import {Script, console} from "forge-std/Script.sol";
 import {InkdToken} from "../src/InkdToken.sol";
-import {InkdVault} from "../src/InkdVault.sol";
+import {InkdTreasury} from "../src/InkdTreasury.sol";
 import {InkdRegistry} from "../src/InkdRegistry.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
@@ -42,75 +34,60 @@ contract Deploy is Script {
 
         vm.startBroadcast(deployerKey);
 
-        // ─── 1. Deploy InkdToken ──────────────────────────────────────────
+        // ─── 1. Deploy InkdToken (standard ERC-20, no proxy) ────────────
 
-        InkdToken tokenImpl = new InkdToken();
-        ERC1967Proxy tokenProxy = new ERC1967Proxy(
-            address(tokenImpl),
-            abi.encodeCall(InkdToken.initialize, (
-                deployer,           // owner
-                0.001 ether,        // mint price
-                500                 // 5% royalty
-            ))
+        InkdToken token = new InkdToken();
+        console.log("InkdToken:", address(token));
+        console.log("  Supply:", token.totalSupply());
+
+        // ─── 2. Deploy InkdTreasury (UUPS proxy) ────────────────────────
+
+        InkdTreasury treasuryImpl = new InkdTreasury();
+        ERC1967Proxy treasuryProxy = new ERC1967Proxy(
+            address(treasuryImpl),
+            abi.encodeCall(InkdTreasury.initialize, (deployer))
         );
-        InkdToken token = InkdToken(address(tokenProxy));
-        console.log("InkdToken Implementation:", address(tokenImpl));
-        console.log("InkdToken Proxy:", address(tokenProxy));
+        InkdTreasury treasury = InkdTreasury(payable(address(treasuryProxy)));
+        console.log("InkdTreasury Implementation:", address(treasuryImpl));
+        console.log("InkdTreasury Proxy:", address(treasuryProxy));
 
-        // ─── 2. Deploy InkdVault ──────────────────────────────────────────
-
-        InkdVault vaultImpl = new InkdVault();
-        ERC1967Proxy vaultProxy = new ERC1967Proxy(
-            address(vaultImpl),
-            abi.encodeCall(InkdVault.initialize, (
-                deployer,
-                address(tokenProxy)
-            ))
-        );
-        InkdVault vault = InkdVault(address(vaultProxy));
-        console.log("InkdVault Implementation:", address(vaultImpl));
-        console.log("InkdVault Proxy:", address(vaultProxy));
-
-        // ─── 3. Deploy InkdRegistry ───────────────────────────────────────
+        // ─── 3. Deploy InkdRegistry (UUPS proxy) ────────────────────────
 
         InkdRegistry registryImpl = new InkdRegistry();
         ERC1967Proxy registryProxy = new ERC1967Proxy(
             address(registryImpl),
             abi.encodeCall(InkdRegistry.initialize, (
                 deployer,
-                address(tokenProxy)
+                address(token),
+                address(treasuryProxy)
             ))
         );
         InkdRegistry registry = InkdRegistry(address(registryProxy));
         console.log("InkdRegistry Implementation:", address(registryImpl));
         console.log("InkdRegistry Proxy:", address(registryProxy));
 
-        // ─── 4. Set up permissions ────────────────────────────────────────
+        // ─── 4. Link registry in treasury ────────────────────────────────
 
-        // Link vault to token (so vault can update inscription counts)
-        token.setVault(address(vaultProxy));
+        treasury.setRegistry(address(registryProxy));
         console.log("");
-        console.log("Vault linked to Token: OK");
+        console.log("Registry linked to Treasury: OK");
 
-        // ─── 5. Verify initialization ─────────────────────────────────────
+        // ─── 5. Verify initialization ────────────────────────────────────
 
-        require(token.owner() == deployer, "Token owner mismatch");
-        require(token.mintPrice() == 0.001 ether, "Mint price mismatch");
-        require(token.vault() == address(vaultProxy), "Vault link mismatch");
-        require(vault.owner() == deployer, "Vault owner mismatch");
-        require(vault.protocolFeeBps() == 100, "Vault fee mismatch");
+        require(token.totalSupply() == 1_000_000_000 ether, "Supply mismatch");
+        require(token.balanceOf(deployer) == 1_000_000_000 ether, "Balance mismatch");
+        require(treasury.owner() == deployer, "Treasury owner mismatch");
+        require(treasury.registry() == address(registryProxy), "Registry link mismatch");
         require(registry.owner() == deployer, "Registry owner mismatch");
-        require(registry.marketplaceFeeBps() == 250, "Registry fee mismatch");
+        require(address(registry.inkdToken()) == address(token), "Token link mismatch");
 
         console.log("");
         console.log("========================================");
         console.log("  Deployment Verified");
         console.log("========================================");
-        console.log("Mint Price: 0.001 ETH");
-        console.log("Max Supply: 10,000");
-        console.log("Vault Fee: 1%");
-        console.log("Marketplace Fee: 2.5%");
-        console.log("Royalty: 5%");
+        console.log("Token Supply: 1,000,000,000 INKD");
+        console.log("Version Fee: 0.001 ETH");
+        console.log("Token Lock: 1 INKD per project");
         console.log("========================================");
 
         vm.stopBroadcast();
