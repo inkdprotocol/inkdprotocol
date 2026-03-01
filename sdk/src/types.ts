@@ -3,71 +3,179 @@
  * @description Core TypeScript types for the Inkd Protocol SDK.
  */
 
-// ─── On-Chain Types ─────────────────────────────────────────────────────────
+// ─── Address Type ─────────────────────────────────────────────────────────────
 
-/** On-chain data token as returned by the InkdVault contract. */
-export interface DataToken {
+export type Address = `0x${string}`;
+
+// ─── Content Types ────────────────────────────────────────────────────────────
+
+/** Common content type values for inscriptions. */
+export enum ContentType {
+  JSON = "application/json",
+  PlainText = "text/plain",
+  Markdown = "text/markdown",
+  HTML = "text/html",
+  CSS = "text/css",
+  JavaScript = "application/javascript",
+  TypeScript = "application/typescript",
+  PNG = "image/png",
+  JPEG = "image/jpeg",
+  SVG = "image/svg+xml",
+  GIF = "image/gif",
+  WebP = "image/webp",
+  PDF = "application/pdf",
+  Binary = "application/octet-stream",
+  YAML = "application/yaml",
+  XML = "application/xml",
+  CSV = "text/csv",
+  WASM = "application/wasm",
+}
+
+// ─── On-Chain Types ───────────────────────────────────────────────────────────
+
+/** InkdToken data as stored on-chain. */
+export interface InkdTokenData {
   /** Unique on-chain token identifier. */
   tokenId: bigint;
-  /** Address of the original minter. */
-  creator: `0x${string}`;
-  /** Current Arweave TX hash (latest version). */
-  arweaveHash: string;
-  /** Off-chain metadata URI (name, description, type, size). */
-  metadataURI: string;
-  /** Listing price in wei (0n = not for sale). */
-  price: bigint;
-  /** Unix timestamp of token creation. */
-  createdAt: bigint;
-}
-
-/** Enriched token data including ownership and version info. */
-export interface TokenData extends DataToken {
   /** Current owner address. */
-  owner: `0x${string}`;
-  /** Total number of versions. */
-  versionCount: number;
-  /** All Arweave hashes (version history, index 0 = original). */
-  versions: string[];
+  owner: Address;
+  /** Timestamp when the token was minted. */
+  mintedAt: bigint;
+  /** Number of active inscriptions on this token. */
+  inscriptionCount: number;
+  /** Token metadata URI (on-chain SVG). */
+  tokenURI: string;
 }
 
-/** Temporary access grant details. */
+/** A single inscription stored on an InkdToken. */
+export interface Inscription {
+  /** Arweave transaction ID. */
+  arweaveHash: string;
+  /** MIME type of the data. */
+  contentType: string;
+  /** File size in bytes. */
+  size: bigint;
+  /** Human-readable name. */
+  name: string;
+  /** Timestamp of creation. */
+  createdAt: bigint;
+  /** Whether the inscription has been soft-deleted. */
+  isRemoved: boolean;
+  /** Current version number. */
+  version: bigint;
+}
+
+/** Access grant for temporary read access. */
 export interface AccessGrant {
-  /** Token the grant applies to. */
-  tokenId: bigint;
-  /** Wallet granted temporary access. */
-  grantee: `0x${string}`;
-  /** Unix timestamp when access expires. */
+  /** Wallet with access. */
+  grantee: Address;
+  /** Expiry timestamp. */
   expiresAt: bigint;
+  /** When access was granted. */
+  grantedAt: bigint;
 }
 
-// ─── Mint Options ───────────────────────────────────────────────────────────
+/** Marketplace listing data. */
+export interface SaleData {
+  /** Token ID being sold. */
+  tokenId: bigint;
+  /** Seller address. */
+  seller: Address;
+  /** Price in wei. */
+  price: bigint;
+  /** When the listing was created. */
+  listedAt: bigint;
+  /** Whether the listing is active. */
+  active: boolean;
+}
 
-/** Options for minting a single token. */
-export interface MintOptions {
-  /** Content type of the file (e.g., "application/json", "text/plain"). */
-  contentType: string;
-  /** Listing price in wei. Defaults to 0 (not for sale). */
-  price?: bigint;
-  /** Off-chain metadata URI. Auto-generated if not provided. */
-  metadataURI?: string;
-  /** Optional tags for Arweave upload. */
+/** Registry registration data. */
+export interface TokenRegistration {
+  /** Token ID. */
+  tokenId: bigint;
+  /** Owner address. */
+  owner: Address;
+  /** Whether the token is publicly discoverable. */
+  isPublic: boolean;
+  /** Registration timestamp. */
+  registeredAt: bigint;
+}
+
+/** Protocol-wide statistics. */
+export interface ProtocolStats {
+  /** Total registered tokens. */
+  totalTokens: bigint;
+  /** Total tracked inscriptions. */
+  totalInscriptions: bigint;
+  /** Total sales volume in wei. */
+  totalVolume: bigint;
+  /** Total completed sales. */
+  totalSales: bigint;
+}
+
+// ─── Client Config ────────────────────────────────────────────────────────────
+
+/** Configuration for the InkdClient. */
+export interface InkdClientConfig {
+  /** InkdToken proxy contract address. */
+  tokenAddress: Address;
+  /** InkdVault proxy contract address. */
+  vaultAddress: Address;
+  /** InkdRegistry proxy contract address. */
+  registryAddress: Address;
+  /** Chain ID (8453 = Base Mainnet, 84532 = Base Sepolia). */
+  chainId: 8453 | 84532;
+}
+
+/** Options for inscribing data. */
+export interface InscribeOptions {
+  /** Content type of the file. */
+  contentType?: string;
+  /** Human-readable name. */
+  name?: string;
+  /** Arweave upload tags. */
   tags?: Record<string, string>;
+  /** ETH value to send (for protocol fee). */
+  value?: bigint;
 }
 
-/** Options for minting multiple tokens at once. */
-export interface BatchMintOptions {
-  /** Content type applied to all files. */
-  contentType: string;
-  /** Listing prices per file. Must match files length. */
-  prices?: bigint[];
-  /** Metadata URIs per file. Must match files length. */
-  metadataURIs?: string[];
+/** Options for minting tokens. */
+export interface MintOptions {
+  /** Number of tokens to mint (for batch mint). */
+  quantity?: number;
 }
 
-// ─── Arweave Types ──────────────────────────────────────────────────────────
+// ─── Transaction Types ────────────────────────────────────────────────────────
 
-/** Result of an Arweave upload via Irys. */
+/** Result of a successful on-chain transaction. */
+export interface TransactionResult {
+  /** Transaction hash. */
+  hash: Address;
+  /** Token ID (if applicable). */
+  tokenId?: bigint;
+}
+
+/** Result of a batch mint transaction. */
+export interface BatchTransactionResult {
+  /** Transaction hash. */
+  hash: Address;
+  /** Array of minted token IDs. */
+  tokenIds: bigint[];
+}
+
+/** Result of an inscription operation. */
+export interface InscribeResult {
+  /** Transaction hash. */
+  hash: Address;
+  /** Inscription index on the token. */
+  inscriptionIndex: bigint;
+  /** Arweave upload result. */
+  upload: UploadResult;
+}
+
+// ─── Arweave Types ────────────────────────────────────────────────────────────
+
+/** Result of an Arweave upload. */
 export interface UploadResult {
   /** Arweave transaction hash. */
   hash: string;
@@ -77,44 +185,12 @@ export interface UploadResult {
   size: number;
 }
 
-// ─── Client Config ──────────────────────────────────────────────────────────
+// ─── Encryption Types ─────────────────────────────────────────────────────────
 
-/** Configuration for the InkdClient. */
-export interface InkdClientConfig {
-  /** InkdVault proxy contract address. */
-  contractAddress: `0x${string}`;
-  /** Chain ID (8453 = Base Mainnet, 84532 = Base Sepolia). */
-  chainId: 8453 | 84532;
-  /** Irys node URL for Arweave uploads. */
-  irysUrl?: string;
-  /** Arweave gateway URL for fetching data. */
-  arweaveGateway?: string;
-}
-
-// ─── Transaction Types ──────────────────────────────────────────────────────
-
-/** Result of a successful on-chain transaction. */
-export interface TransactionResult {
-  /** Transaction hash. */
-  hash: `0x${string}`;
-  /** Token ID (if applicable). */
-  tokenId?: bigint;
-}
-
-/** Result of a batch mint transaction. */
-export interface BatchTransactionResult {
-  /** Transaction hash. */
-  hash: `0x${string}`;
-  /** Array of minted token IDs. */
-  tokenIds: bigint[];
-}
-
-// ─── Encryption Types (V2 stub) ─────────────────────────────────────────────
-
-/** Encryption configuration for Lit Protocol integration (V2). */
+/** Encryption configuration for Lit Protocol integration. */
 export interface EncryptionConfig {
   /** Lit Protocol network to use. */
-  network: "cayenne" | "manzano" | "habanero";
+  network: "datil" | "datil-dev" | "datil-test";
   /** Chain for access control conditions. */
   chain: string;
 }
@@ -123,8 +199,20 @@ export interface EncryptionConfig {
 export interface EncryptedData {
   /** Encrypted data blob. */
   ciphertext: Uint8Array;
-  /** Symmetric key encrypted by Lit nodes. */
+  /** Encrypted symmetric key. */
   encryptedSymmetricKey: string;
   /** Access control conditions for decryption. */
   accessControlConditions: unknown[];
+}
+
+/** Cost estimate for an inscription operation. */
+export interface InscribeCostEstimate {
+  /** Estimated gas cost in wei. */
+  gas: bigint;
+  /** Arweave storage cost in wei. */
+  arweave: bigint;
+  /** Protocol fee in wei. */
+  protocolFee: bigint;
+  /** Total estimated cost in wei. */
+  total: bigint;
 }
