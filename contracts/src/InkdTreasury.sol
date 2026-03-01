@@ -13,6 +13,7 @@ contract InkdTreasury is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     event Deposited(address indexed from, uint256 amount);
     event Withdrawn(address indexed to, uint256 amount);
     event RegistrySet(address indexed registry);
+    event Received(address indexed sender, uint256 amount);
 
     error OnlyRegistry();
     error TransferFailed();
@@ -47,7 +48,7 @@ contract InkdTreasury is Initializable, OwnableUpgradeable, UUPSUpgradeable {
 
     /// @notice Accept ETH directly (fallback).
     receive() external payable {
-        emit Deposited(msg.sender, msg.value);
+        emit Received(msg.sender, msg.value);
     }
 
     function _authorizeUpgrade(address) internal override onlyOwner {}

@@ -10,26 +10,33 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {InkdTreasury} from "./InkdTreasury.sol";
 
 /// @title InkdRegistry — Project registry for the Inkd Protocol
-/// @notice Lock 1 $INKD to create a project. Push versions for 0.001 ETH each.
+/// @notice Lock 1 $INKD to create a project. Push versions for a variable ETH fee.
 contract InkdRegistry is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     using SafeERC20 for IERC20;
 
     // ───── Constants ─────
-    uint256 public constant VERSION_FEE = 0.001 ether;
     uint256 public constant TOKEN_LOCK_AMOUNT = 1 ether; // 1 $INKD (18 decimals)
+    uint256 public constant MAX_VERSION_FEE = 0.01 ether;
+    uint256 public constant MAX_TRANSFER_FEE = 0.05 ether;
 
     // ───── State ─────
     IERC20 public inkdToken;
     InkdTreasury public treasury;
     uint256 public projectCount;
+    uint256 public versionFee;
+    uint256 public transferFee;
 
     // ───── Structs ─────
     struct Project {
         uint256 id;
         string name;
         string description;
+        string license;
+        string readmeHash;
         address owner;
         bool isPublic;
+        bool isAgent;
+        string agentEndpoint;
         uint256 createdAt;
         uint256 versionCount;
         bool exists;
@@ -53,12 +60,16 @@ contract InkdRegistry is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     mapping(uint256 => mapping(address => bool)) public isCollaborator;
 
     // ───── Events ─────
-    event ProjectCreated(uint256 indexed projectId, address indexed owner, string name);
+    event ProjectCreated(uint256 indexed projectId, address indexed owner, string name, string license);
     event VersionPushed(uint256 indexed projectId, string arweaveHash, string versionTag, address pushedBy);
     event CollaboratorAdded(uint256 indexed projectId, address collaborator);
     event CollaboratorRemoved(uint256 indexed projectId, address collaborator);
     event ProjectTransferred(uint256 indexed projectId, address indexed oldOwner, address indexed newOwner);
     event VisibilityChanged(uint256 indexed projectId, bool isPublic);
+    event VersionFeeUpdated(uint256 oldFee, uint256 newFee);
+    event TransferFeeUpdated(uint256 oldFee, uint256 newFee);
+    event ReadmeUpdated(uint256 indexed projectId, string arweaveHash);
+    event AgentRegistered(uint256 indexed projectId, string endpoint);
 
     // ───── Errors ─────
     error NameTaken();
@@ -71,6 +82,7 @@ contract InkdRegistry is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     error NotCollaborator();
     error CannotAddOwner();
     error ZeroAddress();
+    error FeeExceedsMax();
 
     // ───── Modifiers ─────
     modifier onlyProjectOwner(uint256 projectId) {
@@ -88,14 +100,44 @@ contract InkdRegistry is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         __Ownable_init(owner_);
         inkdToken = IERC20(token_);
         treasury = InkdTreasury(payable(treasury_));
+        versionFee = 0.001 ether;
+        transferFee = 0.005 ether;
+    }
+
+    // ───── Admin Functions ─────
+
+    /// @notice Update the version push fee. Owner only.
+    function setVersionFee(uint256 newFee) external onlyOwner {
+        if (newFee > MAX_VERSION_FEE) revert FeeExceedsMax();
+        uint256 oldFee = versionFee;
+        versionFee = newFee;
+        emit VersionFeeUpdated(oldFee, newFee);
+    }
+
+    /// @notice Update the project transfer fee. Owner only.
+    function setTransferFee(uint256 newFee) external onlyOwner {
+        if (newFee > MAX_TRANSFER_FEE) revert FeeExceedsMax();
+        uint256 oldFee = transferFee;
+        transferFee = newFee;
+        emit TransferFeeUpdated(oldFee, newFee);
     }
 
     // ───── Core Functions ─────
 
     /// @notice Create a project. Locks 1 $INKD from the caller.
-    function createProject(string calldata name, string calldata description, bool isPublic) external {
+    function createProject(
+        string calldata name,
+        string calldata description,
+        string calldata license,
+        bool isPublic,
+        string calldata readmeHash,
+        bool isAgent,
+        string calldata agentEndpoint
+    ) external {
         if (bytes(name).length == 0) revert EmptyName();
-        if (nameTaken[name]) revert NameTaken();
+
+        string memory normalized = _normalizeName(name);
+        if (nameTaken[normalized]) revert NameTaken();
 
         // Lock 1 $INKD in this contract
         inkdToken.safeTransferFrom(msg.sender, address(this), TOKEN_LOCK_AMOUNT);
@@ -103,22 +145,30 @@ contract InkdRegistry is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         uint256 id = ++projectCount;
         projects[id] = Project({
             id: id,
-            name: name,
+            name: normalized,
             description: description,
+            license: license,
+            readmeHash: readmeHash,
             owner: msg.sender,
             isPublic: isPublic,
+            isAgent: isAgent,
+            agentEndpoint: agentEndpoint,
             createdAt: block.timestamp,
             versionCount: 0,
             exists: true
         });
 
-        nameTaken[name] = true;
+        nameTaken[normalized] = true;
         _ownerProjects[msg.sender].push(id);
 
-        emit ProjectCreated(id, msg.sender, name);
+        emit ProjectCreated(id, msg.sender, normalized, license);
+
+        if (isAgent) {
+            emit AgentRegistered(id, agentEndpoint);
+        }
     }
 
-    /// @notice Push a new version. Requires 0.001 ETH sent to Treasury.
+    /// @notice Push a new version. Requires versionFee ETH sent to Treasury.
     function pushVersion(
         uint256 projectId,
         string calldata arweaveHash,
@@ -130,7 +180,7 @@ contract InkdRegistry is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         if (p.owner != msg.sender && !isCollaborator[projectId][msg.sender]) {
             revert NotOwnerOrCollaborator();
         }
-        if (msg.value < VERSION_FEE) revert InsufficientFee();
+        if (msg.value < versionFee) revert InsufficientFee();
 
         _versions[projectId].push(Version({
             projectId: projectId,
@@ -179,9 +229,10 @@ contract InkdRegistry is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         emit CollaboratorRemoved(projectId, collaborator);
     }
 
-    /// @notice Transfer project ownership. $INKD stays locked.
-    function transferProject(uint256 projectId, address newOwner) external onlyProjectOwner(projectId) {
+    /// @notice Transfer project ownership. $INKD stays locked. Requires transferFee ETH.
+    function transferProject(uint256 projectId, address newOwner) external payable onlyProjectOwner(projectId) {
         if (newOwner == address(0)) revert ZeroAddress();
+        if (msg.value < transferFee) revert InsufficientFee();
 
         address oldOwner = projects[projectId].owner;
         projects[projectId].owner = newOwner;
@@ -203,6 +254,9 @@ contract InkdRegistry is Initializable, OwnableUpgradeable, UUPSUpgradeable {
             }
         }
 
+        // Forward fee to treasury
+        treasury.deposit{value: msg.value}();
+
         emit ProjectTransferred(projectId, oldOwner, newOwner);
     }
 
@@ -210,6 +264,18 @@ contract InkdRegistry is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     function setVisibility(uint256 projectId, bool isPublic) external onlyProjectOwner(projectId) {
         projects[projectId].isPublic = isPublic;
         emit VisibilityChanged(projectId, isPublic);
+    }
+
+    /// @notice Update the README/docs Arweave hash. Owner only.
+    function setReadme(uint256 projectId, string calldata arweaveHash) external onlyProjectOwner(projectId) {
+        projects[projectId].readmeHash = arweaveHash;
+        emit ReadmeUpdated(projectId, arweaveHash);
+    }
+
+    /// @notice Update the agent endpoint. Owner only.
+    function setAgentEndpoint(uint256 projectId, string calldata endpoint) external onlyProjectOwner(projectId) {
+        projects[projectId].agentEndpoint = endpoint;
+        emit AgentRegistered(projectId, endpoint);
     }
 
     // ───── View Functions ─────
@@ -234,7 +300,46 @@ contract InkdRegistry is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         return _ownerProjects[owner_];
     }
 
+    /// @notice Returns agent projects with pagination.
+    function getAgentProjects(uint256 offset, uint256 limit) external view returns (Project[] memory) {
+        uint256 count;
+        for (uint256 i = 1; i <= projectCount; i++) {
+            if (projects[i].isAgent) count++;
+        }
+
+        if (offset >= count) return new Project[](0);
+        uint256 resultSize = count - offset;
+        if (resultSize > limit) resultSize = limit;
+
+        Project[] memory result = new Project[](resultSize);
+        uint256 found;
+        uint256 added;
+
+        for (uint256 i = 1; i <= projectCount && added < resultSize; i++) {
+            if (projects[i].isAgent) {
+                if (found >= offset) {
+                    result[added] = projects[i];
+                    added++;
+                }
+                found++;
+            }
+        }
+
+        return result;
+    }
+
     // ───── Internal ─────
+
+    /// @notice Convert a string to lowercase (ASCII A-Z only).
+    function _normalizeName(string memory name) internal pure returns (string memory) {
+        bytes memory b = bytes(name);
+        for (uint256 i; i < b.length; i++) {
+            if (b[i] >= 0x41 && b[i] <= 0x5A) {
+                b[i] = bytes1(uint8(b[i]) + 32);
+            }
+        }
+        return string(b);
+    }
 
     function _removeFromOwnerProjects(address owner_, uint256 projectId) internal {
         uint256[] storage ids = _ownerProjects[owner_];

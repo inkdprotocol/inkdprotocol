@@ -40,7 +40,7 @@ contract InkdRegistryTest is Test {
         // Link registry in treasury
         treasury.setRegistry(address(registry));
 
-        // Give alice and bob tokens
+        // Give alice, bob, charlie tokens
         token.transfer(alice, 100 ether);
         token.transfer(bob, 100 ether);
         token.transfer(charlie, 100 ether);
@@ -51,7 +51,15 @@ contract InkdRegistryTest is Test {
     function _createProject(address who, string memory name) internal returns (uint256) {
         vm.startPrank(who);
         token.approve(address(registry), 1 ether);
-        registry.createProject(name, "A test project", true);
+        registry.createProject(name, "A test project", "MIT", true, "", false, "");
+        vm.stopPrank();
+        return registry.projectCount();
+    }
+
+    function _createAgentProject(address who, string memory name, string memory endpoint) internal returns (uint256) {
+        vm.startPrank(who);
+        token.approve(address(registry), 1 ether);
+        registry.createProject(name, "An agent project", "Apache-2.0", true, "", true, endpoint);
         vm.stopPrank();
         return registry.projectCount();
     }
@@ -82,6 +90,10 @@ contract InkdRegistryTest is Test {
         assertTrue(p.isPublic);
         assertTrue(p.exists);
         assertEq(p.versionCount, 0);
+        assertEq(p.license, "MIT");
+        assertEq(p.readmeHash, "");
+        assertFalse(p.isAgent);
+        assertEq(p.agentEndpoint, "");
     }
 
     function test_createProject_incrementsCount() public {
@@ -101,7 +113,7 @@ contract InkdRegistryTest is Test {
         vm.startPrank(bob);
         token.approve(address(registry), 1 ether);
         vm.expectRevert(InkdRegistry.NameTaken.selector);
-        registry.createProject("taken-name", "dup", true);
+        registry.createProject("taken-name", "dup", "MIT", true, "", false, "");
         vm.stopPrank();
     }
 
@@ -109,14 +121,14 @@ contract InkdRegistryTest is Test {
         vm.startPrank(alice);
         token.approve(address(registry), 1 ether);
         vm.expectRevert(InkdRegistry.EmptyName.selector);
-        registry.createProject("", "desc", true);
+        registry.createProject("", "desc", "MIT", true, "", false, "");
         vm.stopPrank();
     }
 
     function test_createProject_reverts_noApproval() public {
         vm.prank(alice);
         vm.expectRevert();
-        registry.createProject("no-approval", "desc", true);
+        registry.createProject("no-approval", "desc", "MIT", true, "", false, "");
     }
 
     function test_createProject_ownerProjectsList() public {
@@ -127,6 +139,86 @@ contract InkdRegistryTest is Test {
         assertEq(ids.length, 2);
         assertEq(ids[0], 1);
         assertEq(ids[1], 2);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  Name Normalization
+    // ═══════════════════════════════════════════════════════════════════════
+
+    function test_nameNormalization_lowercased() public {
+        uint256 id = _createProject(alice, "MyProject");
+        InkdRegistry.Project memory p = registry.getProject(id);
+        assertEq(p.name, "myproject");
+    }
+
+    function test_nameNormalization_duplicateCaseInsensitive() public {
+        _createProject(alice, "MyProject");
+        vm.startPrank(bob);
+        token.approve(address(registry), 1 ether);
+        vm.expectRevert(InkdRegistry.NameTaken.selector);
+        registry.createProject("myproject", "dup", "MIT", true, "", false, "");
+        vm.stopPrank();
+    }
+
+    function test_nameNormalization_mixedCase() public {
+        _createProject(alice, "HELLO-WORLD");
+        assertTrue(registry.nameTaken("hello-world"));
+        assertFalse(registry.nameTaken("HELLO-WORLD"));
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  License
+    // ═══════════════════════════════════════════════════════════════════════
+
+    function test_createProject_license() public {
+        vm.startPrank(alice);
+        token.approve(address(registry), 1 ether);
+        registry.createProject("licensed-proj", "desc", "GPL-3.0", true, "", false, "");
+        vm.stopPrank();
+
+        InkdRegistry.Project memory p = registry.getProject(1);
+        assertEq(p.license, "GPL-3.0");
+    }
+
+    function test_createProject_license_proprietary() public {
+        vm.startPrank(alice);
+        token.approve(address(registry), 1 ether);
+        registry.createProject("prop-proj", "desc", "Proprietary", false, "", false, "");
+        vm.stopPrank();
+
+        InkdRegistry.Project memory p = registry.getProject(1);
+        assertEq(p.license, "Proprietary");
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  README Hash
+    // ═══════════════════════════════════════════════════════════════════════
+
+    function test_createProject_readmeHash() public {
+        vm.startPrank(alice);
+        token.approve(address(registry), 1 ether);
+        registry.createProject("readme-proj", "desc", "MIT", true, "ar://readme123", false, "");
+        vm.stopPrank();
+
+        InkdRegistry.Project memory p = registry.getProject(1);
+        assertEq(p.readmeHash, "ar://readme123");
+    }
+
+    function test_setReadme() public {
+        uint256 id = _createProject(alice, "readme-update");
+        assertEq(registry.getProject(id).readmeHash, "");
+
+        vm.prank(alice);
+        registry.setReadme(id, "ar://newreadme456");
+
+        assertEq(registry.getProject(id).readmeHash, "ar://newreadme456");
+    }
+
+    function test_setReadme_reverts_notOwner() public {
+        uint256 id = _createProject(alice, "readme-fail");
+        vm.prank(bob);
+        vm.expectRevert(InkdRegistry.NotOwner.selector);
+        registry.setReadme(id, "ar://hacked");
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -206,6 +298,47 @@ contract InkdRegistryTest is Test {
     }
 
     // ═══════════════════════════════════════════════════════════════════════
+    //  Variable Version Fee
+    // ═══════════════════════════════════════════════════════════════════════
+
+    function test_versionFee_default() public view {
+        assertEq(registry.versionFee(), 0.001 ether);
+    }
+
+    function test_setVersionFee() public {
+        registry.setVersionFee(0.005 ether);
+        assertEq(registry.versionFee(), 0.005 ether);
+    }
+
+    function test_setVersionFee_reverts_exceedsMax() public {
+        vm.expectRevert(InkdRegistry.FeeExceedsMax.selector);
+        registry.setVersionFee(0.02 ether);
+    }
+
+    function test_setVersionFee_reverts_notOwner() public {
+        vm.prank(alice);
+        vm.expectRevert();
+        registry.setVersionFee(0.002 ether);
+    }
+
+    function test_pushVersion_withNewFee() public {
+        registry.setVersionFee(0.005 ether);
+
+        uint256 id = _createProject(alice, "new-fee-proj");
+        vm.deal(alice, 1 ether);
+
+        // Old fee should fail
+        vm.prank(alice);
+        vm.expectRevert(InkdRegistry.InsufficientFee.selector);
+        registry.pushVersion{value: 0.001 ether}(id, "ar://x", "0.1", "nope");
+
+        // New fee should succeed
+        vm.prank(alice);
+        registry.pushVersion{value: 0.005 ether}(id, "ar://x", "0.1", "works");
+        assertEq(registry.getVersionCount(id), 1);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
     //  Collaborators
     // ═══════════════════════════════════════════════════════════════════════
 
@@ -270,13 +403,18 @@ contract InkdRegistryTest is Test {
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    //  Transfer
+    //  Transfer (now requires transferFee)
     // ═══════════════════════════════════════════════════════════════════════
+
+    function test_transferFee_default() public view {
+        assertEq(registry.transferFee(), 0.005 ether);
+    }
 
     function test_transferProject() public {
         uint256 id = _createProject(alice, "transfer-proj");
+        vm.deal(alice, 1 ether);
         vm.prank(alice);
-        registry.transferProject(id, bob);
+        registry.transferProject{value: 0.005 ether}(id, bob);
 
         InkdRegistry.Project memory p = registry.getProject(id);
         assertEq(p.owner, bob);
@@ -290,6 +428,23 @@ contract InkdRegistryTest is Test {
         uint256[] memory bobProjects = registry.getOwnerProjects(bob);
         assertEq(bobProjects.length, 1);
         assertEq(bobProjects[0], id);
+    }
+
+    function test_transferProject_sendsFeeToTreasury() public {
+        uint256 id = _createProject(alice, "transfer-fee-test");
+        vm.deal(alice, 1 ether);
+        uint256 treasuryBefore = address(treasury).balance;
+        vm.prank(alice);
+        registry.transferProject{value: 0.005 ether}(id, bob);
+        assertEq(address(treasury).balance, treasuryBefore + 0.005 ether);
+    }
+
+    function test_transferProject_reverts_insufficientFee() public {
+        uint256 id = _createProject(alice, "transfer-cheap");
+        vm.deal(alice, 1 ether);
+        vm.prank(alice);
+        vm.expectRevert(InkdRegistry.InsufficientFee.selector);
+        registry.transferProject{value: 0.001 ether}(id, bob);
     }
 
     function test_transferProject_reverts_notOwner() public {
@@ -312,12 +467,29 @@ contract InkdRegistryTest is Test {
         registry.addCollaborator(id, bob);
         assertTrue(registry.isCollaborator(id, bob));
 
+        vm.deal(alice, 1 ether);
         vm.prank(alice);
-        registry.transferProject(id, bob);
+        registry.transferProject{value: 0.005 ether}(id, bob);
 
         // Bob is now owner, no longer collaborator
         assertFalse(registry.isCollaborator(id, bob));
         assertEq(registry.getProject(id).owner, bob);
+    }
+
+    function test_setTransferFee() public {
+        registry.setTransferFee(0.01 ether);
+        assertEq(registry.transferFee(), 0.01 ether);
+    }
+
+    function test_setTransferFee_reverts_exceedsMax() public {
+        vm.expectRevert(InkdRegistry.FeeExceedsMax.selector);
+        registry.setTransferFee(0.1 ether);
+    }
+
+    function test_setTransferFee_reverts_notOwner() public {
+        vm.prank(alice);
+        vm.expectRevert();
+        registry.setTransferFee(0.01 ether);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -342,6 +514,68 @@ contract InkdRegistryTest is Test {
         vm.prank(bob);
         vm.expectRevert(InkdRegistry.NotOwner.selector);
         registry.setVisibility(id, false);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  Agent Registry
+    // ═══════════════════════════════════════════════════════════════════════
+
+    function test_createAgentProject() public {
+        uint256 id = _createAgentProject(alice, "my-agent", "https://api.agent.io/v1");
+
+        InkdRegistry.Project memory p = registry.getProject(id);
+        assertTrue(p.isAgent);
+        assertEq(p.agentEndpoint, "https://api.agent.io/v1");
+        assertEq(p.license, "Apache-2.0");
+    }
+
+    function test_getAgentProjects() public {
+        _createProject(alice, "normal-1");
+        _createAgentProject(alice, "agent-1", "https://agent1.io");
+        _createProject(bob, "normal-2");
+        _createAgentProject(bob, "agent-2", "https://agent2.io");
+        _createAgentProject(charlie, "agent-3", "https://agent3.io");
+
+        InkdRegistry.Project[] memory agents = registry.getAgentProjects(0, 10);
+        assertEq(agents.length, 3);
+        assertEq(agents[0].name, "agent-1");
+        assertEq(agents[1].name, "agent-2");
+        assertEq(agents[2].name, "agent-3");
+    }
+
+    function test_getAgentProjects_pagination() public {
+        _createAgentProject(alice, "agent-a", "https://a.io");
+        _createAgentProject(bob, "agent-b", "https://b.io");
+        _createAgentProject(charlie, "agent-c", "https://c.io");
+
+        // offset=1, limit=1 => second agent only
+        InkdRegistry.Project[] memory page = registry.getAgentProjects(1, 1);
+        assertEq(page.length, 1);
+        assertEq(page[0].name, "agent-b");
+    }
+
+    function test_getAgentProjects_emptyOffset() public {
+        _createAgentProject(alice, "agent-x", "https://x.io");
+
+        InkdRegistry.Project[] memory agents = registry.getAgentProjects(5, 10);
+        assertEq(agents.length, 0);
+    }
+
+    function test_setAgentEndpoint() public {
+        uint256 id = _createAgentProject(alice, "endpoint-agent", "https://old.io");
+
+        vm.prank(alice);
+        registry.setAgentEndpoint(id, "https://new.io");
+
+        assertEq(registry.getProject(id).agentEndpoint, "https://new.io");
+    }
+
+    function test_setAgentEndpoint_reverts_notOwner() public {
+        uint256 id = _createAgentProject(alice, "endpoint-fail", "https://old.io");
+
+        vm.prank(bob);
+        vm.expectRevert(InkdRegistry.NotOwner.selector);
+        registry.setAgentEndpoint(id, "https://hacked.io");
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -372,15 +606,19 @@ contract InkdRegistryTest is Test {
         // 2 versions
         assertEq(registry.getVersionCount(id), 2);
 
-        // Alice transfers to charlie
+        // Alice transfers to charlie (requires transfer fee)
+        vm.deal(alice, 1 ether);
         vm.prank(alice);
-        registry.transferProject(id, charlie);
+        registry.transferProject{value: 0.005 ether}(id, charlie);
 
         // Charlie is new owner
         assertEq(registry.getProject(id).owner, charlie);
 
         // Token still locked
         assertEq(token.balanceOf(address(registry)), 1 ether);
+
+        // Treasury has version fees + transfer fee
+        assertEq(address(treasury).balance, 0.007 ether);
 
         // Charlie can push version
         vm.deal(charlie, 1 ether);
