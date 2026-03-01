@@ -71,6 +71,15 @@ contract InkdTreasuryTest is Test {
         assertEq(address(treasury).balance, 0.5 ether);
     }
 
+    function test_receive_emitsReceived() public {
+        vm.deal(alice, 1 ether);
+        vm.expectEmit(true, false, false, true);
+        emit InkdTreasury.Received(alice, 0.25 ether);
+        vm.prank(alice);
+        (bool ok,) = address(treasury).call{value: 0.25 ether}("");
+        assertTrue(ok);
+    }
+
     // ───── Withdraw ─────
 
     function test_withdraw() public {
