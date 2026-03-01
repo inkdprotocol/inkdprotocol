@@ -307,7 +307,7 @@ contract InkdProtocolTest is Test {
 
         vm.prank(alice);
         vm.expectRevert(InkdVault.EmptyArweaveHash.selector);
-        vault.inscribe(tokenId, "", "text/plain", 100, "test.txt");
+        vault.inscribe{value: 0.001 ether}(tokenId, "", "text/plain", 100, "test.txt");
     }
 
     function test_MultipleInscriptions() public {
@@ -315,9 +315,9 @@ contract InkdProtocolTest is Test {
         uint256 tokenId = token.mint{value: MINT_PRICE}();
 
         vm.startPrank(alice);
-        vault.inscribe(tokenId, "hash1", "text/plain", 100, "file1.txt");
-        vault.inscribe(tokenId, "hash2", "image/png", 2048, "image.png");
-        vault.inscribe(tokenId, "hash3", "application/json", 512, "data.json");
+        vault.inscribe{value: 0.001 ether}(tokenId, "hash1", "text/plain", 100, "file1.txt");
+        vault.inscribe{value: 0.001 ether}(tokenId, "hash2", "image/png", 2048, "image.png");
+        vault.inscribe{value: 0.001 ether}(tokenId, "hash3", "application/json", 512, "data.json");
         vm.stopPrank();
 
         InkdVault.Inscription[] memory inscs = vault.getInscriptions(tokenId);
@@ -330,7 +330,7 @@ contract InkdProtocolTest is Test {
         uint256 tokenId = token.mint{value: MINT_PRICE}();
 
         vm.startPrank(alice);
-        vault.inscribe(tokenId, "hash1", "text/plain", 100, "file.txt");
+        vault.inscribe{value: 0.001 ether}(tokenId, "hash1", "text/plain", 100, "file.txt");
         vault.removeInscription(tokenId, 0);
         vm.stopPrank();
 
@@ -344,7 +344,7 @@ contract InkdProtocolTest is Test {
         uint256 tokenId = token.mint{value: MINT_PRICE}();
 
         vm.startPrank(alice);
-        vault.inscribe(tokenId, "hash1", "text/plain", 100, "file.txt");
+        vault.inscribe{value: 0.001 ether}(tokenId, "hash1", "text/plain", 100, "file.txt");
         vault.removeInscription(tokenId, 0);
 
         vm.expectRevert(abi.encodeWithSelector(InkdVault.InscriptionAlreadyRemoved.selector, tokenId, 0));
@@ -366,7 +366,7 @@ contract InkdProtocolTest is Test {
         uint256 tokenId = token.mint{value: MINT_PRICE}();
 
         vm.startPrank(alice);
-        vault.inscribe(tokenId, "hash_v1", "text/plain", 100, "file.txt");
+        vault.inscribe{value: 0.001 ether}(tokenId, "hash_v1", "text/plain", 100, "file.txt");
         vault.updateInscription(tokenId, 0, "hash_v2");
         vm.stopPrank();
 
@@ -385,7 +385,7 @@ contract InkdProtocolTest is Test {
         uint256 tokenId = token.mint{value: MINT_PRICE}();
 
         vm.startPrank(alice);
-        vault.inscribe(tokenId, "hash", "text/plain", 100, "file.txt");
+        vault.inscribe{value: 0.001 ether}(tokenId, "hash", "text/plain", 100, "file.txt");
         vault.removeInscription(tokenId, 0);
 
         vm.expectRevert(abi.encodeWithSelector(InkdVault.InscriptionAlreadyRemoved.selector, tokenId, 0));
@@ -771,7 +771,7 @@ contract InkdProtocolTest is Test {
         uint256 tokenId = token.mint{value: MINT_PRICE}();
 
         vm.prank(alice);
-        vault.inscribe(tokenId, "file_hash_1", "application/json", 2048, "brain.json");
+        vault.inscribe{value: 0.001 ether}(tokenId, "file_hash_1", "application/json", 2048, "brain.json");
 
         assertEq(token.inscriptionCount(tokenId), 1);
 
@@ -782,13 +782,13 @@ contract InkdProtocolTest is Test {
         assertEq(token.inscriptionCount(tokenId), 1);
 
         vm.prank(bob);
-        vault.inscribe(tokenId, "file_hash_2", "text/plain", 512, "notes.txt");
+        vault.inscribe{value: 0.001 ether}(tokenId, "file_hash_2", "text/plain", 512, "notes.txt");
 
         assertEq(token.inscriptionCount(tokenId), 2);
 
         vm.prank(alice);
         vm.expectRevert(InkdVault.NotInkdHolder.selector);
-        vault.inscribe(tokenId, "fail", "text/plain", 100, "fail.txt");
+        vault.inscribe{value: 0.001 ether}(tokenId, "fail", "text/plain", 100, "fail.txt");
     }
 
     function test_FullFlow_RegisterAndSell() public {
@@ -799,7 +799,7 @@ contract InkdProtocolTest is Test {
         tags[0] = "agent-brain";
         registry.registerToken(tokenId, true, tags);
 
-        vault.inscribe(tokenId, "brain_v1", "application/json", 4096, "full-brain.json");
+        vault.inscribe{value: 0.001 ether}(tokenId, "brain_v1", "application/json", 4096, "full-brain.json");
 
         token.approve(address(registry), tokenId);
         registry.listForSale(tokenId, 2 ether);
@@ -820,7 +820,7 @@ contract InkdProtocolTest is Test {
         uint256 tokenId = token.mint{value: MINT_PRICE}();
 
         vm.prank(alice);
-        vault.inscribe(tokenId, "secret", "text/plain", 100, "secret.txt");
+        vault.inscribe{value: 0.001 ether}(tokenId, "secret", "text/plain", 100, "secret.txt");
 
         vm.prank(alice);
         vault.grantReadAccess(tokenId, bob, block.timestamp + 1 hours);
@@ -831,7 +831,7 @@ contract InkdProtocolTest is Test {
         // However, bob IS an InkdHolder check will fail since bob doesn't have a token
         vm.prank(bob);
         vm.expectRevert(InkdVault.NotInkdHolder.selector);
-        vault.inscribe(tokenId, "unauthorized", "text/plain", 100, "hack.txt");
+        vault.inscribe{value: 0.001 ether}(tokenId, "unauthorized", "text/plain", 100, "hack.txt");
 
         vm.warp(block.timestamp + 2 hours);
         assertFalse(vault.hasAccess(tokenId, bob));
