@@ -133,7 +133,6 @@ contract InkdToken is
         __ERC721Enumerable_init();
         __ERC721Royalty_init();
         __Ownable_init(_owner);
-        // UUPSUpgradeable and ReentrancyGuard: no init needed in OZ v5
 
         mintPrice = _mintPrice;
         _setDefaultRoyalty(_owner, _royaltyBps);

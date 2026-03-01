@@ -213,7 +213,8 @@ contract InkdRegistry is
         if (_owner == address(0) || _inkdToken == address(0)) revert ZeroAddress();
 
         __Ownable_init(_owner);
-        // UUPSUpgradeable and ReentrancyGuard: no init needed in OZ v5
+
+
 
         inkdToken = IInkdTokenForRegistry(_inkdToken);
         marketplaceFeeBps = 250; // 2.5%
