@@ -1,17 +1,10 @@
 /**
  * @file AgentMemory.ts
- * @description The killer feature of Inkd Protocol — agents storing their memory as tokens.
+ * @description Complete agent brain management for the Inkd Protocol.
  *
- *              Every memory, skill, experience, or learned behavior is minted as an
- *              Inkd token. The agent's wallet IS its brain. Transfer your wallet,
- *              transfer your entire knowledge. Burn a token, forget a memory.
- *
- *              This enables:
- *              - Persistent agent memory across sessions
- *              - Agent-to-agent knowledge transfer (purchase memories)
- *              - Full brain export/import (switch wallets, fork agents)
- *              - Versioned memories (update what you know)
- *              - Tagged, searchable knowledge graph
+ *              Every memory is inscribed on an InkdToken via InkdVault.
+ *              Save, load, update, search, checkpoint, restore, export, import.
+ *              Your wallet IS your brain.
  */
 
 import * as fs from "fs";
@@ -19,65 +12,46 @@ import * as path from "path";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
-/** A memory entry stored as an Inkd token. */
 export interface Memory {
-  /** On-chain token ID (set after minting). */
   tokenId: bigint | null;
-  /** Human-readable key for quick lookups. */
+  inscriptionIndex: number | null;
   key: string;
-  /** The actual memory data (any serializable structure). */
   data: unknown;
-  /** Tags for categorization and search. */
   tags: string[];
-  /** Memory category. */
   category: MemoryCategory;
-  /** Importance score (0-100). Higher = more critical. */
   importance: number;
-  /** ISO timestamp of creation. */
   createdAt: string;
-  /** ISO timestamp of last update. */
   updatedAt: string;
-  /** Arweave hash of the stored data. */
   arweaveHash: string | null;
-  /** Number of times this memory has been accessed. */
   accessCount: number;
-  /** Version number (increments on update). */
   version: number;
 }
 
-/** Memory categories for organization. */
 export type MemoryCategory =
-  | "experience"      // Learned behaviors, past interactions
-  | "skill"           // Acquired capabilities
-  | "knowledge"       // Facts, data, information
-  | "preference"      // User/agent preferences
-  | "conversation"    // Past conversation summaries
-  | "code"            // Code snippets, scripts
-  | "config"          // Configuration data
-  | "relationship"    // Agent-to-agent or agent-to-user relationships
-  | "strategy"        // Plans, strategies, goals
-  | "reflection";     // Self-analysis, meta-cognition
+  | "experience"
+  | "skill"
+  | "knowledge"
+  | "preference"
+  | "conversation"
+  | "code"
+  | "config"
+  | "relationship"
+  | "strategy"
+  | "reflection";
 
-/** Search query for memories. */
 export interface MemoryQuery {
-  /** Text to search in keys and data. */
   text?: string;
-  /** Filter by tags (OR match). */
   tags?: string[];
-  /** Filter by category. */
   category?: MemoryCategory;
-  /** Minimum importance score. */
   minImportance?: number;
-  /** Maximum number of results. */
   limit?: number;
 }
 
-/** Export format for full brain dump. */
 export interface BrainExport {
   agentId: string;
   exportedAt: string;
   memoryCount: number;
-  categories: Record<MemoryCategory, number>;
+  categories: Record<string, number>;
   memories: Memory[];
   metadata: {
     totalAccessCount: number;
@@ -87,83 +61,108 @@ export interface BrainExport {
   };
 }
 
-/** Options for saving a memory. */
-export interface SaveOptions {
-  /** Memory category. Default: "knowledge". */
-  category?: MemoryCategory;
-  /** Importance score 0-100. Default: 50. */
-  importance?: number;
-  /** Price in wei if memory should be purchasable. Default: 0 (not for sale). */
-  price?: bigint;
+export interface Checkpoint {
+  id: string;
+  label: string;
+  createdAt: string;
+  memoryCount: number;
+  memories: Memory[];
+  tokenId: bigint | null;
+  inscriptionIndex: number | null;
 }
 
-// ─── Types for SDK integration ──────────────────────────────────────────────
+export interface SaveOptions {
+  category?: MemoryCategory;
+  importance?: number;
+}
 
-/** Minimal interface for the Inkd SDK client. */
+// ─── SDK Interface ──────────────────────────────────────────────────────────
+
 interface IInkdClient {
-  mint(
-    file: Buffer | Uint8Array,
-    options: { contentType: string; price?: bigint; metadataURI?: string }
-  ): Promise<{ hash: `0x${string}`; tokenId?: bigint }>;
-
-  addVersion(
+  inscribe(
     tokenId: bigint,
-    file: Buffer | Uint8Array,
-    contentType: string
+    data: Buffer | Uint8Array | string,
+    options?: { contentType?: string; name?: string; value?: bigint }
+  ): Promise<{ hash: `0x${string}`; inscriptionIndex: bigint; upload: { hash: string } }>;
+
+  updateInscription(
+    tokenId: bigint,
+    index: number,
+    newData: Buffer | Uint8Array | string,
+    contentType?: string
   ): Promise<{ hash: `0x${string}` }>;
 
-  getData(tokenId: bigint): Promise<Buffer>;
-  getToken(tokenId: bigint): Promise<{ tokenId: bigint; arweaveHash: string; versions: string[] }>;
-  getTokensByOwner(address: `0x${string}`): Promise<Array<{ tokenId: bigint; arweaveHash: string; metadataURI: string }>>;
+  getInscriptions(
+    tokenId: bigint
+  ): Promise<Array<{
+    arweaveHash: string;
+    contentType: string;
+    size: bigint;
+    name: string;
+    createdAt: bigint;
+    isRemoved: boolean;
+    version: bigint;
+  }>>;
+
+  getToken(tokenId: bigint): Promise<{ tokenId: bigint; owner: `0x${string}` }>;
+  getTokensByOwner(address: `0x${string}`): Promise<Array<{ tokenId: bigint }>>;
+  hasInkdToken(address: `0x${string}`): Promise<boolean>;
 }
 
-// ─── Constants ──────────────────────────────────────────────────────────────
-
-const DATA_DIR = path.join(__dirname, "data");
-const INDEX_FILE = path.join(DATA_DIR, "memory-index.json");
+interface IArweaveClient {
+  downloadData(hash: string): Promise<Buffer>;
+}
 
 // ─── Agent Memory ───────────────────────────────────────────────────────────
 
 export class AgentMemory {
   private agentId: string;
   private memories: Map<string, Memory> = new Map();
-  private tokenIndex: Map<string, string> = new Map(); // tokenId -> key
+  private checkpoints: Map<string, Checkpoint> = new Map();
   private client: IInkdClient | null = null;
+  private arweave: IArweaveClient | null = null;
+  private defaultTokenId: bigint | null = null;
+  private dataDir: string;
 
-  /**
-   * Create a new AgentMemory instance.
-   *
-   * @param agentId   Unique identifier for this agent.
-   * @param client    Optional InkdClient for on-chain minting. If null, operates in local-only mode.
-   */
-  constructor(agentId: string, client?: IInkdClient) {
+  constructor(
+    agentId: string,
+    options?: {
+      client?: IInkdClient;
+      arweave?: IArweaveClient;
+      defaultTokenId?: bigint;
+      dataDir?: string;
+    }
+  ) {
     this.agentId = agentId;
-    this.client = client ?? null;
+    this.client = options?.client ?? null;
+    this.arweave = options?.arweave ?? null;
+    this.defaultTokenId = options?.defaultTokenId ?? null;
+    this.dataDir = options?.dataDir ?? path.join(__dirname, "data");
+
     this.ensureDataDir();
     this.loadIndex();
   }
 
-  /**
-   * Save a memory. Optionally mints it as an Inkd token on-chain.
-   *
-   * @param key     Unique key for the memory.
-   * @param data    Any serializable data to store.
-   * @param tags    Tags for categorization and search.
-   * @param options Save options (category, importance, price).
-   * @returns       Token ID if minted on-chain, null if local-only.
-   */
+  /** Save a memory. Inscribes to InkdToken if client is connected. */
   async save(
     key: string,
     data: unknown,
-    tags: string[] = [],
-    options: SaveOptions = {}
-  ): Promise<bigint | null> {
+    metadata?: { tags?: string[]; category?: MemoryCategory; importance?: number }
+  ): Promise<{ tokenId: bigint | null; inscriptionIndex: number | null }> {
     const now = new Date().toISOString();
-    const category = options.category ?? "knowledge";
-    const importance = options.importance ?? 50;
+    const tags = metadata?.tags ?? [];
+    const category = metadata?.category ?? "knowledge";
+    const importance = metadata?.importance ?? 50;
+
+    // Check if memory already exists (update instead)
+    const existing = this.memories.get(key);
+    if (existing) {
+      return this.updateMemory(key, data);
+    }
 
     const memory: Memory = {
-      tokenId: null,
+      tokenId: this.defaultTokenId,
+      inscriptionIndex: null,
       key,
       data,
       tags,
@@ -176,9 +175,9 @@ export class AgentMemory {
       version: 1,
     };
 
-    // Mint on-chain if client is connected
-    if (this.client) {
-      const payload = Buffer.from(JSON.stringify({
+    // Inscribe on-chain if client is connected
+    if (this.client && this.defaultTokenId !== null) {
+      const payload = JSON.stringify({
         agentId: this.agentId,
         key,
         data,
@@ -187,62 +186,55 @@ export class AgentMemory {
         importance,
         version: 1,
         createdAt: now,
-      }));
-
-      const metadataURI = `inkd://memory/${this.agentId}/${encodeURIComponent(key)}`;
-
-      const result = await this.client.mint(payload, {
-        contentType: "application/json",
-        price: options.price,
-        metadataURI,
       });
 
-      memory.tokenId = result.tokenId ?? null;
-      if (memory.tokenId !== null) {
-        this.tokenIndex.set(memory.tokenId.toString(), key);
-      }
+      const result = await this.client.inscribe(this.defaultTokenId, payload, {
+        contentType: "application/json",
+        name: `memory:${key}`,
+      });
+
+      memory.inscriptionIndex = Number(result.inscriptionIndex);
+      memory.arweaveHash = result.upload.hash;
     }
 
     this.memories.set(key, memory);
     this.saveIndex();
 
-    return memory.tokenId;
+    return {
+      tokenId: memory.tokenId,
+      inscriptionIndex: memory.inscriptionIndex,
+    };
   }
 
-  /**
-   * Load a memory by its token ID.
-   *
-   * @param tokenId On-chain token ID.
-   * @returns       The memory data, or null if not found.
-   */
-  async load(tokenId: bigint): Promise<unknown | null> {
-    // Check local index first
-    const key = this.tokenIndex.get(tokenId.toString());
-    if (key) {
-      const memory = this.memories.get(key);
-      if (memory) {
+  /** Load a memory by tokenId and inscription index. */
+  async load(tokenId: bigint, index: number): Promise<unknown | null> {
+    // Check local first
+    for (const memory of this.memories.values()) {
+      if (
+        memory.tokenId !== null &&
+        memory.tokenId === tokenId &&
+        memory.inscriptionIndex === index
+      ) {
         memory.accessCount++;
         this.saveIndex();
         return memory.data;
       }
     }
 
-    // Fetch from on-chain if client available
-    if (this.client) {
-      const rawData = await this.client.getData(tokenId);
-      const parsed = JSON.parse(rawData.toString());
-      return parsed.data ?? parsed;
+    // Fetch from Arweave if available
+    if (this.client && this.arweave) {
+      const inscriptions = await this.client.getInscriptions(tokenId);
+      if (index < inscriptions.length && !inscriptions[index].isRemoved) {
+        const rawData = await this.arweave.downloadData(inscriptions[index].arweaveHash);
+        const parsed = JSON.parse(rawData.toString());
+        return parsed.data ?? parsed;
+      }
     }
 
     return null;
   }
 
-  /**
-   * Load a memory by its key.
-   *
-   * @param key Memory key.
-   * @returns   The memory data, or null if not found.
-   */
+  /** Load a memory by key. */
   loadByKey(key: string): unknown | null {
     const memory = this.memories.get(key);
     if (memory) {
@@ -253,105 +245,45 @@ export class AgentMemory {
     return null;
   }
 
-  /**
-   * Update an existing memory. Creates a new version on-chain.
-   *
-   * @param tokenId Token ID of the memory to update.
-   * @param newData Updated data.
-   * @returns       New token ID if a new version was minted.
-   */
-  async update(
-    tokenId: bigint,
-    newData: unknown
-  ): Promise<bigint | null> {
-    const key = this.tokenIndex.get(tokenId.toString());
-    if (!key) {
-      throw new Error(`No memory found for tokenId ${tokenId}`);
+  /** Update an existing memory. Creates a new version on-chain. */
+  async update(tokenId: bigint, index: number, newData: unknown): Promise<void> {
+    // Find memory by tokenId + index
+    for (const [key, memory] of this.memories) {
+      if (memory.tokenId === tokenId && memory.inscriptionIndex === index) {
+        await this.updateMemory(key, newData);
+        return;
+      }
     }
-
-    const memory = this.memories.get(key);
-    if (!memory) {
-      throw new Error(`Memory index corrupt: key ${key} not found`);
-    }
-
-    const now = new Date().toISOString();
-    memory.data = newData;
-    memory.updatedAt = now;
-    memory.version++;
-
-    // Push new version on-chain
-    if (this.client && memory.tokenId !== null) {
-      const payload = Buffer.from(JSON.stringify({
-        agentId: this.agentId,
-        key,
-        data: newData,
-        tags: memory.tags,
-        category: memory.category,
-        importance: memory.importance,
-        version: memory.version,
-        updatedAt: now,
-      }));
-
-      await this.client.addVersion(memory.tokenId, payload, "application/json");
-    }
-
-    this.saveIndex();
-    return memory.tokenId;
+    throw new Error(`No memory found for tokenId ${tokenId} at index ${index}`);
   }
 
-  /**
-   * Update a memory by key.
-   *
-   * @param key     Memory key.
-   * @param newData Updated data.
-   */
-  async updateByKey(key: string, newData: unknown): Promise<bigint | null> {
-    const memory = this.memories.get(key);
-    if (!memory) {
-      throw new Error(`No memory found for key "${key}"`);
+  /** Search memories by text, tags, category, or importance. */
+  search(query: string | MemoryQuery, tags?: string[]): Memory[] {
+    let q: MemoryQuery;
+    if (typeof query === "string") {
+      q = { text: query, tags };
+    } else {
+      q = query;
     }
 
-    if (memory.tokenId !== null) {
-      return this.update(memory.tokenId, newData);
-    }
-
-    // Local-only update
-    memory.data = newData;
-    memory.updatedAt = new Date().toISOString();
-    memory.version++;
-    this.saveIndex();
-    return null;
-  }
-
-  /**
-   * Search memories by text, tags, category, or importance.
-   *
-   * @param query Search query parameters.
-   * @returns     Array of matching memories, sorted by relevance.
-   */
-  search(query: MemoryQuery): Memory[] {
     let results = Array.from(this.memories.values());
 
-    // Filter by category
-    if (query.category) {
-      results = results.filter((m) => m.category === query.category);
+    if (q.category) {
+      results = results.filter((m) => m.category === q.category);
     }
 
-    // Filter by tags (OR match)
-    if (query.tags && query.tags.length > 0) {
+    if (q.tags && q.tags.length > 0) {
       results = results.filter((m) =>
-        query.tags!.some((t) => m.tags.includes(t))
+        q.tags!.some((t) => m.tags.includes(t))
       );
     }
 
-    // Filter by importance
-    if (query.minImportance !== undefined) {
-      results = results.filter((m) => m.importance >= query.minImportance!);
+    if (q.minImportance !== undefined) {
+      results = results.filter((m) => m.importance >= q.minImportance!);
     }
 
-    // Text search
-    if (query.text) {
-      const lower = query.text.toLowerCase();
+    if (q.text) {
+      const lower = q.text.toLowerCase();
       results = results.filter((m) => {
         const keyMatch = m.key.toLowerCase().includes(lower);
         const dataMatch = JSON.stringify(m.data).toLowerCase().includes(lower);
@@ -360,48 +292,43 @@ export class AgentMemory {
       });
     }
 
-    // Sort by relevance (importance * accessCount)
     results.sort((a, b) => {
       const scoreA = a.importance + a.accessCount * 2;
       const scoreB = b.importance + b.accessCount * 2;
       return scoreB - scoreA;
     });
 
-    // Limit results
-    if (query.limit) {
-      results = results.slice(0, query.limit);
+    if (q.limit) {
+      results = results.slice(0, q.limit);
     }
 
     return results;
   }
 
-  /**
-   * Export the agent's entire brain (all memories).
-   *
-   * @returns Complete brain export with metadata.
-   */
-  export(): BrainExport {
-    const allMemories = Array.from(this.memories.values());
+  /** Export the agent's entire brain. */
+  exportBrain(tokenId?: bigint): BrainExport {
+    let allMemories = Array.from(this.memories.values());
 
-    // Count categories
-    const categories = {} as Record<MemoryCategory, number>;
-    for (const m of allMemories) {
-      categories[m.category] = (categories[m.category] ?? 0) + 1;
+    if (tokenId !== undefined) {
+      allMemories = allMemories.filter((m) => m.tokenId === tokenId);
     }
 
-    // Compute metadata
-    const totalAccessCount = allMemories.reduce((s, m) => s + m.accessCount, 0);
-    const sorted = [...allMemories].sort(
-      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-    );
-
-    // Top tags
+    const categories: Record<string, number> = {};
     const tagCounts: Record<string, number> = {};
+    let totalAccess = 0;
+
     for (const m of allMemories) {
+      categories[m.category] = (categories[m.category] ?? 0) + 1;
+      totalAccess += m.accessCount;
       for (const t of m.tags) {
         tagCounts[t] = (tagCounts[t] ?? 0) + 1;
       }
     }
+
+    const sorted = [...allMemories].sort(
+      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    );
+
     const topTags = Object.entries(tagCounts)
       .sort(([, a], [, b]) => b - a)
       .slice(0, 10)
@@ -414,7 +341,7 @@ export class AgentMemory {
       categories,
       memories: allMemories,
       metadata: {
-        totalAccessCount,
+        totalAccessCount: totalAccess,
         oldestMemory: sorted[0]?.createdAt ?? "",
         newestMemory: sorted[sorted.length - 1]?.createdAt ?? "",
         topTags,
@@ -422,31 +349,29 @@ export class AgentMemory {
     };
   }
 
-  /**
-   * Import another agent's brain (load memories from their wallet).
-   * Reads all Inkd tokens owned by the given wallet and loads them as memories.
-   *
-   * @param walletAddress Address of the agent whose brain to import.
-   * @returns             Number of memories imported.
-   */
-  async import(walletAddress: `0x${string}`): Promise<number> {
-    if (!this.client) {
-      throw new Error("InkdClient required for importing from on-chain.");
+  /** Import another agent's brain from their wallet. */
+  async importBrain(tokenId: bigint, fromAddress: `0x${string}`): Promise<number> {
+    if (!this.client || !this.arweave) {
+      throw new Error("InkdClient and ArweaveClient required for importing.");
     }
 
-    const tokens = await this.client.getTokensByOwner(walletAddress);
+    const inscriptions = await this.client.getInscriptions(tokenId);
     let imported = 0;
 
-    for (const token of tokens) {
+    for (let i = 0; i < inscriptions.length; i++) {
+      const insc = inscriptions[i];
+      if (insc.isRemoved) continue;
+
       try {
-        const rawData = await this.client.getData(token.tokenId);
+        const rawData = await this.arweave.downloadData(insc.arweaveHash);
         const parsed = JSON.parse(rawData.toString());
 
-        const key = parsed.key ?? `imported-${token.tokenId}`;
-        if (this.memories.has(key)) continue; // Skip duplicates
+        const key = parsed.key ?? `imported-${tokenId}-${i}`;
+        if (this.memories.has(key)) continue;
 
         const memory: Memory = {
-          tokenId: token.tokenId,
+          tokenId,
+          inscriptionIndex: i,
           key,
           data: parsed.data ?? parsed,
           tags: parsed.tags ?? ["imported"],
@@ -454,101 +379,128 @@ export class AgentMemory {
           importance: parsed.importance ?? 30,
           createdAt: parsed.createdAt ?? new Date().toISOString(),
           updatedAt: new Date().toISOString(),
-          arweaveHash: token.arweaveHash,
+          arweaveHash: insc.arweaveHash,
           accessCount: 0,
           version: parsed.version ?? 1,
         };
 
         this.memories.set(key, memory);
-        this.tokenIndex.set(token.tokenId.toString(), key);
         imported++;
       } catch {
-        // Skip tokens that aren't valid memories
         continue;
       }
     }
 
-    if (imported > 0) {
-      this.saveIndex();
-    }
-
+    if (imported > 0) this.saveIndex();
     return imported;
   }
 
-  /**
-   * Import from a brain export JSON.
-   *
-   * @param brainExport Previously exported brain data.
-   * @returns           Number of memories imported.
-   */
-  importFromExport(brainExport: BrainExport): number {
-    let imported = 0;
+  /** Save a checkpoint of the current brain state. */
+  async checkpoint(label: string): Promise<Checkpoint> {
+    const allMemories = Array.from(this.memories.values());
+    const now = new Date().toISOString();
+    const id = `checkpoint-${Date.now()}`;
 
-    for (const memory of brainExport.memories) {
-      if (this.memories.has(memory.key)) continue;
+    const cp: Checkpoint = {
+      id,
+      label,
+      createdAt: now,
+      memoryCount: allMemories.length,
+      memories: JSON.parse(JSON.stringify(allMemories, (_, v) =>
+        typeof v === "bigint" ? v.toString() : v
+      )),
+      tokenId: null,
+      inscriptionIndex: null,
+    };
 
-      this.memories.set(memory.key, {
-        ...memory,
-        tokenId: null, // Not minted in this agent's wallet
-        accessCount: 0,
+    // Optionally inscribe checkpoint on-chain
+    if (this.client && this.defaultTokenId !== null) {
+      const payload = JSON.stringify({
+        type: "checkpoint",
+        agentId: this.agentId,
+        label,
+        memoryCount: allMemories.length,
+        createdAt: now,
+        memoryKeys: allMemories.map((m) => m.key),
       });
-      imported++;
+
+      const result = await this.client.inscribe(this.defaultTokenId, payload, {
+        contentType: "application/json",
+        name: `checkpoint:${label}`,
+      });
+
+      cp.tokenId = this.defaultTokenId;
+      cp.inscriptionIndex = Number(result.inscriptionIndex);
     }
 
-    if (imported > 0) {
-      this.saveIndex();
-    }
+    this.checkpoints.set(id, cp);
+    this.saveCheckpoints();
 
-    return imported;
+    return cp;
   }
 
-  /**
-   * Delete a memory by key (does not burn the on-chain token).
-   *
-   * @param key Memory key to delete.
-   */
-  delete(key: string): void {
-    const memory = this.memories.get(key);
-    if (memory?.tokenId !== null && memory?.tokenId !== undefined) {
-      this.tokenIndex.delete(memory.tokenId.toString());
+  /** Restore the brain to a previous checkpoint. */
+  restore(checkpointId: string): void {
+    const cp = this.checkpoints.get(checkpointId);
+    if (!cp) {
+      throw new Error(`Checkpoint "${checkpointId}" not found`);
     }
-    this.memories.delete(key);
+
+    // Clear current memories
+    this.memories.clear();
+
+    // Restore from checkpoint
+    for (const memory of cp.memories) {
+      // Restore bigints
+      if (memory.tokenId !== null) {
+        memory.tokenId = BigInt(memory.tokenId as unknown as string);
+      }
+      this.memories.set(memory.key, memory);
+    }
+
     this.saveIndex();
   }
 
-  /**
-   * Get memory count.
-   */
+  /** Get all checkpoints. */
+  getCheckpoints(): Checkpoint[] {
+    return Array.from(this.checkpoints.values());
+  }
+
+  /** Get memory count. */
   count(): number {
     return this.memories.size;
   }
 
-  /**
-   * Get all memory keys.
-   */
+  /** Get all memory keys. */
   keys(): string[] {
     return Array.from(this.memories.keys());
   }
 
-  /**
-   * Get a summary of the agent's memory state.
-   */
+  /** Delete a memory by key. */
+  delete(key: string): void {
+    this.memories.delete(key);
+    this.saveIndex();
+  }
+
+  /** Set the default token ID for inscriptions. */
+  setDefaultTokenId(tokenId: bigint): void {
+    this.defaultTokenId = tokenId;
+  }
+
+  /** Get agent summary. */
   summary(): {
     agentId: string;
     memoryCount: number;
     categories: Record<string, number>;
     topTags: string[];
-    onChainCount: number;
-    localOnlyCount: number;
+    checkpointCount: number;
   } {
     const allMemories = Array.from(this.memories.values());
     const categories: Record<string, number> = {};
     const tagCounts: Record<string, number> = {};
-    let onChain = 0;
 
     for (const m of allMemories) {
       categories[m.category] = (categories[m.category] ?? 0) + 1;
-      if (m.tokenId !== null) onChain++;
       for (const t of m.tags) {
         tagCounts[t] = (tagCounts[t] ?? 0) + 1;
       }
@@ -564,59 +516,102 @@ export class AgentMemory {
       memoryCount: allMemories.length,
       categories,
       topTags,
-      onChainCount: onChain,
-      localOnlyCount: allMemories.length - onChain,
+      checkpointCount: this.checkpoints.size,
     };
   }
 
-  // ─── Private Helpers ──────────────────────────────────────────────────────
+  // ─── Private ──────────────────────────────────────────────────────────
+
+  private async updateMemory(
+    key: string,
+    newData: unknown
+  ): Promise<{ tokenId: bigint | null; inscriptionIndex: number | null }> {
+    const memory = this.memories.get(key);
+    if (!memory) throw new Error(`Memory "${key}" not found`);
+
+    memory.data = newData;
+    memory.updatedAt = new Date().toISOString();
+    memory.version++;
+
+    if (this.client && memory.tokenId !== null && memory.inscriptionIndex !== null) {
+      const payload = JSON.stringify({
+        agentId: this.agentId,
+        key,
+        data: newData,
+        tags: memory.tags,
+        category: memory.category,
+        importance: memory.importance,
+        version: memory.version,
+        updatedAt: memory.updatedAt,
+      });
+
+      await this.client.updateInscription(
+        memory.tokenId,
+        memory.inscriptionIndex,
+        payload,
+        "application/json"
+      );
+    }
+
+    this.saveIndex();
+    return { tokenId: memory.tokenId, inscriptionIndex: memory.inscriptionIndex };
+  }
 
   private ensureDataDir(): void {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
+    if (!fs.existsSync(this.dataDir)) {
+      fs.mkdirSync(this.dataDir, { recursive: true });
     }
   }
 
   private loadIndex(): void {
-    if (fs.existsSync(INDEX_FILE)) {
-      const raw = fs.readFileSync(INDEX_FILE, "utf-8");
-      const data = JSON.parse(raw);
+    const indexPath = path.join(this.dataDir, "memory-index.json");
+    if (!fs.existsSync(indexPath)) return;
 
-      if (data.memories) {
-        for (const [key, value] of Object.entries(data.memories)) {
+    try {
+      const raw = JSON.parse(fs.readFileSync(indexPath, "utf-8"));
+      if (raw.memories) {
+        for (const [key, value] of Object.entries(raw.memories)) {
           const m = value as Memory;
-          // Restore bigint
           if (m.tokenId !== null) {
             m.tokenId = BigInt(m.tokenId as unknown as string);
           }
           this.memories.set(key, m);
         }
       }
-
-      if (data.tokenIndex) {
-        for (const [tokenId, key] of Object.entries(data.tokenIndex)) {
-          this.tokenIndex.set(tokenId, key as string);
-        }
-      }
+    } catch {
+      // Start fresh
     }
   }
 
   private saveIndex(): void {
-    const memoriesObj: Record<string, Memory & { tokenId: string | null }> = {};
+    const indexPath = path.join(this.dataDir, "memory-index.json");
+    const memoriesObj: Record<string, unknown> = {};
+
     for (const [key, memory] of this.memories) {
       memoriesObj[key] = {
         ...memory,
         tokenId: memory.tokenId !== null ? memory.tokenId.toString() : null,
-      } as Memory & { tokenId: string | null };
+      };
     }
 
-    const data = {
+    fs.writeFileSync(indexPath, JSON.stringify({
       agentId: this.agentId,
       lastSaved: new Date().toISOString(),
       memories: memoriesObj,
-      tokenIndex: Object.fromEntries(this.tokenIndex),
-    };
+    }, null, 2));
+  }
 
-    fs.writeFileSync(INDEX_FILE, JSON.stringify(data, null, 2));
+  private saveCheckpoints(): void {
+    const cpPath = path.join(this.dataDir, "checkpoints.json");
+    const cpObj: Record<string, unknown> = {};
+
+    for (const [id, cp] of this.checkpoints) {
+      cpObj[id] = {
+        ...cp,
+        tokenId: cp.tokenId !== null ? cp.tokenId.toString() : null,
+      };
+    }
+
+    fs.writeFileSync(cpPath, JSON.stringify(cpObj, null, 2));
   }
 }

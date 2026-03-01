@@ -10,5 +10,6 @@ export type {
   MemoryCategory,
   MemoryQuery,
   BrainExport,
+  Checkpoint,
   SaveOptions,
 } from "./AgentMemory";
