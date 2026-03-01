@@ -1,33 +1,37 @@
 /**
  * @file index.ts
- * @description Inkd Protocol self-learning system — tracks X performance,
- *              extracts lessons, generates content, and monitors trends.
+ * @description Inkd Protocol self-learning X system.
+ *              Brain -> ContentEngine -> TrendMonitor -> LearningLoop
  */
 
-export { PerformanceTracker } from "./performance-tracker";
-export type {
-  XPost,
-  PostType,
-  PostFormat,
-  PostMetrics,
-  PerformancePattern,
-  WeeklyReport,
-} from "./performance-tracker";
+export { InkdBrain } from "./InkdBrain";
+export type { BrainConfig, BrainState, CycleResult } from "./InkdBrain";
 
-export { LearningEngine } from "./learning-engine";
-export type { Lesson, StrategyUpdate, TweetScore } from "./learning-engine";
-
-export { ContentGenerator } from "./content-generator";
+export { ContentEngine } from "./ContentEngine";
 export type {
-  ContentType,
+  ContentCategory,
   GeneratedTweet,
   GeneratedThread,
-} from "./content-generator";
+  TweetScoreResult,
+  VoiceProfile,
+} from "./ContentEngine";
 
-export { TrendMonitor } from "./trend-monitor";
+export { TrendMonitor } from "./TrendMonitor";
 export type {
-  Trend,
-  EngagementTarget,
-  InspirationPost,
+  TrendResult,
+  AccountActivity,
+  AccountPost,
+  EmergingNarrative,
+  CompetitorInsight,
   ScanResult,
-} from "./trend-monitor";
+} from "./TrendMonitor";
+
+export { LearningLoop } from "./LearningLoop";
+export type {
+  CycleData,
+  PostRecord,
+  Lesson,
+  StrategyUpdate,
+  PatternAnalysis,
+  StrategyReview,
+} from "./LearningLoop";
