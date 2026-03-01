@@ -21,11 +21,11 @@ pragma solidity ^0.8.24;
  *             -vvvv
  */
 
-import "forge-std/Script.sol";
-import "../src/InkdToken.sol";
-import "../src/InkdVault.sol";
-import "../src/InkdRegistry.sol";
-import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {Script, console} from "forge-std/Script.sol";
+import {InkdToken} from "../src/InkdToken.sol";
+import {InkdVault} from "../src/InkdVault.sol";
+import {InkdRegistry} from "../src/InkdRegistry.sol";
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 contract Deploy is Script {
     function run() external {

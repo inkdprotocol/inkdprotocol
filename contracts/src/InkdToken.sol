@@ -17,14 +17,14 @@ pragma solidity ^0.8.24;
  *         configurable mint price, max supply of 10,000, and batch mint support.
  */
 
-import "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721EnumerableUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721RoyaltyUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/utils/Base64.sol";
-import "@openzeppelin/contracts/utils/Strings.sol";
+import {ERC721Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
+import {ERC721EnumerableUpgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721EnumerableUpgradeable.sol";
+import {ERC721RoyaltyUpgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721RoyaltyUpgradeable.sol";
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {Base64} from "@openzeppelin/contracts/utils/Base64.sol";
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
 contract InkdToken is
     ERC721Upgradeable,
@@ -112,8 +112,12 @@ contract InkdToken is
 
     /// @dev Restricts function access to the vault contract.
     modifier onlyVault() {
-        if (msg.sender != vault) revert OnlyVault();
+        _onlyVault();
         _;
+    }
+
+    function _onlyVault() internal view {
+        if (msg.sender != vault) revert OnlyVault();
     }
 
     // ─── Initializer ──────────────────────────────────────────────────────
@@ -204,7 +208,7 @@ contract InkdToken is
         uint256 minted = mintedAt[tokenId];
         address tokenOwner = ownerOf(tokenId);
 
-        string memory svg = _generateSVG(tokenId, count, minted);
+        string memory svg = _generateSvg(tokenId, count, minted);
         string memory attributes = _generateAttributes(tokenId, count, minted, tokenOwner);
 
         string memory json = string(abi.encodePacked(
@@ -281,12 +285,11 @@ contract InkdToken is
     // ─── Internal: SVG Generation ─────────────────────────────────────────
 
     /// @dev Generates a dynamic SVG based on token data.
-    function _generateSVG(
+    function _generateSvg(
         uint256 tokenId,
         uint256 count,
         uint256 minted
     ) internal pure returns (string memory) {
-        // Color intensity based on inscription count
         string memory glowOpacity = count > 50 ? "0.9" : count > 20 ? "0.7" : count > 5 ? "0.5" : "0.3";
         string memory circleCount = count > 0 ? _generateInscriptionCircles(count) : "";
         string memory ageLabel = _formatAge(minted);
@@ -321,7 +324,6 @@ contract InkdToken is
 
     /// @dev Generates visual circles representing inscriptions.
     function _generateInscriptionCircles(uint256 count) internal pure returns (string memory) {
-        // Show up to 10 circles as visual indicators
         uint256 display = count > 10 ? 10 : count;
         bytes memory circles;
         for (uint256 i; i < display; ) {

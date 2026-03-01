@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "forge-std/Test.sol";
-import "../src/InkdToken.sol";
-import "../src/InkdVault.sol";
-import "../src/InkdRegistry.sol";
-import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {Test} from "forge-std/Test.sol";
+import {InkdToken} from "../src/InkdToken.sol";
+import {InkdVault} from "../src/InkdVault.sol";
+import {InkdRegistry} from "../src/InkdRegistry.sol";
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 /**
  * @title  InkdProtocolTest
@@ -237,7 +237,6 @@ contract InkdProtocolTest is Test {
         assertEq(token.nextTokenId(), 1);
 
         // Store MAX_SUPPLY directly into nextTokenId slot
-        bytes32 slot = bytes32(uint256(0)); // Will need to find the right slot
         // Instead, test with smaller numbers - verify the guard works
         // Mint 9 more to have 10 total, then verify batch overflow check
         vm.startPrank(alice);
