@@ -17,6 +17,7 @@ pragma solidity ^0.8.24;
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 
 interface IInkdToken {
     function ownerOf(uint256 tokenId) external view returns (address);
@@ -28,7 +29,8 @@ interface IInkdToken {
 contract InkdVault is
     OwnableUpgradeable,
     UUPSUpgradeable,
-    ReentrancyGuard
+    ReentrancyGuard,
+    PausableUpgradeable
 {
     // ─── Types ────────────────────────────────────────────────────────────
 
@@ -75,6 +77,12 @@ contract InkdVault is
 
     /// @notice Total inscriptions created across all tokens.
     uint256 public totalInscriptions;
+
+    /// @notice Minimum ETH fee required per inscription (default 0.0001 ETH).
+    uint256 public inscriptionFee;
+
+    /// @notice Maximum access grants per token.
+    uint256 public constant MAX_GRANTS_PER_TOKEN = 100;
 
     // ─── Events ───────────────────────────────────────────────────────────
 
@@ -157,6 +165,9 @@ contract InkdVault is
     /// @dev Insufficient payment for inscription fee.
     error InsufficientFee(uint256 required, uint256 sent);
 
+    /// @dev Too many access grants on this token.
+    error TooManyGrants(uint256 tokenId);
+
     // ─── Modifiers ────────────────────────────────────────────────────────
 
     /// @dev Blocks everyone who doesn't hold an InkdToken.
@@ -180,10 +191,11 @@ contract InkdVault is
         if (_owner == address(0) || _inkdToken == address(0)) revert ZeroAddress();
 
         __Ownable_init(_owner);
-        // UUPSUpgradeable and ReentrancyGuard: no init needed in OZ v5
+        __Pausable_init();
 
         inkdToken = IInkdToken(_inkdToken);
         protocolFeeBps = 100; // 1%
+        inscriptionFee = 0.0001 ether;
     }
 
     // ─── Core: Inscribe ───────────────────────────────────────────────────
@@ -201,8 +213,9 @@ contract InkdVault is
         string calldata contentType,
         uint256 size,
         string calldata name
-    ) external payable onlyInkdHolder onlyTokenOwner(tokenId) nonReentrant returns (uint256 inscriptionIndex) {
+    ) external payable onlyInkdHolder onlyTokenOwner(tokenId) nonReentrant whenNotPaused returns (uint256 inscriptionIndex) {
         if (bytes(arweaveHash).length == 0) revert EmptyArweaveHash();
+        if (msg.value < inscriptionFee) revert InsufficientFee(inscriptionFee, msg.value);
 
         // Calculate and collect protocol fee
         uint256 fee = _calculateFee(msg.value);
@@ -346,6 +359,7 @@ contract InkdVault is
 
         // Track grantee if new
         if (accessGrants[tokenId][wallet].grantee == address(0)) {
+            if (_grantees[tokenId].length >= MAX_GRANTS_PER_TOKEN) revert TooManyGrants(tokenId);
             _grantees[tokenId].push(wallet);
         }
 
@@ -444,6 +458,22 @@ contract InkdVault is
     function setInkdToken(address _inkdToken) external onlyOwner {
         if (_inkdToken == address(0)) revert ZeroAddress();
         inkdToken = IInkdToken(_inkdToken);
+    }
+
+    /// @notice Set the minimum inscription fee.
+    /// @param fee New minimum fee in wei.
+    function setInscriptionFee(uint256 fee) external onlyOwner {
+        inscriptionFee = fee;
+    }
+
+    /// @notice Pause the protocol (emergency stop).
+    function pause() external onlyOwner {
+        _pause();
+    }
+
+    /// @notice Unpause the protocol.
+    function unpause() external onlyOwner {
+        _unpause();
     }
 
     // ─── Internal ─────────────────────────────────────────────────────────
