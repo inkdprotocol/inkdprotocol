@@ -1,452 +1,333 @@
-# Inkd Protocol -- Technical Architecture
+# Architecture
 
-Full technical architecture for the Inkd Protocol ownership layer.
+How Inkd Protocol is designed, why each component exists, and how they interact.
 
 ---
 
-## System Overview
+## The Big Picture
+
+Inkd Protocol is an **ownership layer** — a permanent, trustless registry where projects and their version history live forever on-chain and on Arweave.
+
+Three contracts on Base. One truth layer on Arweave.
 
 ```
-+-------------------------------------------------------------------+
-|                          AI AGENT                                  |
-|                    (LangChain / AutoGPT / Custom)                  |
-+----------------------------------+--------------------------------+
-                                   |
-+----------------------------------v--------------------------------+
-|                           @inkd/sdk                                |
-|                                                                    |
-|  InkdClient        ArweaveClient       AgentMemory                 |
-|  (3-contract)      (Irys uploads)      (brain storage)             |
-|                                                                    |
-|  React Hooks:                                                      |
-|  useInkd  useToken  useInscriptions  useInkdHolder                 |
-+------+------------------+-------------------+---------------------+
-       |                  |                   |
-+------v------+    +------v------+     +------v------+
-| InkdToken   |    | InkdVault   |     | InkdRegistry|
-| ERC-721     |    | Inscription |     | Discovery + |
-| Access Pass |    | Engine      |     | Marketplace |
-| On-chain SVG|    | Versioning  |     | Search/Tags |
-| Max: 10,000 |    | Access Ctrl |     | Buy/Sell    |
-+------+------+    +------+------+     +------+------+
-       |                  |                   |
-       +------------------+-------------------+
-                          |
-                   +------v------+
-                   |    Base     |
-                   | (L2 Chain)  |
-                   +------+------+
-                          |
-                   +------v------+
-                   |   Arweave   |
-                   |  Permanent  |
-                   |   Storage   |
-                   +-------------+
+┌─────────────────────────────────────────────────────────┐
+│                     INKD PROTOCOL                        │
+│                                                           │
+│  ┌──────────────┐    locks      ┌───────────────────┐    │
+│  │  InkdToken   │◄──────────────│   InkdRegistry    │    │
+│  │  (ERC-20)    │  1 $INKD      │  (UUPS Proxy)     │    │
+│  │  1B supply   │               │                   │    │
+│  └──────────────┘               │  createProject()  │    │
+│                                 │  pushVersion()    │────┼──► Arweave
+│                                 │  addCollaborator()│    │    (permanent
+│                                 │  transferProject()│    │     storage)
+│                                 └─────────┬─────────┘    │
+│                                           │              │
+│                                     0.001 ETH            │
+│                                     per version          │
+│                                           │              │
+│                                 ┌─────────▼─────────┐    │
+│                                 │  InkdTreasury     │    │
+│                                 │  (UUPS Proxy)     │    │
+│                                 │                   │    │
+│                                 │  deposit()        │    │
+│                                 │  withdraw()       │    │
+│                                 └───────────────────┘    │
+└─────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Contract Architecture
+## Contract Roles
 
-### Three-Contract Model
+### InkdToken (ERC-20)
 
-Inkd uses a separation-of-concerns approach with three upgradeable contracts:
+The protocol's economic backbone. Not upgradeable — deployed once, immutable forever.
 
-```
-+-------------------+     setVault()      +-------------------+
-|    InkdToken      | <-----------------  |    InkdVault      |
-|                   |                     |                   |
-|  - mint()         |  setInscription     |  - inscribe()     |
-|  - batchMint()    |  Count() --------> |  - removeInscr()  |
-|  - tokenURI()     |                     |  - updateInscr()  |
-|  - isInkdHolder() |                     |  - grantAccess()  |
-|  - ownerOf()      |                     |  - hasAccess()    |
-+-------------------+                     +-------------------+
-        ^                                          ^
-        |            +-------------------+         |
-        |            |   InkdRegistry    |         |
-        +----------- |                   | --------+
-                     |  - register()     |
-                     |  - searchByTag()  |
-                     |  - listForSale()  |
-                     |  - buyToken()     |
-                     +-------------------+
-```
+- **1 billion supply**, minted to the deployer at construction
+- **Burnable** — supply decreases as tokens are burned
+- **Permit-enabled (EIP-2612)** — users can sign off-chain approvals
+- **Not upgradeable** — cannot be modified after deployment
 
-### Why Three Contracts?
+Its primary role in the protocol is as a **commitment mechanism**: locking 1 $INKD into the registry proves that a project registration is intentional and creates deflationary pressure on supply.
 
-| Concern | Contract | Rationale |
-|---------|----------|-----------|
-| Identity & Access | InkdToken | ERC-721 standards, enumeration, royalties |
-| Data Storage | InkdVault | Inscription logic, versioning, access grants |
-| Discovery & Trade | InkdRegistry | Search, tags, marketplace -- separable |
+### InkdRegistry (UUPS Proxy)
 
-Each contract is independently upgradeable via UUPS proxy pattern.
+The core state machine. Stores all project and version data on-chain.
 
-### Proxy Architecture
+- **Upgradeable** via UUPS pattern — protocol can be improved without migrating data
+- **Authoritative** — no project name duplication is ever possible on-chain
+- **Access-controlled** — only owners and collaborators can mutate project state
+- **Fee router** — collects ETH on writes and forwards it to InkdTreasury
 
-```
-+------------------+     delegatecall     +------------------+
-|   ERC1967 Proxy  | ------------------> | Implementation   |
-|  (stable address)|                     | (upgradeable)    |
-|                  |                     |                  |
-|  InkdToken Proxy |                     | InkdToken v1     |
-|  InkdVault Proxy |                     | InkdVault v1     |
-|  InkdRegistry    |                     | InkdRegistry v1  |
-|      Proxy       |                     |                  |
-+------------------+                     +------------------+
-```
+### InkdTreasury (UUPS Proxy)
 
-All storage is in the proxy. Implementation can be swapped without data migration.
+Simple ETH vault. Upgradeable for future fee distribution models.
+
+- **Restricted deposit** — only `InkdRegistry` can call `deposit()`; prevents fee bypassing
+- **Owner withdrawal** — ETH sent to a multisig or DAO for protocol operations
+- **Direct receive** — accepts ETH sent directly (for grants, donations)
 
 ---
 
-## Data Flow
+## Transaction Flows
 
-### Inscription Flow
-
-```
-1. Agent calls inscribe(tokenId, hash, contentType, size, name)
-
-   +-------+     inscribe()    +----------+
-   | Agent | ----------------> | InkdVault|
-   +-------+                   +----+-----+
-                                    |
-                               Check: isInkdHolder?
-                               Check: ownerOf(tokenId)?
-                               Check: protocol fee paid?
-                                    |
-                               +----v-----+
-                               | Store    |
-                               | on-chain |
-                               | mapping  |
-                               +----+-----+
-                                    |
-                               Update InkdToken
-                               inscriptionCount
-                                    |
-                               Emit Inscribed()
-```
-
-### Upload + Inscribe Flow (via SDK)
+### Flow 1: Create a Project
 
 ```
-1. Agent prepares data
-2. SDK uploads to Arweave via Irys -> gets arweaveHash
-3. SDK calls InkdVault.inscribe(tokenId, arweaveHash, ...)
-4. Data is now: permanent on Arweave + referenced on Base
-
-   +-------+    upload()   +------+    arweaveHash    +-------+
-   | Agent | ------------> | Irys | ----------------> | Arweave|
-   +-------+               +------+                   +-------+
-       |
-       |   inscribe(tokenId, hash)
-       +-------------------------> +----------+
-                                   | InkdVault|
-                                   +----------+
+User Wallet
+    │
+    ├──[1] inkdToken.approve(registry, 1 ether)
+    │         InkdToken updates allowance mapping
+    │
+    └──[2] registry.createProject("my-tool", ...)
+              InkdRegistry:
+                ├── Validate name (not empty, not taken)
+                ├── inkdToken.safeTransferFrom(user → registry, 1 ether)
+                │     $INKD is now LOCKED in InkdRegistry forever
+                ├── Assign projectId = ++projectCount
+                ├── Store Project struct in projects[id]
+                ├── nameTaken[normalizedName] = true
+                ├── _ownerProjects[user].push(id)
+                ├── emit ProjectCreated(id, user, name, license)
+                └── if isAgent: emit AgentRegistered(id, endpoint)
 ```
 
-### Access Grant Flow
+**Key property:** The 1 $INKD is locked in `InkdRegistry` permanently. It cannot be withdrawn by the project owner, protocol owner, or anyone else. It is permanently removed from circulation.
+
+---
+
+### Flow 2: Push a Version
 
 ```
-Owner grants Agent B 24-hour access to Token #42:
-
-   +--------+  grantReadAccess()  +----------+
-   | Owner  | ------------------> | InkdVault|
-   +--------+                     +----+-----+
-                                       |
-                                  Store grant:
-                                  { grantee, expiresAt }
-                                       |
-   +--------+   hasAccess(42, B)  +----v-----+
-   | Reader | ------------------> | InkdVault|  -> true (if not expired)
-   +--------+                     +----------+
+User Wallet
+    │
+    ├──[1] Upload content to Arweave (off-chain, via Irys)
+    │         Irys node → Arweave network
+    │         Returns: arweaveHash (43-char base64 txid)
+    │
+    └──[2] registry.pushVersion(projectId, arweaveHash, "1.0.0", "...", {value: 0.001 ETH})
+              InkdRegistry:
+                ├── Validate project exists
+                ├── Validate caller is owner or collaborator
+                ├── Validate msg.value >= versionFee (0.001 ETH)
+                ├── _versions[projectId].push(Version{...})
+                ├── project.versionCount++
+                ├── treasury.deposit{value: msg.value}()
+                │     InkdTreasury records received ETH
+                └── emit VersionPushed(projectId, arweaveHash, "1.0.0", pushedBy)
 ```
 
-### Marketplace Flow
+**Key property:** The on-chain record points to Arweave. The actual content is on Arweave. The `arweaveHash` is permanent — Arweave data cannot be deleted or modified.
+
+---
+
+### Flow 3: Transfer Ownership
 
 ```
-Seller lists Token #42 for 1 ETH:
+Current Owner
+    │
+    └──[1] registry.transferProject(projectId, newOwner, {value: 0.005 ETH})
+              InkdRegistry:
+                ├── Validate project exists + caller is owner
+                ├── Validate newOwner != address(0)
+                ├── Validate msg.value >= transferFee (0.005 ETH)
+                ├── projects[id].owner = newOwner
+                ├── _ownerProjects[newOwner].push(projectId)
+                ├── _ownerProjects[oldOwner]: remove projectId
+                ├── if newOwner was collaborator: remove from collabs
+                ├── treasury.deposit{value: msg.value}()
+                └── emit ProjectTransferred(id, oldOwner, newOwner)
+```
 
-   +--------+  listForSale()   +-----------+
-   | Seller | ---------------> | Registry  |
-   +--------+                  +-----+-----+
-                                     |
-                                Approve Registry
-                                to transfer token
-                                     |
-   +--------+  buyToken()      +-----v-----+
-   | Buyer  | ---------------> | Registry  |
-   +--------+  (sends 1 ETH)  +-----+-----+
-                                     |
-                               Transfer token
-                               Seller gets 0.975 ETH
-                               Protocol gets 0.025 ETH
+**Key property:** The locked $INKD does NOT transfer. It stays locked in InkdRegistry. The project can be sold for any price off-chain (or via a future marketplace contract) while the $INKD lock remains.
+
+---
+
+### Flow 4: Collaborator Push
+
+```
+Collaborator Wallet
+    │
+    ├──[0] (Owner previously called addCollaborator(projectId, collabAddr))
+    │         isCollaborator[projectId][collabAddr] = true
+    │
+    └──[1] registry.pushVersion(projectId, hash, "patch-1", "...", {value: 0.001 ETH})
+              InkdRegistry:
+                ├── Validate caller is owner OR isCollaborator[projectId][msg.sender]
+                └── ... (same as Flow 2)
 ```
 
 ---
 
-## Storage Architecture
+## Why Base?
 
-### On-Chain (Base)
+**Base** is Coinbase's L2 built on the OP Stack.
 
-Stored directly in smart contract storage:
+| Property | Why It Matters for Inkd |
+|----------|------------------------|
+| Low gas fees | Creating projects and pushing versions must be cheap enough for developers and agents to use regularly |
+| EVM-compatible | Standard Solidity + OpenZeppelin contracts, tooling works out of the box |
+| Institutional backing | Coinbase's infrastructure → reliability, bridge liquidity, wallet adoption |
+| Growing ecosystem | Large developer community, wallet integrations, DeFi primitives |
+| Fast finality | ~2 second block times → good UX for on-chain operations |
 
-| Data | Contract | Gas Cost |
-|------|----------|----------|
-| Token ownership | InkdToken | Standard ERC-721 |
-| Inscription metadata | InkdVault | ~50k gas per inscribe |
-| Version history | InkdVault | ~30k gas per update |
-| Access grants | InkdVault | ~30k gas per grant |
-| Token registrations | InkdRegistry | ~60k gas per register |
-| Marketplace listings | InkdRegistry | ~40k gas per listing |
-
-### Off-Chain (Arweave)
-
-Stored permanently on Arweave via Irys:
-
-| Data | Format | Access |
-|------|--------|--------|
-| Agent memories | JSON | Via arweaveHash from inscription |
-| Code files | text/* | Via arweaveHash from inscription |
-| Model weights | binary | Via arweaveHash from inscription |
-| Config files | JSON | Via arweaveHash from inscription |
-| Any file type | any MIME | Via arweaveHash from inscription |
-
-### Local (Agent Memory System)
-
-Cached locally for fast access:
-
-```
-data/
-  memory-index.json    # Memory key -> inscription mapping
-  checkpoints.json     # Saved brain states
-```
+Base Mainnet: `chainId: 8453`  
+Base Sepolia (testnet): `chainId: 84532`
 
 ---
 
-## SDK Architecture
+## Why Arweave?
 
-### Client Class Hierarchy
+Arweave provides **permanent, immutable, decentralized storage**.
 
-```
-InkdClient
-  |
-  +-- connect(walletClient, publicClient)
-  |     Connects to Base via viem
-  |
-  +-- connectArweave(privateKey)
-  |     Initializes ArweaveClient with Irys
-  |
-  +-- Token Operations
-  |     mintToken() -> InkdToken.mint()
-  |     getToken()  -> InkdToken read
-  |     getTokensByOwner() -> InkdToken.getTokensByOwner()
-  |     hasInkdToken() -> InkdToken.isInkdHolder()
-  |
-  +-- Inscription Operations
-  |     inscribe()  -> Irys upload + InkdVault.inscribe()
-  |     getInscriptions() -> InkdVault.getInscriptions()
-  |     removeInscription() -> InkdVault.removeInscription()
-  |     updateInscription() -> InkdVault.updateInscription()
-  |
-  +-- Access Operations
-  |     grantAccess() -> InkdVault.grantReadAccess()
-  |     revokeAccess() -> InkdVault.revokeAccess()
-  |
-  +-- Marketplace Operations
-        listForSale() -> InkdRegistry.listForSale()
-        buyToken()    -> InkdRegistry.buyToken()
-```
+| Property | Details |
+|----------|---------|
+| **Permanence** | Data is guaranteed to be stored for 200+ years via endowment model |
+| **Immutability** | Content-addressed by transaction ID — data cannot be modified or deleted |
+| **Decentralized** | No single server; replicated across hundreds of nodes globally |
+| **Accessible** | Any data readable via `https://arweave.net/{txid}` — no wallet needed |
+| **Cost model** | One-time upfront payment; no recurring storage fees |
 
-### React Hooks
+### Arweave vs Alternatives
+
+| Storage | Permanent? | Decentralized? | Cost Model |
+|---------|-----------|----------------|------------|
+| **Arweave** | ✅ Yes | ✅ Yes | One-time payment |
+| IPFS | ❌ No (pinning required) | ✅ Yes | Recurring |
+| AWS S3 | ❌ No | ❌ No | Recurring |
+| Filecoin | Partial | ✅ Yes | Recurring deals |
+| On-chain (Ethereum) | ✅ Yes | ✅ Yes | Extremely expensive |
+
+For a version registry, **permanence is non-negotiable**. A version that disappears isn't really versioned. Arweave is the only storage layer that guarantees the content at a registered hash will always be accessible.
+
+### Irys (Upload Layer)
+
+Inkd uses [Irys](https://irys.xyz) (formerly Bundlr) as the Arweave upload layer:
 
 ```
-useInkd()           -- Full client with all operations
-useToken(tokenId)   -- Single token data with loading/error
-useInscriptions(id) -- Inscriptions for a token
-useInkdHolder(addr) -- Check if address holds InkdToken
+Developer → Irys Node → Arweave Network → Permanent Storage
 ```
 
-### Error Handling
-
-```
-InkdError (base)
-  +-- NotInkdHolder       -- No InkdToken in wallet
-  +-- InsufficientFunds   -- Not enough ETH
-  +-- TokenNotFound       -- Token doesn't exist
-  +-- InscriptionNotFound -- Inscription doesn't exist
-  +-- NotTokenOwner       -- Not the token owner
-  +-- ClientNotConnected  -- No viem client
-  +-- ArweaveNotConnected -- No Arweave client
-  +-- TransactionFailed   -- On-chain TX failed
-  +-- MaxSupplyReached    -- 10,000 tokens minted
-  +-- EncryptionError     -- Encryption/decryption failed
-  +-- UploadError         -- Arweave upload failed
-```
+Irys provides:
+- **Instant finality** for reads (Irys gateway) while the Arweave transaction confirms
+- **Ethereum payment** — pay for Arweave storage in ETH, not AR token
+- **Batch uploads** — efficient multi-file uploads
+- **Metadata tags** — searchable key/value tags on every upload
 
 ---
 
-## Memory System Architecture
+## UUPS Upgradeability
 
-### Brain-as-Inscription Model
-
-```
-AgentMemory
-  |
-  +-- memories: Map<key, Memory>
-  |     Each Memory maps to an inscription on an InkdToken
-  |
-  +-- save(key, data, metadata)
-  |     1. Create Memory object
-  |     2. JSON.stringify payload
-  |     3. InkdClient.inscribe(tokenId, payload)
-  |     4. Store inscriptionIndex in local index
-  |
-  +-- load(tokenId, index)
-  |     1. Check local cache
-  |     2. If miss: fetch inscription metadata from chain
-  |     3. Download from Arweave via arweaveHash
-  |     4. Parse and return
-  |
-  +-- checkpoint(label)
-  |     1. Snapshot all current memories
-  |     2. Optionally inscribe checkpoint manifest on-chain
-  |     3. Save locally for fast restore
-  |
-  +-- restore(checkpointId)
-  |     1. Load checkpoint data
-  |     2. Clear current memories
-  |     3. Restore from snapshot
-  |
-  +-- exportBrain() / importBrain()
-        Full brain transfer between agents
-```
-
-### Memory Lifecycle
+Both `InkdRegistry` and `InkdTreasury` use **UUPS (Universal Upgradeable Proxy Standard)**.
 
 ```
-save("learned-rust", {...})
-  |
-  v
-Memory { key: "learned-rust", tokenId: 42n, inscriptionIndex: 7 }
-  |
-  +-- Local: memory-index.json
-  +-- Chain: InkdVault inscription #7 on Token #42
-  +-- Arweave: permanent JSON blob
-  |
-  v
-update("learned-rust", {...})  -- creates version 2
-  |
-  v
-checkpoint("pre-upgrade")     -- snapshots all memories
-  |
-  v
-restore("checkpoint-xxx")     -- rolls back if needed
+User ──► Proxy (permanent address)
+              │
+              └──► Implementation (upgradeable)
+                        │
+                        ├── Logic
+                        └── Storage (stays in proxy)
 ```
 
----
+**Why UUPS over Transparent Proxy?**
+- Upgrade logic lives in the implementation, not the proxy → smaller proxy bytecode
+- More gas efficient per call
+- Implementation can revert upgrades if needed
 
-## X System Architecture
+**Who can upgrade?** Only the `owner` (set in `initialize()`). For production, this should be a multisig or timelock.
 
-### 12-Hour Cycle
+**What stays permanent?**
+- The proxy contract addresses (users always interact with the same address)
+- All stored data (projects, versions, mappings)
+- The $INKD locked in the registry
 
-```
-+--------+     +---------+     +----------+     +-------+     +-------+     +--------+
-|  SCAN  | --> | ANALYZE | --> | GENERATE | --> | SCORE | --> | LEARN | --> | RECORD |
-+--------+     +---------+     +----------+     +-------+     +-------+     +--------+
-    |               |               |               |             |             |
- TrendMonitor   Patterns     ContentEngine      Score 0-100   Lessons     LearningLoop
- Keywords       from past    Templates +         Filter by    Strategy    saveCycle()
- Competitors    cycles       Voice profile       minScore     updates
- Narratives                                      (default 70)
-```
-
-### Component Interaction
-
-```
-InkdBrain (orchestrator)
-  |
-  +-- TrendMonitor
-  |     scanKeywords()
-  |     getTopAccountPosts()
-  |     detectEmergingNarrative()
-  |     competitorAnalysis()
-  |
-  +-- ContentEngine
-  |     generateBuildUpdate()
-  |     generateThread()
-  |     generateEcosystemResponse()
-  |     scoreTweet()  -- 0-100 scoring
-  |     improveUntilScore()
-  |     enforceVoice()
-  |
-  +-- LearningLoop
-        saveCycle()
-        extractPatterns()
-        updateVoice()
-        fullStrategyReview()  -- every 30 cycles
-```
-
----
-
-## Deployment Architecture
-
-### Contract Deployment
-
-```
-Deploy.s.sol
-  |
-  +-- Deploy InkdToken implementation
-  +-- Deploy InkdToken proxy (ERC1967)
-  +-- Initialize InkdToken(name, symbol, mintPrice, royalty)
-  |
-  +-- Deploy InkdVault implementation
-  +-- Deploy InkdVault proxy (ERC1967)
-  +-- Initialize InkdVault(inkdTokenAddress, protocolFee)
-  |
-  +-- Deploy InkdRegistry implementation
-  +-- Deploy InkdRegistry proxy (ERC1967)
-  +-- Initialize InkdRegistry(inkdTokenAddress, inkdVaultAddress, marketplaceFee)
-  |
-  +-- Link: InkdToken.setVault(vaultProxyAddress)
-  |
-  +-- Verify all initialization values
-```
-
-### Network Configuration
-
-| Network | Chain ID | RPC |
-|---------|----------|-----|
-| Base Mainnet | 8453 | https://mainnet.base.org |
-| Base Sepolia | 84532 | https://sepolia.base.org |
+**What can change?**
+- Business logic (fee calculation, new features)
+- New functions
+- Bug fixes
 
 ---
 
 ## Security Model
 
-### Access Control Matrix
+### Trust Assumptions
 
-| Action | Who Can Do It | Contract |
-|--------|--------------|----------|
-| Mint token | Anyone (pays mint price) | InkdToken |
-| Set mint price | Owner only | InkdToken |
-| Set vault | Owner only | InkdToken |
-| Inscribe | InkdToken holder + token owner | InkdVault |
-| Remove inscription | Token owner only | InkdVault |
-| Update inscription | Token owner only | InkdVault |
-| Grant access | Token owner only | InkdVault |
-| Revoke access | Token owner only | InkdVault |
-| Set protocol fee | Owner only (max 5%) | InkdVault |
-| Register token | Token owner only | InkdRegistry |
-| List for sale | Token owner only | InkdRegistry |
-| Buy token | Anyone (pays listing price) | InkdRegistry |
-| Set marketplace fee | Owner only (max 10%) | InkdRegistry |
-| Upgrade contracts | Owner only | All (UUPS) |
+| Component | Trust Level | Notes |
+|-----------|-------------|-------|
+| InkdToken | Trustless | Immutable, no admin keys |
+| InkdRegistry proxy | Protocol owner | Upgradeable by owner multisig |
+| InkdTreasury proxy | Protocol owner | Upgradeable by owner multisig |
+| Arweave content | Trustless | Content-addressed, immutable |
+| Project owners | Self-sovereign | Owners control their own projects |
 
-### Reentrancy Protection
+### Key Security Properties
 
-All external calls that transfer ETH are protected by ReentrancyGuard:
-- `InkdToken.mint()` / `withdrawRevenue()`
-- `InkdVault.inscribe()` / `withdrawFees()`
-- `InkdRegistry.buyToken()` / `withdrawFees()`
+1. **Name collision is impossible** — `nameTaken` mapping is checked before every creation; two projects can never have the same name
+
+2. **Locked $INKD is irrecoverable** — there is no function to withdraw locked tokens, even for the protocol owner. This is by design: the lock is permanent.
+
+3. **Fee bypass is impossible** — `InkdTreasury.deposit()` only accepts calls from `InkdRegistry`. ETH cannot reach the treasury except through a version push or ownership transfer.
+
+4. **Collaborators can only push** — collaborators cannot add other collaborators, transfer ownership, or change visibility. Only owners can.
+
+5. **Caps on fees** — `MAX_VERSION_FEE` and `MAX_TRANSFER_FEE` are constants in the implementation. Even if the protocol owner upgrades the logic, they cannot raise fees beyond these caps without a new implementation deployment.
+
+---
+
+## Name Normalization
+
+Project names are normalized to lowercase at registration:
+
+```solidity
+function _normalizeName(string memory name) internal pure returns (string memory) {
+    bytes memory b = bytes(name);
+    for (uint256 i; i < b.length; i++) {
+        if (b[i] >= 0x41 && b[i] <= 0x5A) {  // A-Z
+            b[i] = bytes1(uint8(b[i]) + 32);   // → a-z
+        }
+    }
+    return string(b);
+}
+```
+
+This means `"MyProject"`, `"myproject"`, and `"MYPROJECT"` all resolve to `"myproject"` and are treated as the same name. **Once registered, the normalized name is stored permanently.**
+
+---
+
+## Storage Layout
+
+```
+InkdRegistry storage:
+  slot 0: inkdToken (address)
+  slot 1: treasury (address)
+  slot 2: projectCount (uint256)
+  slot 3: versionFee (uint256)
+  slot 4: transferFee (uint256)
+  slot 5: projects mapping
+  slot 6: _versions mapping
+  slot 7: _collaborators mapping
+  slot 8: nameTaken mapping
+  slot 9: _ownerProjects mapping
+  slot 10: isCollaborator mapping
+
+InkdTreasury storage:
+  slot 0: registry (address)
+```
+
+> Storage layout is preserved across upgrades via the UUPS proxy pattern. Adding new state variables must always append to the end of storage.
+
+---
+
+## V2 Roadmap
+
+The following features are planned for future protocol versions:
+
+| Feature | Description |
+|---------|-------------|
+| **Lit Protocol encryption** | Token-gated encrypted inscriptions — only the InkdToken NFT owner can decrypt their data |
+| **On-chain marketplace** | Buy/sell project ownership directly through a registry extension |
+| **Agent discovery indexer** | Off-chain subgraph + API for querying agent projects by capability |
+| **Version attestations** | Third-party auditors can sign and attest to specific version hashes |
+| **DAO governance** | Protocol fee parameters moved to token-holder governance |
