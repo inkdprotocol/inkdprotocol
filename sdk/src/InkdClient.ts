@@ -1,40 +1,32 @@
 /**
  * @file InkdClient.ts
  * @description Main client class for interacting with the Inkd Protocol.
- *              Handles on-chain operations (mint, purchase, burn, etc.) and
- *              integrates with Arweave for permanent storage.
+ *              Handles InkdToken minting, InkdVault inscriptions, and InkdRegistry operations.
  */
 
-import type {
-  PublicClient,
-  WalletClient,
-  GetContractReturnType,
-  Account,
-  Chain,
-  Transport,
-} from "viem";
-import { getContract } from "viem";
-import { INKD_VAULT_ABI } from "./abi";
+import type { PublicClient, WalletClient, Account, Chain, Transport } from "viem";
+import { INKD_TOKEN_ABI, INKD_VAULT_ABI, INKD_REGISTRY_ABI } from "./abi";
 import { ArweaveClient } from "./arweave";
-import {
-  PassthroughEncryption,
-  type IEncryptionProvider,
-} from "./encryption";
+import { PassthroughEncryption, type IEncryptionProvider } from "./encryption";
+import { ClientNotConnected, ArweaveNotConnected, NotInkdHolder } from "./errors";
 import type {
+  Address,
   InkdClientConfig,
-  TokenData,
-  DataToken,
+  InkdTokenData,
+  Inscription,
+  AccessGrant,
+  SaleData,
+  ProtocolStats,
+  MintOptions,
+  InscribeOptions,
+  InscribeResult,
+  InscribeCostEstimate,
   TransactionResult,
   BatchTransactionResult,
-  MintOptions,
-  BatchMintOptions,
 } from "./types";
 
 /**
  * The main Inkd Protocol client.
- *
- * Provides a high-level API for minting, purchasing, burning, and managing
- * data tokens on the InkdVault contract.
  *
  * @example
  * ```ts
@@ -43,30 +35,24 @@ import type {
  * import { baseSepolia } from "viem/chains";
  * import { privateKeyToAccount } from "viem/accounts";
  *
- * const account = privateKeyToAccount("0x...");
- * const walletClient = createWalletClient({
- *   account,
- *   chain: baseSepolia,
- *   transport: http(),
- * });
- * const publicClient = createPublicClient({
- *   chain: baseSepolia,
- *   transport: http(),
- * });
- *
  * const inkd = new InkdClient({
- *   contractAddress: "0x...",
+ *   tokenAddress: "0x...",
+ *   vaultAddress: "0x...",
+ *   registryAddress: "0x...",
  *   chainId: 84532,
  * });
  *
  * inkd.connect(walletClient, publicClient);
+ * await inkd.connectArweave("private-key");
  *
- * // Mint a file as a token
- * const result = await inkd.mint(
- *   Buffer.from("agent memory data"),
- *   { contentType: "application/json", price: 0n }
- * );
- * console.log("Token ID:", result.tokenId);
+ * // Mint an InkdToken
+ * const { tokenId } = await inkd.mintToken();
+ *
+ * // Inscribe data on it
+ * const result = await inkd.inscribe(tokenId, Buffer.from("agent brain data"), {
+ *   contentType: "application/json",
+ *   name: "brain.json",
+ * });
  * ```
  */
 export class InkdClient {
@@ -81,14 +67,9 @@ export class InkdClient {
     this.encryption = new PassthroughEncryption();
   }
 
-  // ─── Connection ─────────────────────────────────────────────────────────
+  // ─── Connection ───────────────────────────────────────────────────────
 
-  /**
-   * Connect wallet and public clients for on-chain interaction.
-   *
-   * @param walletClient viem WalletClient with an account for signing transactions.
-   * @param publicClient viem PublicClient for reading chain state.
-   */
+  /** Connect wallet and public clients for on-chain interaction. */
   connect(
     walletClient: WalletClient<Transport, Chain, Account>,
     publicClient: PublicClient
@@ -97,543 +78,419 @@ export class InkdClient {
     this.publicClient = publicClient;
   }
 
-  /**
-   * Connect Arweave storage client for file uploads.
-   *
-   * @param privateKey Private key for Irys uploads.
-   * @param irysUrl    Optional Irys node URL.
-   * @param gateway    Optional Arweave gateway URL.
-   */
+  /** Connect Arweave storage client for file uploads. */
   async connectArweave(
     privateKey: string,
     irysUrl?: string,
     gateway?: string
   ): Promise<void> {
     this.arweave = new ArweaveClient(
-      irysUrl ?? this.config.irysUrl ?? "https://node2.irys.xyz",
+      irysUrl ?? "https://node2.irys.xyz",
       privateKey,
-      gateway ?? this.config.arweaveGateway ?? "https://arweave.net"
+      gateway ?? "https://arweave.net"
     );
     await this.arweave.connect();
   }
 
-  /**
-   * Set a custom encryption provider (for V2 Lit Protocol integration).
-   *
-   * @param provider Encryption provider implementing IEncryptionProvider.
-   */
+  /** Set a custom encryption provider (for Lit Protocol integration). */
   setEncryptionProvider(provider: IEncryptionProvider): void {
     this.encryption = provider;
   }
 
-  // ─── Core: Mint ─────────────────────────────────────────────────────────
+  // ─── InkdToken: Minting ───────────────────────────────────────────────
 
-  /**
-   * Upload a file to Arweave and mint it as an Inkd data token.
-   *
-   * @param file    File data as Buffer or Uint8Array.
-   * @param options Mint options (contentType, price, metadataURI, tags).
-   * @returns       Transaction result with hash and tokenId.
-   */
-  async mint(
-    file: Buffer | Uint8Array,
-    options: MintOptions
-  ): Promise<TransactionResult> {
+  /** Mint a single InkdToken. Returns the new token ID. */
+  async mintToken(options?: MintOptions): Promise<TransactionResult> {
     this.requireWallet();
-    this.requireArweave();
 
-    // Encrypt (passthrough in V1)
-    const encrypted = await this.encryption.encrypt(
-      file instanceof Buffer ? new Uint8Array(file) : file,
-      0n, // Token ID not yet known
-      this.config.contractAddress
-    );
-
-    // Upload to Arweave
-    const uploadResult = await this.arweave!.uploadFile(
-      encrypted.ciphertext,
-      options.contentType,
-      options.tags
-    );
-
-    const metadataURI = options.metadataURI ?? uploadResult.url;
-    const price = options.price ?? 0n;
-
-    // Mint on-chain
-    const hash = await this.walletClient!.writeContract({
-      address: this.config.contractAddress,
-      abi: INKD_VAULT_ABI,
-      functionName: "mint",
-      args: [uploadResult.hash, metadataURI, price],
+    const mintPrice = await this.publicClient!.readContract({
+      address: this.config.tokenAddress,
+      abi: INKD_TOKEN_ABI,
+      functionName: "mintPrice",
     });
 
-    // Get token ID from events
-    const receipt = await this.publicClient!.waitForTransactionReceipt({ hash });
-    const tokenId = this.extractTokenIdFromLogs(receipt.logs);
-
-    return { hash, tokenId };
-  }
-
-  /**
-   * Mint a token from an already-uploaded Arweave hash (no file upload).
-   *
-   * @param arweaveHash Existing Arweave transaction hash.
-   * @param metadataURI Off-chain metadata URI.
-   * @param price       Listing price in wei.
-   * @returns           Transaction result with hash and tokenId.
-   */
-  async mintFromHash(
-    arweaveHash: string,
-    metadataURI: string,
-    price: bigint = 0n
-  ): Promise<TransactionResult> {
-    this.requireWallet();
-
-    const hash = await this.walletClient!.writeContract({
-      address: this.config.contractAddress,
-      abi: INKD_VAULT_ABI,
-      functionName: "mint",
-      args: [arweaveHash, metadataURI, price],
-    });
-
-    const receipt = await this.publicClient!.waitForTransactionReceipt({ hash });
-    const tokenId = this.extractTokenIdFromLogs(receipt.logs);
-
-    return { hash, tokenId };
-  }
-
-  /**
-   * Mint multiple tokens in a single transaction.
-   *
-   * @param files   Array of file data buffers.
-   * @param options Batch mint options.
-   * @returns       Transaction result with hash and array of token IDs.
-   */
-  async batchMint(
-    files: Array<Buffer | Uint8Array>,
-    options: BatchMintOptions
-  ): Promise<BatchTransactionResult> {
-    this.requireWallet();
-    this.requireArweave();
-
-    const hashes: string[] = [];
-    const metadataURIs: string[] = [];
-    const prices: bigint[] = [];
-
-    for (let i = 0; i < files.length; i++) {
-      const encrypted = await this.encryption.encrypt(
-        files[i] instanceof Buffer
-          ? new Uint8Array(files[i] as Buffer)
-          : (files[i] as Uint8Array),
-        0n,
-        this.config.contractAddress
-      );
-
-      const uploadResult = await this.arweave!.uploadFile(
-        encrypted.ciphertext,
-        options.contentType
-      );
-
-      hashes.push(uploadResult.hash);
-      metadataURIs.push(
-        options.metadataURIs?.[i] ?? uploadResult.url
-      );
-      prices.push(options.prices?.[i] ?? 0n);
+    if (options?.quantity && options.quantity > 1) {
+      const result = await this.batchMintTokens(options.quantity);
+      return { hash: result.hash, tokenId: result.tokenIds[0] };
     }
 
     const hash = await this.walletClient!.writeContract({
-      address: this.config.contractAddress,
-      abi: INKD_VAULT_ABI,
-      functionName: "batchMint",
-      args: [hashes, metadataURIs, prices],
+      address: this.config.tokenAddress,
+      abi: INKD_TOKEN_ABI,
+      functionName: "mint",
+      value: mintPrice as bigint,
     });
 
     const receipt = await this.publicClient!.waitForTransactionReceipt({ hash });
-    const tokenIds = this.extractBatchTokenIdsFromLogs(receipt.logs);
+    const tokenId = this.extractTokenIdFromLogs(receipt.logs);
+
+    return { hash, tokenId };
+  }
+
+  /** Batch mint multiple InkdTokens (max 10). */
+  private async batchMintTokens(quantity: number): Promise<BatchTransactionResult> {
+    this.requireWallet();
+
+    const mintPrice = (await this.publicClient!.readContract({
+      address: this.config.tokenAddress,
+      abi: INKD_TOKEN_ABI,
+      functionName: "mintPrice",
+    })) as bigint;
+
+    const hash = await this.walletClient!.writeContract({
+      address: this.config.tokenAddress,
+      abi: INKD_TOKEN_ABI,
+      functionName: "batchMint",
+      args: [BigInt(quantity)],
+      value: mintPrice * BigInt(quantity),
+    });
+
+    const receipt = await this.publicClient!.waitForTransactionReceipt({ hash });
+    const tokenIds = this.extractAllTokenIdsFromLogs(receipt.logs);
 
     return { hash, tokenIds };
   }
 
-  // ─── Core: Purchase ─────────────────────────────────────────────────────
+  // ─── InkdVault: Inscriptions ──────────────────────────────────────────
 
-  /**
-   * Purchase a token from its current owner.
-   * Automatically sends the token's listing price + 1% protocol fee.
-   *
-   * @param tokenId       The token to purchase.
-   * @param sellerAddress The current owner's address.
-   * @returns             Transaction result.
-   */
-  async purchase(
+  /** Inscribe data onto your InkdToken. Uploads to Arweave first. */
+  async inscribe(
     tokenId: bigint,
-    sellerAddress: `0x${string}`
-  ): Promise<TransactionResult> {
+    data: Buffer | Uint8Array | string,
+    options?: InscribeOptions
+  ): Promise<InscribeResult> {
     this.requireWallet();
+    this.requireArweave();
 
-    const token = await this.getToken(tokenId);
-    if (token.price === 0n) {
-      throw new Error(`Token ${tokenId} is not for sale`);
-    }
+    const rawData = typeof data === "string" ? Buffer.from(data) : data;
+    const contentType = options?.contentType ?? "application/octet-stream";
+    const name = options?.name ?? `inscription-${Date.now()}`;
 
-    const hash = await this.walletClient!.writeContract({
-      address: this.config.contractAddress,
-      abi: INKD_VAULT_ABI,
-      functionName: "purchase",
-      args: [tokenId, sellerAddress],
-      value: token.price,
-    });
-
-    await this.publicClient!.waitForTransactionReceipt({ hash });
-
-    return { hash, tokenId };
-  }
-
-  // ─── Core: Burn ─────────────────────────────────────────────────────────
-
-  /**
-   * Burn a token — permanently revokes access.
-   * Data remains on Arweave but becomes unreachable without the token.
-   *
-   * @param tokenId The token to burn.
-   * @returns       Transaction result.
-   */
-  async burn(tokenId: bigint): Promise<TransactionResult> {
-    this.requireWallet();
-
-    const hash = await this.walletClient!.writeContract({
-      address: this.config.contractAddress,
-      abi: INKD_VAULT_ABI,
-      functionName: "burn",
-      args: [tokenId],
-    });
-
-    await this.publicClient!.waitForTransactionReceipt({ hash });
-
-    return { hash, tokenId };
-  }
-
-  // ─── Core: Price ────────────────────────────────────────────────────────
-
-  /**
-   * Update a token's listing price. Set to 0 to delist.
-   *
-   * @param tokenId The token to update.
-   * @param price   New price in wei.
-   * @returns       Transaction result.
-   */
-  async setPrice(
-    tokenId: bigint,
-    price: bigint
-  ): Promise<TransactionResult> {
-    this.requireWallet();
-
-    const hash = await this.walletClient!.writeContract({
-      address: this.config.contractAddress,
-      abi: INKD_VAULT_ABI,
-      functionName: "setPrice",
-      args: [tokenId, price],
-    });
-
-    await this.publicClient!.waitForTransactionReceipt({ hash });
-
-    return { hash, tokenId };
-  }
-
-  // ─── Queries ──────────────────────────────────────────────────────────
-
-  /**
-   * Get full token data including ownership and version history.
-   *
-   * @param tokenId The token to query.
-   * @returns       Enriched token data.
-   */
-  async getToken(tokenId: bigint): Promise<TokenData> {
-    this.requirePublic();
-
-    const [creator, arweaveHash, metadataURI, price, createdAt] =
-      (await this.publicClient!.readContract({
-        address: this.config.contractAddress,
-        abi: INKD_VAULT_ABI,
-        functionName: "tokens",
-        args: [tokenId],
-      })) as [
-        `0x${string}`,
-        string,
-        string,
-        bigint,
-        bigint
-      ];
-
-    const versionCount = (await this.publicClient!.readContract({
-      address: this.config.contractAddress,
-      abi: INKD_VAULT_ABI,
-      functionName: "getVersionCount",
-      args: [tokenId],
-    })) as bigint;
-
-    const versions: string[] = [];
-    for (let i = 0n; i < versionCount; i++) {
-      const v = (await this.publicClient!.readContract({
-        address: this.config.contractAddress,
-        abi: INKD_VAULT_ABI,
-        functionName: "getVersion",
-        args: [tokenId, i],
-      })) as string;
-      versions.push(v);
-    }
-
-    return {
+    // Encrypt (passthrough in V1)
+    const encrypted = await this.encryption.encrypt(
+      rawData instanceof Buffer ? new Uint8Array(rawData) : rawData,
       tokenId,
-      creator,
-      arweaveHash,
-      metadataURI,
-      price,
-      createdAt,
-      owner: creator, // Simplified — real implementation would scan TransferSingle events
-      versionCount: Number(versionCount),
-      versions,
-    };
+      this.config.tokenAddress
+    );
+
+    // Upload to Arweave
+    const upload = await this.arweave!.uploadFile(
+      encrypted.ciphertext,
+      contentType,
+      options?.tags
+    );
+
+    // Inscribe on-chain
+    const hash = await this.walletClient!.writeContract({
+      address: this.config.vaultAddress,
+      abi: INKD_VAULT_ABI,
+      functionName: "inscribe",
+      args: [tokenId, upload.hash, contentType, BigInt(upload.size), name],
+      value: options?.value ?? 0n,
+    });
+
+    const receipt = await this.publicClient!.waitForTransactionReceipt({ hash });
+    const inscriptionIndex = this.extractInscriptionIndexFromLogs(receipt.logs);
+
+    return { hash, inscriptionIndex, upload };
   }
 
-  /**
-   * Get all tokens owned by a specific address.
-   * Scans TransferSingle events to build ownership index.
-   *
-   * @param address The wallet address to query.
-   * @returns       Array of token data owned by the address.
-   */
-  async getTokensByOwner(
-    address: `0x${string}`
-  ): Promise<TokenData[]> {
+  /** Get all inscriptions on a token. */
+  async getInscriptions(tokenId: bigint): Promise<Inscription[]> {
     this.requirePublic();
 
-    const nextTokenId = (await this.publicClient!.readContract({
-      address: this.config.contractAddress,
+    const result = await this.publicClient!.readContract({
+      address: this.config.vaultAddress,
       abi: INKD_VAULT_ABI,
-      functionName: "nextTokenId",
-    })) as bigint;
+      functionName: "getInscriptions",
+      args: [tokenId],
+    });
 
-    const ownedTokens: TokenData[] = [];
-
-    for (let i = 0n; i < nextTokenId; i++) {
-      const balance = (await this.publicClient!.readContract({
-        address: this.config.contractAddress,
-        abi: INKD_VAULT_ABI,
-        functionName: "balanceOf",
-        args: [address, i],
-      })) as bigint;
-
-      if (balance > 0n) {
-        const token = await this.getToken(i);
-        token.owner = address;
-        ownedTokens.push(token);
-      }
-    }
-
-    return ownedTokens;
+    return (result as Array<{
+      arweaveHash: string;
+      contentType: string;
+      size: bigint;
+      name: string;
+      createdAt: bigint;
+      isRemoved: boolean;
+      version: bigint;
+    }>).map((i) => ({
+      arweaveHash: i.arweaveHash,
+      contentType: i.contentType,
+      size: i.size,
+      name: i.name,
+      createdAt: i.createdAt,
+      isRemoved: i.isRemoved,
+      version: i.version,
+    }));
   }
 
-  /**
-   * Check if a wallet has access to a token (owner or active grant).
-   *
-   * @param tokenId The token to check.
-   * @param wallet  The wallet to check.
-   * @returns       True if wallet has access.
-   */
-  async checkAccess(
+  /** Remove (soft-delete) an inscription. */
+  async removeInscription(tokenId: bigint, index: number): Promise<TransactionResult> {
+    this.requireWallet();
+
+    const hash = await this.walletClient!.writeContract({
+      address: this.config.vaultAddress,
+      abi: INKD_VAULT_ABI,
+      functionName: "removeInscription",
+      args: [tokenId, BigInt(index)],
+    });
+
+    await this.publicClient!.waitForTransactionReceipt({ hash });
+    return { hash, tokenId };
+  }
+
+  /** Update an inscription with new data (creates a new version). */
+  async updateInscription(
     tokenId: bigint,
-    wallet: `0x${string}`
-  ): Promise<boolean> {
-    this.requirePublic();
+    index: number,
+    newData: Buffer | Uint8Array | string,
+    contentType?: string
+  ): Promise<TransactionResult> {
+    this.requireWallet();
+    this.requireArweave();
 
-    return (await this.publicClient!.readContract({
-      address: this.config.contractAddress,
+    const rawData = typeof newData === "string" ? Buffer.from(newData) : newData;
+    const ct = contentType ?? "application/octet-stream";
+
+    const encrypted = await this.encryption.encrypt(
+      rawData instanceof Buffer ? new Uint8Array(rawData) : rawData,
+      tokenId,
+      this.config.tokenAddress
+    );
+
+    const upload = await this.arweave!.uploadFile(encrypted.ciphertext, ct);
+
+    const hash = await this.walletClient!.writeContract({
+      address: this.config.vaultAddress,
       abi: INKD_VAULT_ABI,
-      functionName: "checkAccess",
-      args: [tokenId, wallet],
-    })) as boolean;
+      functionName: "updateInscription",
+      args: [tokenId, BigInt(index), upload.hash],
+    });
+
+    await this.publicClient!.waitForTransactionReceipt({ hash });
+    return { hash, tokenId };
   }
 
-  // ─── Access Grants ──────────────────────────────────────────────────────
+  // ─── InkdVault: Access ────────────────────────────────────────────────
 
-  /**
-   * Grant temporary read access to a wallet without transferring ownership.
-   *
-   * @param tokenId  The token to grant access to.
-   * @param wallet   The wallet to grant access.
-   * @param duration Duration in seconds (added to current time).
-   * @returns        Transaction result.
-   */
+  /** Grant temporary read access to a wallet. */
   async grantAccess(
     tokenId: bigint,
-    wallet: `0x${string}`,
-    duration: number
+    wallet: Address,
+    durationSeconds: number
   ): Promise<TransactionResult> {
     this.requireWallet();
 
     const block = await this.publicClient!.getBlock();
-    const expiresAt = block.timestamp + BigInt(duration);
+    const expiresAt = block.timestamp + BigInt(durationSeconds);
 
     const hash = await this.walletClient!.writeContract({
-      address: this.config.contractAddress,
+      address: this.config.vaultAddress,
       abi: INKD_VAULT_ABI,
-      functionName: "grantAccess",
+      functionName: "grantReadAccess",
       args: [tokenId, wallet, expiresAt],
     });
 
     await this.publicClient!.waitForTransactionReceipt({ hash });
-
     return { hash, tokenId };
   }
 
-  /**
-   * Revoke a previously granted temporary access.
-   *
-   * @param tokenId The token to revoke access for.
-   * @param wallet  The wallet to revoke.
-   * @returns       Transaction result.
-   */
-  async revokeAccess(
-    tokenId: bigint,
-    wallet: `0x${string}`
-  ): Promise<TransactionResult> {
+  /** Revoke read access from a wallet. */
+  async revokeAccess(tokenId: bigint, wallet: Address): Promise<TransactionResult> {
     this.requireWallet();
 
     const hash = await this.walletClient!.writeContract({
-      address: this.config.contractAddress,
+      address: this.config.vaultAddress,
       abi: INKD_VAULT_ABI,
       functionName: "revokeAccess",
       args: [tokenId, wallet],
     });
 
     await this.publicClient!.waitForTransactionReceipt({ hash });
-
     return { hash, tokenId };
   }
 
-  // ─── Versioning ─────────────────────────────────────────────────────────
+  // ─── InkdRegistry: Marketplace ────────────────────────────────────────
 
-  /**
-   * Push a new version of data for an existing token.
-   *
-   * @param tokenId     The token to update.
-   * @param file        New file data.
-   * @param contentType MIME type of the file.
-   * @returns           Transaction result.
-   */
-  async addVersion(
-    tokenId: bigint,
-    file: Buffer | Uint8Array,
-    contentType: string
-  ): Promise<TransactionResult> {
+  /** List an InkdToken for sale on the marketplace. */
+  async listForSale(tokenId: bigint, price: bigint): Promise<TransactionResult> {
     this.requireWallet();
-    this.requireArweave();
 
-    const encrypted = await this.encryption.encrypt(
-      file instanceof Buffer ? new Uint8Array(file) : file,
-      tokenId,
-      this.config.contractAddress
-    );
-
-    const uploadResult = await this.arweave!.uploadFile(
-      encrypted.ciphertext,
-      contentType
-    );
+    // Approve registry to transfer token
+    await this.walletClient!.writeContract({
+      address: this.config.tokenAddress,
+      abi: INKD_TOKEN_ABI,
+      functionName: "approve",
+      args: [this.config.registryAddress, tokenId],
+    });
 
     const hash = await this.walletClient!.writeContract({
-      address: this.config.contractAddress,
-      abi: INKD_VAULT_ABI,
-      functionName: "addVersion",
-      args: [tokenId, uploadResult.hash],
+      address: this.config.registryAddress,
+      abi: INKD_REGISTRY_ABI,
+      functionName: "listForSale",
+      args: [tokenId, price],
     });
 
     await this.publicClient!.waitForTransactionReceipt({ hash });
-
     return { hash, tokenId };
   }
 
-  // ─── Data Retrieval ─────────────────────────────────────────────────────
+  /** Buy an InkdToken from the marketplace. */
+  async buyToken(tokenId: bigint): Promise<TransactionResult> {
+    this.requireWallet();
 
-  /**
-   * Download and decrypt the data for a token (latest version).
-   *
-   * @param tokenId The token whose data to retrieve.
-   * @returns       Decrypted file data.
-   */
-  async getData(tokenId: bigint): Promise<Buffer> {
-    this.requireArweave();
+    const listing = await this.publicClient!.readContract({
+      address: this.config.registryAddress,
+      abi: INKD_REGISTRY_ABI,
+      functionName: "listings",
+      args: [tokenId],
+    }) as [bigint, string, bigint, bigint, boolean];
 
-    const token = await this.getToken(tokenId);
-    const encrypted = await this.arweave!.getFile(token.arweaveHash);
+    const price = listing[2];
 
-    const decrypted = await this.encryption.decrypt(
-      {
-        ciphertext: new Uint8Array(encrypted),
-        encryptedSymmetricKey: "",
-        accessControlConditions: [],
-      },
-      tokenId,
-      this.config.contractAddress
-    );
+    const hash = await this.walletClient!.writeContract({
+      address: this.config.registryAddress,
+      abi: INKD_REGISTRY_ABI,
+      functionName: "buyToken",
+      args: [tokenId],
+      value: price,
+    });
 
-    return Buffer.from(decrypted);
+    await this.publicClient!.waitForTransactionReceipt({ hash });
+    return { hash, tokenId };
   }
 
-  /**
-   * Download data for a specific version of a token.
-   *
-   * @param tokenId      The token to query.
-   * @param versionIndex The version index (0 = original).
-   * @returns            File data for that version.
-   */
-  async getVersionData(
-    tokenId: bigint,
-    versionIndex: number
-  ): Promise<Buffer> {
+  // ─── Queries ──────────────────────────────────────────────────────────
+
+  /** Get token data for a specific InkdToken. */
+  async getToken(tokenId: bigint): Promise<InkdTokenData> {
     this.requirePublic();
-    this.requireArweave();
 
-    const hash = (await this.publicClient!.readContract({
-      address: this.config.contractAddress,
+    const [owner, mintedAtVal, inscCount, uri] = await Promise.all([
+      this.publicClient!.readContract({
+        address: this.config.tokenAddress,
+        abi: INKD_TOKEN_ABI,
+        functionName: "ownerOf",
+        args: [tokenId],
+      }),
+      this.publicClient!.readContract({
+        address: this.config.tokenAddress,
+        abi: INKD_TOKEN_ABI,
+        functionName: "mintedAt",
+        args: [tokenId],
+      }),
+      this.publicClient!.readContract({
+        address: this.config.tokenAddress,
+        abi: INKD_TOKEN_ABI,
+        functionName: "inscriptionCount",
+        args: [tokenId],
+      }),
+      this.publicClient!.readContract({
+        address: this.config.tokenAddress,
+        abi: INKD_TOKEN_ABI,
+        functionName: "tokenURI",
+        args: [tokenId],
+      }),
+    ]);
+
+    return {
+      tokenId,
+      owner: owner as Address,
+      mintedAt: mintedAtVal as bigint,
+      inscriptionCount: Number(inscCount as bigint),
+      tokenURI: uri as string,
+    };
+  }
+
+  /** Get all InkdTokens owned by an address. */
+  async getTokensByOwner(address: Address): Promise<InkdTokenData[]> {
+    this.requirePublic();
+
+    const tokenIds = (await this.publicClient!.readContract({
+      address: this.config.tokenAddress,
+      abi: INKD_TOKEN_ABI,
+      functionName: "getTokensByOwner",
+      args: [address],
+    })) as bigint[];
+
+    return Promise.all(tokenIds.map((id) => this.getToken(id)));
+  }
+
+  /** Check if an address holds at least one InkdToken. */
+  async hasInkdToken(address: Address): Promise<boolean> {
+    this.requirePublic();
+
+    return (await this.publicClient!.readContract({
+      address: this.config.tokenAddress,
+      abi: INKD_TOKEN_ABI,
+      functionName: "isInkdHolder",
+      args: [address],
+    })) as boolean;
+  }
+
+  /** Estimate the cost of inscribing data. */
+  async estimateInscribeCost(fileSize: number): Promise<InscribeCostEstimate> {
+    this.requirePublic();
+
+    const feeBps = (await this.publicClient!.readContract({
+      address: this.config.vaultAddress,
       abi: INKD_VAULT_ABI,
-      functionName: "getVersion",
-      args: [tokenId, BigInt(versionIndex)],
-    })) as string;
+      functionName: "protocolFeeBps",
+    })) as bigint;
 
-    return this.arweave!.getFile(hash);
+    // Rough gas estimate for inscribe
+    const gasEstimate = 150_000n;
+    const gasPrice = 1_000_000n; // ~1 gwei on Base
+    const gas = gasEstimate * gasPrice;
+
+    // Arweave cost estimate (rough: ~0.00001 ETH per KB)
+    const arweave = BigInt(Math.ceil(fileSize / 1024)) * 10_000_000_000_000n;
+
+    // Protocol fee on a typical 0.01 ETH value
+    const typicalValue = 10_000_000_000_000_000n; // 0.01 ETH
+    const protocolFee = (typicalValue * feeBps) / 10_000n;
+
+    const total = gas + arweave + protocolFee;
+
+    return { gas, arweave, protocolFee, total };
   }
 
-  // ─── Helpers ──────────────────────────────────────────────────────────
+  /** Get protocol-wide statistics from the registry. */
+  async getStats(): Promise<ProtocolStats> {
+    this.requirePublic();
 
-  /** @internal Ensure wallet client is connected. */
+    const [totalTokens, totalInscriptions, totalVolume, totalSales] =
+      (await this.publicClient!.readContract({
+        address: this.config.registryAddress,
+        abi: INKD_REGISTRY_ABI,
+        functionName: "getStats",
+      })) as [bigint, bigint, bigint, bigint];
+
+    return { totalTokens, totalInscriptions, totalVolume, totalSales };
+  }
+
+  // ─── Internal ─────────────────────────────────────────────────────────
+
   private requireWallet(): void {
-    if (!this.walletClient || !this.publicClient) {
-      throw new Error("Not connected. Call connect(walletClient, publicClient) first.");
-    }
+    if (!this.walletClient || !this.publicClient) throw new ClientNotConnected();
   }
 
-  /** @internal Ensure public client is connected. */
   private requirePublic(): void {
-    if (!this.publicClient) {
-      throw new Error("Not connected. Call connect(walletClient, publicClient) first.");
-    }
+    if (!this.publicClient) throw new ClientNotConnected();
   }
 
-  /** @internal Ensure Arweave client is connected. */
   private requireArweave(): void {
-    if (!this.arweave) {
-      throw new Error("Arweave not connected. Call connectArweave() first.");
-    }
+    if (!this.arweave) throw new ArweaveNotConnected();
   }
 
-  /** @internal Extract tokenId from DataMinted event logs. */
   private extractTokenIdFromLogs(logs: readonly unknown[]): bigint | undefined {
     for (const log of logs) {
-      const l = log as { topics?: readonly string[]; data?: string };
-      // DataMinted event topic0
-      if (l.topics && l.topics.length >= 2) {
+      const l = log as { topics?: readonly string[] };
+      // Transfer event: topic[0]=Transfer, topic[1]=from, topic[2]=to, topic[3]=tokenId
+      if (l.topics && l.topics.length >= 4) {
         try {
-          return BigInt(l.topics[1]);
+          return BigInt(l.topics[3]);
         } catch {
           continue;
         }
@@ -642,20 +499,33 @@ export class InkdClient {
     return undefined;
   }
 
-  /** @internal Extract tokenIds from BatchMinted event logs. */
-  private extractBatchTokenIdsFromLogs(logs: readonly unknown[]): bigint[] {
-    // Parse individual DataMinted events
+  private extractAllTokenIdsFromLogs(logs: readonly unknown[]): bigint[] {
     const tokenIds: bigint[] = [];
     for (const log of logs) {
-      const l = log as { topics?: readonly string[]; data?: string };
-      if (l.topics && l.topics.length >= 2) {
+      const l = log as { topics?: readonly string[] };
+      if (l.topics && l.topics.length >= 4) {
         try {
-          tokenIds.push(BigInt(l.topics[1]));
+          tokenIds.push(BigInt(l.topics[3]));
         } catch {
           continue;
         }
       }
     }
     return tokenIds;
+  }
+
+  private extractInscriptionIndexFromLogs(logs: readonly unknown[]): bigint {
+    for (const log of logs) {
+      const l = log as { topics?: readonly string[] };
+      // Inscribed event: topic[0]=Inscribed, topic[1]=tokenId, topic[2]=inscriptionIndex
+      if (l.topics && l.topics.length >= 3) {
+        try {
+          return BigInt(l.topics[2]);
+        } catch {
+          continue;
+        }
+      }
+    }
+    return 0n;
   }
 }

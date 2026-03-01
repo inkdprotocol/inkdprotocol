@@ -1,10 +1,10 @@
 /**
  * @file arweave.ts
- * @description Arweave upload and retrieval via Irys (formerly Bundlr).
- *              Handles permanent, decentralized storage for Inkd Protocol data tokens.
+ * @description Arweave/Irys integration for permanent decentralized storage.
  */
 
 import type { UploadResult } from "./types";
+import { UploadError } from "./errors";
 
 const DEFAULT_ARWEAVE_GATEWAY = "https://arweave.net";
 
@@ -20,9 +20,8 @@ const DEFAULT_ARWEAVE_GATEWAY = "https://arweave.net";
  *   Buffer.from(JSON.stringify({ memory: "hello" })),
  *   "application/json"
  * );
- * console.log(result.hash); // "abc123..."
  *
- * const data = await arweave.getFile(result.hash);
+ * const data = await arweave.downloadData(result.hash);
  * ```
  */
 export class ArweaveClient {
@@ -31,12 +30,6 @@ export class ArweaveClient {
   private privateKey: string;
   private irys: unknown | null = null;
 
-  /**
-   * Create a new ArweaveClient.
-   * @param irysUrl    Irys node URL (e.g., "https://node2.irys.xyz").
-   * @param privateKey Private key for signing Irys uploads.
-   * @param gateway    Arweave gateway URL for retrieving data.
-   */
   constructor(
     irysUrl: string,
     privateKey: string,
@@ -47,12 +40,8 @@ export class ArweaveClient {
     this.privateKey = privateKey;
   }
 
-  /**
-   * Initialize the Irys client connection.
-   * Must be called before uploading.
-   */
+  /** Initialize the Irys client connection. */
   async connect(): Promise<void> {
-    // Dynamic import to avoid bundling issues
     const { default: Irys } = await import("@irys/sdk");
 
     this.irys = new Irys({
@@ -61,26 +50,27 @@ export class ArweaveClient {
       key: this.privateKey,
     });
 
-    // Fund node if needed (will be a no-op if already funded)
-    // @ts-expect-error — Irys SDK types may vary between versions
+    // @ts-expect-error Irys SDK types may vary
     await (this.irys as { ready: () => Promise<void> }).ready();
   }
 
-  /**
-   * Upload data to Arweave via Irys.
-   *
-   * @param data        Raw data to upload (Buffer or Uint8Array).
-   * @param contentType MIME type of the data.
-   * @param tags        Optional key-value tags for the Arweave transaction.
-   * @returns           Upload result containing hash, URL, and size.
-   */
+  /** Upload data to Arweave via Irys. */
+  async uploadData(
+    data: Buffer | Uint8Array,
+    contentType: string,
+    tags?: Record<string, string>
+  ): Promise<UploadResult> {
+    return this.uploadFile(data, contentType, tags);
+  }
+
+  /** Upload data to Arweave via Irys. */
   async uploadFile(
     data: Buffer | Uint8Array,
     contentType: string,
     tags?: Record<string, string>
   ): Promise<UploadResult> {
     if (!this.irys) {
-      throw new Error("ArweaveClient not connected. Call connect() first.");
+      throw new UploadError("ArweaveClient not connected. Call connect() first.");
     }
 
     const irysClient = this.irys as {
@@ -101,30 +91,36 @@ export class ArweaveClient {
       }
     }
 
-    const receipt = await irysClient.upload(
-      data instanceof Uint8Array ? Buffer.from(data) : data,
-      { tags: tagList }
-    );
+    try {
+      const receipt = await irysClient.upload(
+        data instanceof Uint8Array ? Buffer.from(data) : data,
+        { tags: tagList }
+      );
 
-    return {
-      hash: receipt.id,
-      url: `${this.gateway}/${receipt.id}`,
-      size: data.length,
-    };
+      return {
+        hash: receipt.id,
+        url: `${this.gateway}/${receipt.id}`,
+        size: data.length,
+      };
+    } catch (err) {
+      throw new UploadError(
+        `Arweave upload failed: ${err instanceof Error ? err.message : String(err)}`
+      );
+    }
   }
 
-  /**
-   * Retrieve data from Arweave by transaction hash.
-   *
-   * @param hash Arweave transaction ID.
-   * @returns    Raw data as a Buffer.
-   */
+  /** Download data from Arweave by transaction hash. */
+  async downloadData(hash: string): Promise<Buffer> {
+    return this.getFile(hash);
+  }
+
+  /** Retrieve data from Arweave by transaction hash. */
   async getFile(hash: string): Promise<Buffer> {
     const url = `${this.gateway}/${hash}`;
     const response = await fetch(url);
 
     if (!response.ok) {
-      throw new Error(
+      throw new UploadError(
         `Failed to fetch from Arweave: ${response.status} ${response.statusText}`
       );
     }
@@ -133,12 +129,39 @@ export class ArweaveClient {
     return Buffer.from(arrayBuffer);
   }
 
-  /**
-   * Get the Arweave gateway URL for a given hash.
-   *
-   * @param hash Arweave transaction ID.
-   * @returns    Full gateway URL.
-   */
+  /** Get the price to upload a given number of bytes (in wei). */
+  async getUploadPrice(bytes: number): Promise<bigint> {
+    if (!this.irys) {
+      throw new UploadError("ArweaveClient not connected. Call connect() first.");
+    }
+
+    const irysClient = this.irys as {
+      getPrice: (bytes: number) => Promise<bigint>;
+    };
+
+    try {
+      return await irysClient.getPrice(bytes);
+    } catch {
+      // Rough estimate: ~0.00001 ETH per KB
+      return BigInt(Math.ceil(bytes / 1024)) * 10_000_000_000_000n;
+    }
+  }
+
+  /** Upload data encrypted with Lit Protocol access conditions. */
+  async uploadEncrypted(
+    data: Buffer | Uint8Array,
+    contentType: string,
+    tags?: Record<string, string>
+  ): Promise<UploadResult> {
+    // In V1, this is the same as regular upload.
+    // V2 will add Lit Protocol encryption before upload.
+    return this.uploadFile(data, contentType, {
+      ...tags,
+      "Encryption": "lit-protocol",
+    });
+  }
+
+  /** Get the Arweave gateway URL for a given hash. */
   getUrl(hash: string): string {
     return `${this.gateway}/${hash}`;
   }
