@@ -86,7 +86,8 @@ contract Deploy is Script {
         console.log("  Deployment Verified");
         console.log("========================================");
         console.log("Token Supply: 1,000,000,000 INKD");
-        console.log("Version Fee: 0.001 ETH");
+        console.log("Version Fee: 0.001 ETH (configurable)");
+        console.log("Transfer Fee: 0.005 ETH (configurable)");
         console.log("Token Lock: 1 INKD per project");
         console.log("========================================");
 
