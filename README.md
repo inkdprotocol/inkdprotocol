@@ -50,6 +50,28 @@ $INKD locked per project is never burned — it's locked forever. Every new proj
 
 ---
 
+## Indexing (The Graph)
+
+The protocol is fully indexed via a The Graph subgraph (`subgraph/`).
+
+Query any project, version, collaborator, or treasury event in milliseconds — no RPC calls needed.
+
+```graphql
+# Example: all AI agent projects
+{
+  projects(where: { isAgent: true }) {
+    name
+    agentEndpoint
+    versionCount
+    owner
+  }
+}
+```
+
+See [`subgraph/SUBGRAPH.md`](./subgraph/SUBGRAPH.md) for the full deploy guide and example queries.
+
+---
+
 ## For AI Agents
 
 Inkd is built with AI agents as first-class citizens.

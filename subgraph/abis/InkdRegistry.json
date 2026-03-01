@@ -1,0 +1,87 @@
+[
+  {
+    "type": "event",
+    "name": "ProjectCreated",
+    "inputs": [
+      { "name": "projectId", "type": "uint256", "indexed": true },
+      { "name": "owner",     "type": "address", "indexed": true },
+      { "name": "name",      "type": "string",  "indexed": false },
+      { "name": "license",   "type": "string",  "indexed": false }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "VersionPushed",
+    "inputs": [
+      { "name": "projectId",   "type": "uint256", "indexed": true },
+      { "name": "arweaveHash", "type": "string",  "indexed": false },
+      { "name": "versionTag",  "type": "string",  "indexed": false },
+      { "name": "pushedBy",    "type": "address", "indexed": false }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "CollaboratorAdded",
+    "inputs": [
+      { "name": "projectId",    "type": "uint256", "indexed": true },
+      { "name": "collaborator", "type": "address", "indexed": false }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "CollaboratorRemoved",
+    "inputs": [
+      { "name": "projectId",    "type": "uint256", "indexed": true },
+      { "name": "collaborator", "type": "address", "indexed": false }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "ProjectTransferred",
+    "inputs": [
+      { "name": "projectId", "type": "uint256", "indexed": true },
+      { "name": "oldOwner",  "type": "address", "indexed": true },
+      { "name": "newOwner",  "type": "address", "indexed": true }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "VisibilityChanged",
+    "inputs": [
+      { "name": "projectId", "type": "uint256", "indexed": true },
+      { "name": "isPublic",  "type": "bool",    "indexed": false }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "VersionFeeUpdated",
+    "inputs": [
+      { "name": "oldFee", "type": "uint256", "indexed": false },
+      { "name": "newFee", "type": "uint256", "indexed": false }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "TransferFeeUpdated",
+    "inputs": [
+      { "name": "oldFee", "type": "uint256", "indexed": false },
+      { "name": "newFee", "type": "uint256", "indexed": false }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "ReadmeUpdated",
+    "inputs": [
+      { "name": "projectId",   "type": "uint256", "indexed": true },
+      { "name": "arweaveHash", "type": "string",  "indexed": false }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "AgentRegistered",
+    "inputs": [
+      { "name": "projectId", "type": "uint256", "indexed": true },
+      { "name": "endpoint",  "type": "string",  "indexed": false }
+    ]
+  }
+]

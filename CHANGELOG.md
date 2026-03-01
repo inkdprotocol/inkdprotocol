@@ -17,6 +17,25 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [0.5.0] — 2026-03-02
+
+### Added
+- **The Graph subgraph** (`subgraph/`):
+  - `schema.graphql` — 7 entities: `Project`, `Version`, `Collaborator`,
+    `ProjectTransfer`, `ProtocolStats`, `TreasuryEvent`, `Account`
+  - `subgraph.yaml` — Manifest for Base mainnet; handles all 10 InkdRegistry
+    events + 3 InkdTreasury events
+  - `src/registry.ts` — AssemblyScript handlers for every InkdRegistry event:
+    project creation, version pushes, collaborator management, ownership transfers,
+    visibility changes, fee updates, README updates, agent registration
+  - `src/treasury.ts` — AssemblyScript handlers for deposit/withdraw/receive
+  - `src/utils.ts` — Shared helpers: stats singleton loader, ID builders
+  - `abis/InkdRegistry.json` + `abis/InkdTreasury.json` — ABI fragments for events
+  - `SUBGRAPH.md` — Full deploy guide + 8 example GraphQL queries
+  - `package.json` — `@graphprotocol/graph-cli` + `graph-ts` dependencies
+
+---
+
 ## [0.4.0] — 2026-03-02
 
 ### Added
