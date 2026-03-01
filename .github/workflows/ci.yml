@@ -21,8 +21,11 @@ jobs:
       - name: Build
         run: cd contracts && forge build --force
 
-      - name: Test
+      - name: Test (unit + fuzz)
         run: cd contracts && forge test -vv
+
+      - name: Invariant tests
+        run: cd contracts && forge test --match-contract InkdInvariantTest -vv
 
       - name: Check for warnings
         run: |
@@ -33,6 +36,18 @@ jobs:
             exit 1
           fi
           echo "✅ Zero warnings"
+
+      - name: Gas snapshot
+        run: cd contracts && forge snapshot --check --tolerance 5 || forge snapshot
+        # Stores gas costs per test. PR will show regression if gas increases >5%.
+
+      - name: Upload gas snapshot
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: gas-snapshot
+          path: contracts/.gas-snapshot
+          retention-days: 90
 
   sdk:
     name: SDK — Type Check & Build
@@ -55,3 +70,19 @@ jobs:
 
       - name: Build
         run: cd sdk && npm run build
+
+  # ─── Summary ───────────────────────────────────────────────────────────
+  all-checks:
+    name: All checks passed
+    needs: [contracts, sdk]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Check all jobs
+        run: |
+          if [ "${{ needs.contracts.result }}" != "success" ] || \
+             [ "${{ needs.sdk.result }}" != "success" ]; then
+            echo "❌ One or more checks failed"
+            exit 1
+          fi
+          echo "✅ All checks passed"
