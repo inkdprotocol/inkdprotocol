@@ -1,0 +1,17 @@
+{
+  "name": "@inkd/subgraph",
+  "version": "0.5.0",
+  "description": "The Graph subgraph for Inkd Protocol (Base)",
+  "license": "MIT",
+  "scripts": {
+    "codegen": "graph codegen",
+    "build": "graph build",
+    "deploy:studio": "graph deploy --studio inkd-protocol",
+    "deploy:sepolia": "graph deploy --studio inkd-protocol-sepolia",
+    "auth": "graph auth --studio"
+  },
+  "dependencies": {
+    "@graphprotocol/graph-cli": "^0.76.0",
+    "@graphprotocol/graph-ts": "^0.35.1"
+  }
+}
