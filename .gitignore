@@ -1,0 +1,49 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+out/
+cache/
+
+# Foundry
+contracts/out/
+contracts/cache/
+
+# Environment
+.env
+.env.local
+.env.production
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Coverage
+coverage/
+lcov.info
+
+# System data (generated at runtime)
+system/data/
+memory-system/data/
+
+# TypeScript
+*.tsbuildinfo
+
+# Broadcast (Foundry deploy artifacts)
+contracts/broadcast/
+
+# Keys — never commit
+*.pem
+*.key

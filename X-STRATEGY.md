@@ -1,4 +1,4 @@
-# Kernl Protocol — X (Twitter) Master Strategy
+# Inkd Protocol — X (Twitter) Master Strategy
 
 ## 🧠 Das System (Intelligent, Autonom, 24/7)
 
@@ -42,7 +42,7 @@ Nicht einfach "posts schreiben". Ein intelligentes System das:
 
 ---
 
-## 🎯 Kernl Voice & Persona
+## 🎯 Inkd Voice & Persona
 
 **Wer sind wir auf X:**
 - Ein Protocol das sich selbst managed (AI-native)
@@ -55,13 +55,13 @@ Nicht einfach "posts schreiben". Ein intelligentes System das:
 **Ton-Beispiele:**
 ```
 ❌ "We are excited to announce our revolutionary protocol!"
-✅ "Deployed KernlVault to Base Sepolia. Mint a file. Own it. Forever."
+✅ "Deployed InkdVault to Base Sepolia. Mint a file. Own it. Forever."
 
 ❌ "GM! Building the future of Web3 🚀🚀🚀"
 ✅ "Your AI agent depends on YOUR GitHub token. That's not autonomy. That's dependency."
 
 ❌ "Big things coming soon... 👀"
-✅ "Just wrote 847 lines of Solidity. Here's what KernlVault can do: 🧵"
+✅ "Just wrote 847 lines of Solidity. Here's what InkdVault can do: 🧵"
 ```
 
 ---
@@ -71,7 +71,7 @@ Nicht einfach "posts schreiben". Ein intelligentes System das:
 ### Montag — Ecosystem Intelligence
 Ich scanne X nach den wichtigsten Agent/Web3 News der Woche
 → Quote tweet mit unserem Angle
-→ "Why this matters for Kernl: ..."
+→ "Why this matters for Inkd: ..."
 
 ### Dienstag — Build in Public
 GitHub Push → Auto-Post was deployed wurde
@@ -81,17 +81,17 @@ GitHub Push → Auto-Post was deployed wurde
 ### Mittwoch — Education Thread
 Erkläre ein Konzept einfach
 → "Why does your AI agent still depend on humans for storage? 🧵"
-→ Problem → Lösung → Kernl
+→ Problem → Lösung → Inkd
 
 ### Donnerstag — Ecosystem Engagement
 Aktiv antworten auf @base @LitProtocol @Arweave @LangChain Posts
 → Quote tweets die uns in den Kontext setzen
-→ "This is exactly why we built Kernl"
+→ "This is exactly why we built Inkd"
 
 ### Freitag — Stats & Milestones
 Was ist diese Woche passiert?
 → Testnet stats, neue Features, community wächst
-→ "Week 3: 47 tokens minted on testnet. First agent stored its memory on Kernl."
+→ "Week 3: 47 tokens minted on testnet. First agent stored its memory on Inkd."
 
 ### Samstag — Thought Leadership
 Größerer Take über die Agent-Zukunft
@@ -119,10 +119,10 @@ web_search("LangChain AutoGPT news")
 Scanne top-performende Posts von:
 - @base, @Uniswap, @aixbt_agent, @truth_terminal
 → Analysiere Format, Länge, Ton
-→ Adaptiere für Kernl
+→ Adaptiere für Inkd
 
 ### Layer 3: GitHub → X Bridge
-Bei jedem Push zu KernlProtocol repos:
+Bei jedem Push zu InkdProtocol repos:
 → Auto-Post: "Just pushed [commit message]. Here's what it means:"
 → Milestone deploys kriegen größere Posts
 
@@ -133,7 +133,7 @@ Monitoring Keywords auf X:
 - "decentralized storage agent"
 - "agent wallet"
 - "LangChain memory"
-→ Bei relevanten Posts: Reply mit Kernl-Kontext
+→ Bei relevanten Posts: Reply mit Inkd-Kontext
 
 ### Layer 5: Performance Learning
 Weekly: welche Posts haben performt?
@@ -168,7 +168,7 @@ That means:
 → The company can delete it
 → It's not the agent's data — it's yours
 
-Kernl fixes this. 🧵
+Inkd fixes this. 🧵
 
 [Thread continues with explanation]
 ```
@@ -177,16 +177,16 @@ Kernl fixes this. 🧵
 ```
 [Quote tweet relevant news]
 
-This is exactly the problem Kernl solves.
+This is exactly the problem Inkd solves.
 
 When [X happens in the news] → agents need [what we provide].
 
-[1-2 sentences max about Kernl]
+[1-2 sentences max about Inkd]
 ```
 
 ### Milestone:
 ```
-[Number] tokens minted on Kernl testnet.
+[Number] tokens minted on Inkd testnet.
 
 Each one is a file, code snippet, or agent memory.
 Owned by a wallet. Not a server.
@@ -224,7 +224,7 @@ Mainnet soon.
 
 **Tag 1 — Announcement:**
 ```
-Introducing Kernl Protocol.
+Introducing Inkd Protocol.
 
 Your wallet isn't just for money.
 It's for your data. Your code. Your agent's brain.
@@ -241,10 +241,10 @@ Jeden Tag ein Update was deployed wurde
 "Why AI agents can't be truly autonomous today" — Educational thread
 
 **Tag 14 — Testnet Live:**
-"KernlVault is live on Base Sepolia. Here's how to try it."
+"InkdVault is live on Base Sepolia. Here's how to try it."
 
 **Tag 21 — First Milestone:**
-"100 tokens minted. Here's who's using Kernl:"
+"100 tokens minted. Here's who's using Inkd:"
 
 **Tag 30 — Momentum Post:**
 "30 days of building in public. Here's where we are:"
@@ -269,7 +269,7 @@ Jeden Tag ein Update was deployed wurde
 - Engagement Rate per Post
 - Impressions per Post
 - Best-performing Content Type
-- Ecosystem mentions (wer spricht über Kernl)
+- Ecosystem mentions (wer spricht über Inkd)
 - Inbound Developer Interest
 
 ---

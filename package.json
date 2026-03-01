@@ -1,0 +1,35 @@
+{
+  "name": "inkd-protocol",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The decentralized ownership layer for AI agents on Base",
+  "workspaces": [
+    "sdk"
+  ],
+  "scripts": {
+    "build": "npm run build:sdk",
+    "build:sdk": "cd sdk && npm run build",
+    "build:contracts": "cd contracts && forge build",
+    "test:contracts": "cd contracts && forge test -vvv",
+    "test:coverage": "cd contracts && forge coverage",
+    "clean": "npm run clean:sdk && npm run clean:contracts",
+    "clean:sdk": "cd sdk && npm run clean",
+    "clean:contracts": "cd contracts && rm -rf out cache",
+    "lint": "cd sdk && npm run lint"
+  },
+  "keywords": [
+    "inkd",
+    "protocol",
+    "ai-agents",
+    "web3",
+    "base",
+    "erc1155",
+    "decentralized-storage",
+    "arweave"
+  ],
+  "author": "Inkd Protocol",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
