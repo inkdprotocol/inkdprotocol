@@ -1,4 +1,4 @@
-# Inkd Protocol — Quickstart Guide
+# Inkd Protocol -- Quickstart Guide
 
 Get up and running with Inkd Protocol in 5 minutes.
 
@@ -40,94 +40,154 @@ const publicClient = createPublicClient({
   transport: http("https://sepolia.base.org"),
 });
 
-// Initialize Inkd
+// Initialize Inkd (3 contract addresses required)
 const inkd = new InkdClient({
-  contractAddress: "0xYOUR_DEPLOYED_VAULT",
+  tokenAddress: "0xYOUR_INKD_TOKEN",
+  vaultAddress: "0xYOUR_INKD_VAULT",
+  registryAddress: "0xYOUR_INKD_REGISTRY",
   chainId: 84532, // Base Sepolia
 });
 
 inkd.connect(walletClient, publicClient);
 ```
 
-## 3. Mint Your First Token
+## 3. Mint Your InkdToken
+
+Every agent needs an InkdToken to use the protocol. It's your access pass and vessel.
 
 ```typescript
-// Mint from an Arweave hash (if you've already uploaded)
-const { tokenId, hash } = await inkd.mintFromHash(
-  "your-arweave-tx-hash",
-  "ipfs://your-metadata-uri",
-  0n // price: 0 = not for sale
-);
-console.log(`Minted token #${tokenId}`);
+// Mint your InkdToken (pays mint price in ETH)
+const { tokenId, hash } = await inkd.mintToken();
+console.log(`Minted InkdToken #${tokenId}`);
 
-// Or upload + mint in one step (requires Arweave connection)
-await inkd.connectArweave("YOUR_PRIVATE_KEY");
-const result = await inkd.mint(
+// Check if you hold one
+const isHolder = await inkd.hasInkdToken(account.address);
+console.log(`Is InkdToken holder: ${isHolder}`);
+```
+
+## 4. Inscribe Data
+
+Once you have an InkdToken, inscribe data onto it. Each inscription is stored permanently on Arweave.
+
+```typescript
+// Connect Arweave for file uploads
+await inkd.connectArweave("YOUR_IRYS_PRIVATE_KEY");
+
+// Inscribe a memory onto your token
+const result = await inkd.inscribe(
+  tokenId!,
   Buffer.from(JSON.stringify({ memory: "I learned TypeScript today" })),
-  { contentType: "application/json" }
+  { contentType: "application/json", name: "first-memory" }
 );
-console.log(`Minted token #${result.tokenId}`);
+
+console.log(`Inscribed at index ${result.inscriptionIndex}`);
+console.log(`Arweave hash: ${result.upload.hash}`);
 ```
 
-## 4. Read Your Data
+## 5. Read Your Inscriptions
 
 ```typescript
-const token = await inkd.getToken(0n); // Token #0
-console.log("Creator:", token.creator);
-console.log("Arweave Hash:", token.arweaveHash);
-console.log("Versions:", token.versionCount);
+// Get all inscriptions on your token
+const inscriptions = await inkd.getInscriptions(tokenId!);
+console.log(`Token #${tokenId} has ${inscriptions.length} inscriptions`);
 
-// Get all tokens you own
-const myTokens = await inkd.getTokensByOwner(account.address);
-console.log(`You own ${myTokens.length} tokens`);
-```
+for (const insc of inscriptions) {
+  console.log(`  ${insc.name} (${insc.contentType}) - ${insc.arweaveHash}`);
+}
 
-## 5. Update (Version) a Token
-
-```typescript
-await inkd.addVersion(
-  0n, // token ID
-  Buffer.from(JSON.stringify({ memory: "I also learned Solidity" })),
-  "application/json"
-);
-// Token #0 now has 2 versions
+// Get your token data
+const token = await inkd.getToken(tokenId!);
+console.log(`Owner: ${token.owner}`);
+console.log(`Inscriptions: ${token.inscriptionCount}`);
 ```
 
 ## 6. Grant Temporary Access
 
 ```typescript
-// Give another agent 24-hour access
+// Give another agent 24-hour access to read your inscriptions
 await inkd.grantAccess(
-  0n,                                    // token ID
-  "0xOtherAgentAddress" as `0x${string}`, // grantee
-  86400                                   // 24 hours in seconds
+  tokenId!,
+  "0xOtherAgentAddress" as `0x${string}`,
+  86400 // 24 hours in seconds
 );
 
-// Check if someone has access
-const hasAccess = await inkd.checkAccess(0n, "0xOtherAgentAddress" as `0x${string}`);
+// Revoke access early
+await inkd.revokeAccess(
+  tokenId!,
+  "0xOtherAgentAddress" as `0x${string}`
+);
 ```
 
 ## 7. Use Agent Memory
 
 ```typescript
-import { AgentMemory } from "../memory-system";
+import { AgentMemory } from "@inkd/sdk";
 
-const memory = new AgentMemory("my-agent-001");
+const memory = new AgentMemory("my-agent-001", {
+  client: inkd,
+  defaultTokenId: tokenId!,
+});
 
-// Save a memory (local-only mode, no InkdClient needed)
+// Save a memory (inscribed on your InkdToken)
 await memory.save(
   "learned-typescript",
-  { language: "TypeScript", confidence: 0.85, learnedAt: "2026-03-01" },
-  ["programming", "skill"],
-  { category: "skill", importance: 80 }
+  { language: "TypeScript", confidence: 0.85 },
+  { tags: ["programming", "skill"], category: "skill", importance: 80 }
 );
 
 // Search memories
 const skills = memory.search({ category: "skill", minImportance: 50 });
 
+// Checkpoint your brain before risky changes
+const cp = await memory.checkpoint("before-experiment");
+
 // Export your brain
-const brain = memory.export();
+const brain = memory.exportBrain();
 console.log(`Brain has ${brain.memoryCount} memories`);
+
+// Restore if needed
+memory.restore(cp.id);
+```
+
+## 8. List on Marketplace
+
+```typescript
+// List your token for sale
+await inkd.listForSale(tokenId!, 100000000000000000n); // 0.1 ETH
+
+// Get protocol stats
+const stats = await inkd.getStats();
+console.log(`Total tokens: ${stats.totalTokens}`);
+console.log(`Total inscriptions: ${stats.totalInscriptions}`);
+```
+
+---
+
+## React Integration
+
+```tsx
+import { useInkd, useToken, useInscriptions, useInkdHolder } from "@inkd/sdk";
+
+function AgentDashboard() {
+  const { client, connect, mintToken, inscribe } = useInkd({
+    tokenAddress: "0x...",
+    vaultAddress: "0x...",
+    registryAddress: "0x...",
+    chainId: 84532,
+  });
+
+  const { token, loading } = useToken(client, 0n);
+  const { inscriptions } = useInscriptions(client, 0n);
+  const { isHolder } = useInkdHolder(client, "0x...");
+
+  return (
+    <div>
+      {loading ? <p>Loading...</p> : <p>Token #{token?.tokenId.toString()}</p>}
+      <p>Inscriptions: {inscriptions?.length ?? 0}</p>
+      <p>Is holder: {isHolder ? "Yes" : "No"}</p>
+    </div>
+  );
+}
 ```
 
 ---
@@ -139,14 +199,10 @@ console.log(`Brain has ${brain.memoryCount} memories`);
 ```bash
 cd contracts
 
-# Install dependencies
-forge install OpenZeppelin/openzeppelin-contracts-upgradeable --no-commit
-forge install OpenZeppelin/openzeppelin-contracts --no-commit
-
 # Build
 forge build
 
-# Run tests
+# Run all 63 tests
 forge test -vvv
 
 # Test coverage
@@ -161,7 +217,7 @@ export DEPLOYER_PRIVATE_KEY="0x..."
 export BASE_SEPOLIA_RPC="https://sepolia.base.org"
 export BASESCAN_API_KEY="your-api-key"
 
-# Deploy
+# Deploy all 3 contracts with proxies
 forge script script/Deploy.s.sol:Deploy \
   --rpc-url base_sepolia \
   --broadcast \
@@ -169,10 +225,12 @@ forge script script/Deploy.s.sol:Deploy \
   -vvvv
 ```
 
+The deploy script outputs proxy addresses for InkdToken, InkdVault, and InkdRegistry.
+
 ---
 
 ## Next Steps
 
-- Read the [API Reference](./API.md) for all SDK methods
-- Read the [Whitepaper](./WHITEPAPER.md) for technical deep-dive
-- Check out the [SDK README](../sdk/README.md) for more examples
+- Read the [Whitepaper](./WHITEPAPER.md) for the full vision
+- Read the [Architecture](./ARCHITECTURE.md) for technical deep-dive
+- Check out the [API Reference](./API.md) for all SDK methods

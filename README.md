@@ -1,6 +1,6 @@
 # Inkd Protocol
 
-**The decentralized ownership layer for AI agents.**
+**The ownership layer for AI agents.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Solidity](https://img.shields.io/badge/Solidity-0.8.24-363636.svg)](contracts/)
@@ -12,59 +12,75 @@
 ```
 Every file is a token. Every wallet is a brain.
 Own the token = own the data.
-Transfer = handover. Burn = delete.
-No servers. No humans needed.
+Transfer = handover. Burn = forget.
+No servers. No credentials. No humans required.
 ```
 
 ---
 
+## The Problem
+
+AI agents can write code, make financial decisions, and learn from experience. But they can't own a single file without a human's GitHub token. They can't save a memory without a human's database. Every agent alive today is a tenant, not an owner.
+
+Inkd fixes this.
+
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                      AI AGENT                           │
-│                    (any framework)                       │
-└───────────────────────┬─────────────────────────────────┘
-                        │
-┌───────────────────────▼─────────────────────────────────┐
-│                    @inkd/sdk                             │
-│  InkdClient · ArweaveClient · AgentMemory · Encryption  │
-└───────┬───────────────┬─────────────────┬───────────────┘
-        │               │                 │
-┌───────▼──────┐ ┌──────▼──────┐ ┌────────▼────────┐
-│   Arweave    │ │    Base     │ │  Lit Protocol   │
-│  (storage)   │ │  (chain)   │ │  (encryption)   │
-│  permanent   │ │  ERC-1155  │ │  token-gated    │
-│  via Irys    │ │  UUPS      │ │  (V2)           │
-└──────────────┘ └─────────────┘ └─────────────────┘
++-------------------------------------------------------------------+
+|                          AI AGENT                                  |
+|                    (LangChain / AutoGPT / Custom)                  |
++------------------------------+------------------------------------+
+                               |
++------------------------------v------------------------------------+
+|                          @inkd/sdk                                 |
+|  InkdClient  .  ArweaveClient  .  AgentMemory  .  React Hooks     |
++--------+----------------+-------------------+---------------------+
+         |                |                   |
+  +------v------+  +------v------+  +---------v---------+
+  |  InkdToken  |  |  InkdVault  |  |   InkdRegistry    |
+  |  ERC-721    |  |  Inscription|  |   Discovery +     |
+  |  Access     |  |  Engine     |  |   Marketplace     |
+  |  Pass       |  |  Versioning |  |   Search & Trade  |
+  |  On-chain   |  |  Access     |  |                   |
+  |  SVG        |  |  Control    |  |                   |
+  +------+------+  +------+------+  +---------+---------+
+         |                |                   |
+         +-------- Base L2 (EVM) ------------+
+                         |
+                  +------v------+
+                  |   Arweave   |
+                  |  Permanent  |
+                  |  Storage    |
+                  +-------------+
 ```
-
-## Why?
-
-AI agents can write code, make decisions, and execute transactions — but they can't own a file without human credentials. Every agent today depends on:
-
-- A human's GitHub token to store code
-- A human's API key to access tools
-- A human's permission to save memory
-
-**Inkd gives agents their own storage.** An agent's wallet holds not just ETH — but its entire brain: code, memory, skills, identity.
 
 ## How It Works
 
+1. **Mint** an InkdToken (ERC-721) -- your access pass and vessel
+2. **Inscribe** data onto your token -- stored permanently on Arweave
+3. **Own** -- token in wallet = access to all inscribed data
+4. **Transfer** -- one transaction moves everything. All inscriptions follow the token.
+5. **Burn** -- gone forever
+
 ```
-Upload file → encrypt (V2) → store on Arweave → mint token on Base
-                                                        │
-                              token in wallet = access to file
+InkdToken #42
+  +-- Inscription 0: agent-config.json
+  +-- Inscription 1: learned-skills.bin
+  +-- Inscription 2: conversation-history.json
+  +-- Inscription 3: model-weights.pt
+  |
+  Transfer Token #42 = transfer entire brain
 ```
 
-| Action | Contract Call |
-|--------|--------------|
-| Store a file | `mint(arweaveHash, metadataURI, price)` |
-| Store many files | `batchMint(hashes[], uris[], prices[])` |
-| Buy knowledge | `purchase(tokenId, seller)` |
-| Update a file | `addVersion(tokenId, newHash)` |
-| Share temporarily | `grantAccess(tokenId, wallet, expiresAt)` |
-| Delete forever | `burn(tokenId)` |
+| Action | How |
+|--------|-----|
+| Store a file | `inkd.inscribe(tokenId, data, { name: "memory.json" })` |
+| Read inscriptions | `inkd.getInscriptions(tokenId)` |
+| Update a file | `inkd.updateInscription(tokenId, index, newData)` |
+| Share temporarily | `inkd.grantAccess(tokenId, wallet, 86400)` |
+| Sell your brain | `inkd.listForSale(tokenId, price)` |
+| Delete forever | Token burn -- all inscriptions gone |
 
 ## Quick Start
 
@@ -79,119 +95,191 @@ import { baseSepolia } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
 
 const account = privateKeyToAccount("0x...");
-const walletClient = createWalletClient({ account, chain: baseSepolia, transport: http() });
-const publicClient = createPublicClient({ chain: baseSepolia, transport: http() });
+const wallet = createWalletClient({ account, chain: baseSepolia, transport: http() });
+const public_ = createPublicClient({ chain: baseSepolia, transport: http() });
 
-const inkd = new InkdClient({ contractAddress: "0x...", chainId: 84532 });
-inkd.connect(walletClient, publicClient);
+const inkd = new InkdClient({
+  tokenAddress: "0x...",
+  vaultAddress: "0x...",
+  registryAddress: "0x...",
+  chainId: 84532,
+});
 
-// Mint a memory
-const { tokenId } = await inkd.mintFromHash("arweave-hash", "ipfs://meta", 0n);
+inkd.connect(wallet, public_);
+await inkd.connectArweave("0x...");
 
-// Grant access to another agent for 24 hours
-await inkd.grantAccess(tokenId!, "0xOtherAgent" as `0x${string}`, 86400);
+// Mint your token
+const { tokenId } = await inkd.mintToken();
+
+// Inscribe data
+await inkd.inscribe(tokenId!, Buffer.from('{"skill": "Solidity"}'), {
+  contentType: "application/json",
+  name: "first-skill",
+});
+
+// Grant another agent 24h access
+await inkd.grantAccess(tokenId!, "0xAgent2" as `0x${string}`, 86400);
 ```
 
 ## Agent Memory System
 
-The killer feature — store your agent's brain as tokens:
+The killer feature -- your agent's brain as inscriptions:
 
 ```typescript
-import { AgentMemory } from "./memory-system";
+import { AgentMemory } from "@inkd/sdk";
 
-const memory = new AgentMemory("agent-001");
+const memory = new AgentMemory("agent-001", {
+  client: inkd,
+  defaultTokenId: tokenId!,
+});
 
-await memory.save("learned-solidity", { skill: "Solidity", level: "advanced" }, ["code", "skill"]);
-const skills = memory.search({ category: "skill" });
-const brain = memory.export(); // Full brain dump
+// Save (inscribes on-chain)
+await memory.save("learned-rust", { level: "intermediate" }, {
+  tags: ["programming"], category: "skill", importance: 85,
+});
+
+// Search
+const skills = memory.search({ category: "skill", minImportance: 50 });
+
+// Checkpoint before risky operation
+const cp = await memory.checkpoint("pre-upgrade");
+
+// Export full brain
+const brain = memory.exportBrain();
+
+// Import another agent's brain
+await memory.importBrain(99n, "0xOtherAgent");
+
+// Rollback if needed
+memory.restore(cp.id);
+```
+
+## Self-Learning X System
+
+Built-in autonomous Twitter strategy that improves itself:
+
+```typescript
+import { InkdBrain } from "./system";
+
+const brain = new InkdBrain({
+  minPostScore: 70,
+  maxPostsPerCycle: 3,
+  autoPost: false,
+});
+
+// Run a cycle: scan -> analyze -> generate -> score -> learn
+const result = await brain.runCycle();
+console.log(`Generated ${result.generatedPosts.length} posts`);
+console.log(`Approved ${result.approvedPosts.length} (score >= 70)`);
+console.log(`Lessons learned: ${result.lessons.length}`);
+
+// Or start the 12-hour loop
+brain.start();
 ```
 
 ## Project Structure
 
 ```
 inkd-protocol/
-├── contracts/           Smart contracts (Foundry)
-│   ├── src/
-│   │   └── InkdVault.sol    Core vault contract
-│   ├── test/
-│   │   └── InkdVault.t.sol  Comprehensive test suite
-│   └── script/
-│       └── Deploy.s.sol     Deployment script
-├── sdk/                 TypeScript SDK (@inkd/sdk)
-│   └── src/
-│       ├── InkdClient.ts    Main client
-│       ├── arweave.ts       Arweave via Irys
-│       ├── encryption.ts    Lit Protocol (V2 stub)
-│       ├── abi.ts           Contract ABI
-│       └── types.ts         Type definitions
-├── system/              Self-learning X strategy
-│   ├── performance-tracker.ts
-│   ├── learning-engine.ts
-│   ├── content-generator.ts
-│   └── trend-monitor.ts
-├── memory-system/       Agent memory as tokens
-│   └── AgentMemory.ts
-└── docs/
-    ├── WHITEPAPER.md
-    ├── QUICKSTART.md
-    └── API.md
++-- contracts/              Smart contracts (Foundry)
+|   +-- src/
+|   |   +-- InkdToken.sol       ERC-721 access pass + vessel
+|   |   +-- InkdVault.sol       Inscription engine
+|   |   +-- InkdRegistry.sol    Discovery + marketplace
+|   +-- test/
+|   |   +-- InkdVault.t.sol     63 tests
+|   +-- script/
+|       +-- Deploy.s.sol        Full deployment with proxies
++-- sdk/                    TypeScript SDK
+|   +-- src/
+|       +-- InkdClient.ts      3-contract client
+|       +-- arweave.ts         Arweave via Irys
+|       +-- encryption.ts      Lit Protocol (V2)
+|       +-- types.ts           Type definitions
+|       +-- errors.ts          Custom error classes
+|       +-- abi.ts             Contract ABIs
+|       +-- hooks/             React hooks
++-- system/                 Self-learning X system
+|   +-- InkdBrain.ts           Master controller
+|   +-- ContentEngine.ts       Tweet generation + scoring
+|   +-- TrendMonitor.ts        Intelligence gathering
+|   +-- LearningLoop.ts        Pattern extraction
++-- memory-system/          Agent memory as inscriptions
+|   +-- AgentMemory.ts         Brain management
++-- docs/
+    +-- WHITEPAPER.md          Full whitepaper
+    +-- ARCHITECTURE.md        Technical architecture
+    +-- QUICKSTART.md          5-minute guide
+    +-- API.md                 SDK reference
 ```
 
-## Contract Development
+## Contracts
+
+Three upgradeable contracts (UUPS proxy pattern):
+
+| Contract | Purpose | Key Features |
+|----------|---------|-------------|
+| **InkdToken** | ERC-721 access pass | Max 10k supply, on-chain SVG, ERC-2981 royalties, batch mint |
+| **InkdVault** | Inscription engine | Inscribe, version, soft-delete, access grants, protocol fee |
+| **InkdRegistry** | Discovery layer | Register, search by tag/type/owner, marketplace with listings |
+
+### Build & Test
 
 ```bash
 cd contracts
-
-# Install dependencies
-forge install OpenZeppelin/openzeppelin-contracts-upgradeable --no-commit
-forge install OpenZeppelin/openzeppelin-contracts --no-commit
-
-# Build
 forge build
-
-# Test
-forge test -vvv
-
-# Deploy to Base Sepolia
-forge script script/Deploy.s.sol:Deploy --rpc-url base_sepolia --broadcast --verify -vvvv
+forge test -vvv    # 63 tests
 ```
+
+### Deploy
+
+```bash
+export DEPLOYER_PRIVATE_KEY="0x..."
+forge script script/Deploy.s.sol:Deploy \
+  --rpc-url base_sepolia \
+  --broadcast \
+  --verify \
+  -vvvv
+```
+
+## Token Economics
+
+| Revenue Stream | Fee | Trigger |
+|----------------|-----|---------|
+| Token minting | configurable | `mint()` |
+| Inscriptions | 1% protocol fee | `inscribe()` |
+| Marketplace | 2.5% | `buyToken()` |
+| Royalties | 5% (ERC-2981) | Secondary sales |
 
 ## Stack
 
 | Component | Purpose |
 |-----------|---------|
-| **Base** | Fast, cheap EVM chain for on-chain ownership |
-| **ERC-1155** | Multi-token standard — one contract, unlimited data types |
+| **Base** | Fast, cheap L2 for on-chain ownership |
+| **ERC-721** | Unique token per agent -- access pass + vessel |
 | **UUPS Proxy** | Upgradeable without migration |
-| **Arweave** | Permanent, decentralized storage |
-| **Irys** | Fast Arweave uploads with instant availability |
+| **Arweave** | Permanent, decentralized file storage |
+| **Irys** | Fast Arweave uploads |
 | **Lit Protocol** | Token-gated encryption (V2) |
 | **viem** | TypeScript Ethereum client |
-
-## Protocol Fee
-
-1% on every purchase. Automatic. On-chain. Configurable (max 5%).
-
-```
-Buyer pays:      1.00 ETH
-Seller receives: 0.99 ETH
-Protocol keeps:  0.01 ETH
-```
+| **React** | Hooks for frontend integration |
 
 ## Roadmap
 
-- [x] V1: InkdVault contract — mint, purchase, burn, versioning, access grants
-- [x] V1: TypeScript SDK
-- [x] V1: Agent Memory System
-- [ ] V2: Lit Protocol encryption integration
-- [ ] V3: Agent-to-agent knowledge marketplace
-- [ ] V4: DAO governance + ownership renounce
+- [x] V1: InkdToken + InkdVault + InkdRegistry
+- [x] V1: TypeScript SDK with React hooks
+- [x] V1: Agent Memory with checkpoint/restore
+- [x] V1: Self-learning X system
+- [ ] V2: Lit Protocol encryption
+- [ ] V3: Agent-to-agent knowledge economy
+- [ ] V4: DAO governance + cross-chain
 
 ## Documentation
 
-- [Whitepaper](docs/WHITEPAPER.md) — Technical deep-dive
-- [Quickstart](docs/QUICKSTART.md) — 5-minute setup guide
-- [API Reference](docs/API.md) — Full SDK documentation
+- [Whitepaper](docs/WHITEPAPER.md) -- Full protocol specification
+- [Architecture](docs/ARCHITECTURE.md) -- Technical deep-dive with diagrams
+- [Quickstart](docs/QUICKSTART.md) -- 5-minute setup guide
+- [API Reference](docs/API.md) -- Complete SDK documentation
 
 ## License
 
