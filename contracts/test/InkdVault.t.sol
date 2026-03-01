@@ -14,10 +14,10 @@ import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 contract InkdVaultTest is Test {
     InkdVault vault;
-    address owner  = address(0xA);
-    address agent1 = address(0xB);
-    address agent2 = address(0xC);
-    address agent3 = address(0xD);
+    address owner  = address(0xA00);
+    address agent1 = address(0xB00);
+    address agent2 = address(0xC00);
+    address agent3 = address(0xD00);
 
     function setUp() public {
         InkdVault impl = new InkdVault();

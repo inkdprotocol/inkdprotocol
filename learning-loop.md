@@ -1,4 +1,4 @@
-# Kernl X Learning Loop — 12h Cycle
+# Inkd X Learning Loop — 12h Cycle
 
 ## Was passiert alle 12 Stunden:
 
@@ -25,7 +25,7 @@
 - Engagement-Targets definieren
 - Welche Accounts sollen getaggt werden?
 
-## Tracking Datei: kernl-x-performance.json
+## Tracking Datei: inkd-x-performance.json
 Jeder Post wird geloggt mit:
 - Text, Timestamp, Format-Typ
 - Impressions, Likes, Retweets, Replies

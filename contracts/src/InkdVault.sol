@@ -21,13 +21,13 @@ pragma solidity ^0.8.24;
 import "@openzeppelin/contracts-upgradeable/token/ERC1155/ERC1155Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 contract InkdVault is
     ERC1155Upgradeable,
     OwnableUpgradeable,
     UUPSUpgradeable,
-    ReentrancyGuardUpgradeable
+    ReentrancyGuard
 {
     // ─── Storage ────────────────────────────────────────────────────────────
 
@@ -156,8 +156,6 @@ contract InkdVault is
     function initialize(address _owner) public initializer {
         __ERC1155_init("");
         __Ownable_init(_owner);
-        __UUPSUpgradeable_init();
-        __ReentrancyGuard_init();
         protocolFeeBps = 100; // 1%
     }
 
