@@ -1,381 +1,250 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-/**
- * @title  InkdRegistry
- * @author Inkd Protocol
- * @notice The discovery layer for the Inkd Protocol.
- *
- *         Register your InkdToken as public or private. Tag your inscriptions.
- *         Search by content type, owner, or tags. List inscriptions for sale.
- *
- * @dev    UUPS-upgradeable registry with tagging, search, marketplace listing,
- *         and protocol-wide statistics.
- */
-
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-interface IInkdTokenForRegistry {
-    function ownerOf(uint256 tokenId) external view returns (address);
-    function isInkdHolder(address wallet) external view returns (bool);
-    function transferFrom(address from, address to, uint256 tokenId) external;
-}
+import {InkdTreasury} from "./InkdTreasury.sol";
 
-contract InkdRegistry is
-    OwnableUpgradeable,
-    UUPSUpgradeable,
-    ReentrancyGuard
-{
-    // ─── Types ────────────────────────────────────────────────────────────
+/// @title InkdRegistry — Project registry for the Inkd Protocol
+/// @notice Lock 1 $INKD to create a project. Push versions for 0.001 ETH each.
+contract InkdRegistry is Initializable, OwnableUpgradeable, UUPSUpgradeable {
+    using SafeERC20 for IERC20;
 
-    struct TokenRegistration {
-        uint256 tokenId;
+    // ───── Constants ─────
+    uint256 public constant VERSION_FEE = 0.001 ether;
+    uint256 public constant TOKEN_LOCK_AMOUNT = 1 ether; // 1 $INKD (18 decimals)
+
+    // ───── State ─────
+    IERC20 public inkdToken;
+    InkdTreasury public treasury;
+    uint256 public projectCount;
+
+    // ───── Structs ─────
+    struct Project {
+        uint256 id;
+        string name;
+        string description;
         address owner;
         bool isPublic;
-        uint256 registeredAt;
-        string[] tags;
+        uint256 createdAt;
+        uint256 versionCount;
+        bool exists;
     }
 
-    struct Listing {
-        uint256 tokenId;
-        address seller;
-        uint256 price;
-        uint256 listedAt;
-        bool active;
+    struct Version {
+        uint256 projectId;
+        string arweaveHash;
+        string versionTag;
+        string changelog;
+        address pushedBy;
+        uint256 pushedAt;
     }
 
-    struct TagEntry {
-        uint256 tokenId;
-        uint256 inscriptionIndex;
-        string tag;
-    }
+    // ───── Mappings ─────
+    mapping(uint256 => Project) public projects;
+    mapping(uint256 => Version[]) private _versions;
+    mapping(uint256 => address[]) private _collaborators;
+    mapping(string => bool) public nameTaken;
+    mapping(address => uint256[]) private _ownerProjects;
+    mapping(uint256 => mapping(address => bool)) public isCollaborator;
 
-    // ─── Storage ──────────────────────────────────────────────────────────
+    // ───── Events ─────
+    event ProjectCreated(uint256 indexed projectId, address indexed owner, string name);
+    event VersionPushed(uint256 indexed projectId, string arweaveHash, string versionTag, address pushedBy);
+    event CollaboratorAdded(uint256 indexed projectId, address collaborator);
+    event CollaboratorRemoved(uint256 indexed projectId, address collaborator);
+    event ProjectTransferred(uint256 indexed projectId, address indexed oldOwner, address indexed newOwner);
+    event VisibilityChanged(uint256 indexed projectId, bool isPublic);
 
-    IInkdTokenForRegistry public inkdToken;
-    uint256 public marketplaceFeeBps;
-    uint256 public marketplaceFeeBalance;
-
-    mapping(uint256 => TokenRegistration) public registrations;
-    mapping(uint256 => Listing) public listings;
-    mapping(string => uint256[]) internal _tagToTokens;
-    mapping(string => uint256[]) internal _contentTypeToTokens;
-    mapping(address => uint256[]) internal _ownerTokens;
-    mapping(uint256 => mapping(uint256 => string[])) internal _inscriptionTags;
-
-    uint256[] internal _allRegisteredTokens;
-    uint256[] internal _activeListings;
-
-    // ─── Stats ────────────────────────────────────────────────────────────
-
-    uint256 public totalRegisteredTokens;
-    uint256 public totalTrackedInscriptions;
-    uint256 public totalVolume;
-    uint256 public totalSales;
-
-    // ─── Events ───────────────────────────────────────────────────────────
-
-    event TokenRegistered(uint256 indexed tokenId, address indexed owner, bool isPublic);
-    event RegistrationUpdated(uint256 indexed tokenId, bool isPublic);
-    event TokenUnregistered(uint256 indexed tokenId);
-    event TagsAdded(uint256 indexed tokenId, uint256 indexed inscriptionIndex, string[] tags);
-    event TokenListed(uint256 indexed tokenId, address indexed seller, uint256 price);
-    event ListingCancelled(uint256 indexed tokenId);
-    event TokenSold(uint256 indexed tokenId, address indexed seller, address indexed buyer, uint256 price, uint256 fee);
-    event FeesWithdrawn(address indexed to, uint256 amount);
-
-    // ─── Errors ───────────────────────────────────────────────────────────
-
-    error NotInkdHolder();
-    error NotTokenOwner(uint256 tokenId, address caller);
-    error AlreadyRegistered(uint256 tokenId);
-    error NotRegistered(uint256 tokenId);
-    error NotListed(uint256 tokenId);
-    error InsufficientPayment(uint256 required, uint256 sent);
-    error CannotBuyOwnListing();
-    error TransferFailed();
-    error NoFeesToWithdraw();
+    // ───── Errors ─────
+    error NameTaken();
+    error EmptyName();
+    error ProjectNotFound();
+    error NotOwner();
+    error NotOwnerOrCollaborator();
+    error InsufficientFee();
+    error AlreadyCollaborator();
+    error NotCollaborator();
+    error CannotAddOwner();
     error ZeroAddress();
-    error ZeroPrice();
-    error FeeExceedsMax(uint256 bps);
-    error TooManyTags(uint256 count, uint256 max);
 
-    // ─── Modifiers ────────────────────────────────────────────────────────
-
-    modifier onlyInkdHolder() {
-        _onlyInkdHolder();
+    // ───── Modifiers ─────
+    modifier onlyProjectOwner(uint256 projectId) {
+        if (!projects[projectId].exists) revert ProjectNotFound();
+        if (projects[projectId].owner != msg.sender) revert NotOwner();
         _;
     }
 
-    modifier onlyTokenOwner(uint256 tokenId) {
-        _onlyTokenOwner(tokenId);
-        _;
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
     }
 
-    function _onlyInkdHolder() internal view {
-        if (!inkdToken.isInkdHolder(msg.sender)) revert NotInkdHolder();
+    function initialize(address owner_, address token_, address treasury_) external initializer {
+        __Ownable_init(owner_);
+        inkdToken = IERC20(token_);
+        treasury = InkdTreasury(payable(treasury_));
     }
 
-    function _onlyTokenOwner(uint256 tokenId) internal view {
-        if (inkdToken.ownerOf(tokenId) != msg.sender) revert NotTokenOwner(tokenId, msg.sender);
-    }
+    // ───── Core Functions ─────
 
-    // ─── Initializer ──────────────────────────────────────────────────────
+    /// @notice Create a project. Locks 1 $INKD from the caller.
+    function createProject(string calldata name, string calldata description, bool isPublic) external {
+        if (bytes(name).length == 0) revert EmptyName();
+        if (nameTaken[name]) revert NameTaken();
 
-    function initialize(address _owner, address _inkdToken) public initializer {
-        if (_owner == address(0) || _inkdToken == address(0)) revert ZeroAddress();
+        // Lock 1 $INKD in this contract
+        inkdToken.safeTransferFrom(msg.sender, address(this), TOKEN_LOCK_AMOUNT);
 
-        __Ownable_init(_owner);
-
-        inkdToken = IInkdTokenForRegistry(_inkdToken);
-        marketplaceFeeBps = 250;
-    }
-
-    // ─── Registration ─────────────────────────────────────────────────────
-
-    function registerToken(
-        uint256 tokenId,
-        bool isPublic,
-        string[] calldata tags
-    ) external onlyInkdHolder onlyTokenOwner(tokenId) {
-        if (registrations[tokenId].registeredAt != 0) revert AlreadyRegistered(tokenId);
-        if (tags.length > 20) revert TooManyTags(tags.length, 20);
-
-        registrations[tokenId] = TokenRegistration({
-            tokenId: tokenId,
+        uint256 id = ++projectCount;
+        projects[id] = Project({
+            id: id,
+            name: name,
+            description: description,
             owner: msg.sender,
             isPublic: isPublic,
-            registeredAt: block.timestamp,
-            tags: tags
+            createdAt: block.timestamp,
+            versionCount: 0,
+            exists: true
         });
 
-        _allRegisteredTokens.push(tokenId);
-        _ownerTokens[msg.sender].push(tokenId);
-        totalRegisteredTokens++;
+        nameTaken[name] = true;
+        _ownerProjects[msg.sender].push(id);
 
-        for (uint256 i; i < tags.length; ) {
-            _tagToTokens[tags[i]].push(tokenId);
-            unchecked { ++i; }
+        emit ProjectCreated(id, msg.sender, name);
+    }
+
+    /// @notice Push a new version. Requires 0.001 ETH sent to Treasury.
+    function pushVersion(
+        uint256 projectId,
+        string calldata arweaveHash,
+        string calldata versionTag,
+        string calldata changelog
+    ) external payable {
+        Project storage p = projects[projectId];
+        if (!p.exists) revert ProjectNotFound();
+        if (p.owner != msg.sender && !isCollaborator[projectId][msg.sender]) {
+            revert NotOwnerOrCollaborator();
         }
+        if (msg.value < VERSION_FEE) revert InsufficientFee();
 
-        emit TokenRegistered(tokenId, msg.sender, isPublic);
+        _versions[projectId].push(Version({
+            projectId: projectId,
+            arweaveHash: arweaveHash,
+            versionTag: versionTag,
+            changelog: changelog,
+            pushedBy: msg.sender,
+            pushedAt: block.timestamp
+        }));
+        p.versionCount++;
+
+        // Forward fee to treasury
+        treasury.deposit{value: msg.value}();
+
+        emit VersionPushed(projectId, arweaveHash, versionTag, msg.sender);
     }
 
-    function updateRegistration(
-        uint256 tokenId,
-        bool isPublic
-    ) external onlyInkdHolder onlyTokenOwner(tokenId) {
-        if (registrations[tokenId].registeredAt == 0) revert NotRegistered(tokenId);
-        registrations[tokenId].isPublic = isPublic;
-        emit RegistrationUpdated(tokenId, isPublic);
+    /// @notice Add a collaborator to a project. Owner only.
+    function addCollaborator(uint256 projectId, address collaborator) external onlyProjectOwner(projectId) {
+        if (collaborator == address(0)) revert ZeroAddress();
+        if (collaborator == projects[projectId].owner) revert CannotAddOwner();
+        if (isCollaborator[projectId][collaborator]) revert AlreadyCollaborator();
+
+        isCollaborator[projectId][collaborator] = true;
+        _collaborators[projectId].push(collaborator);
+
+        emit CollaboratorAdded(projectId, collaborator);
     }
 
-    // ─── Tagging ──────────────────────────────────────────────────────────
+    /// @notice Remove a collaborator from a project. Owner only.
+    function removeCollaborator(uint256 projectId, address collaborator) external onlyProjectOwner(projectId) {
+        if (!isCollaborator[projectId][collaborator]) revert NotCollaborator();
 
-    function addTags(
-        uint256 tokenId,
-        uint256 inscriptionIndex,
-        string[] calldata tags
-    ) external onlyInkdHolder onlyTokenOwner(tokenId) {
-        if (tags.length > 10) revert TooManyTags(tags.length, 10);
+        isCollaborator[projectId][collaborator] = false;
 
-        for (uint256 i; i < tags.length; ) {
-            _inscriptionTags[tokenId][inscriptionIndex].push(tags[i]);
-            _tagToTokens[tags[i]].push(tokenId);
-            unchecked { ++i; }
-        }
-
-        totalTrackedInscriptions++;
-        emit TagsAdded(tokenId, inscriptionIndex, tags);
-    }
-
-    function getInscriptionTags(
-        uint256 tokenId,
-        uint256 inscriptionIndex
-    ) external view returns (string[] memory) {
-        return _inscriptionTags[tokenId][inscriptionIndex];
-    }
-
-    // ─── Search ───────────────────────────────────────────────────────────
-
-    function searchByTag(string calldata tag) external view returns (uint256[] memory tokenIds) {
-        return _tagToTokens[tag];
-    }
-
-    function searchByContentType(string calldata contentType) external view returns (uint256[] memory tokenIds) {
-        return _contentTypeToTokens[contentType];
-    }
-
-    function searchByOwner(address walletOwner) external view returns (uint256[] memory tokenIds) {
-        return _ownerTokens[walletOwner];
-    }
-
-    function getPublicTokens(
-        uint256 offset,
-        uint256 limit
-    ) external view returns (uint256[] memory tokenIds) {
-        uint256 total = _allRegisteredTokens.length;
-        if (offset >= total) {
-            return new uint256[](0);
-        }
-
-        uint256 end = offset + limit > total ? total : offset + limit;
-        uint256 publicCount;
-        for (uint256 i = offset; i < end; ) {
-            uint256 tid = _allRegisteredTokens[i];
-            if (registrations[tid].isPublic) {
-                publicCount++;
+        // Remove from array
+        address[] storage collabs = _collaborators[projectId];
+        for (uint256 i; i < collabs.length; i++) {
+            if (collabs[i] == collaborator) {
+                collabs[i] = collabs[collabs.length - 1];
+                collabs.pop();
+                break;
             }
-            unchecked { ++i; }
         }
 
-        tokenIds = new uint256[](publicCount);
-        uint256 idx;
-        for (uint256 i = offset; i < end; ) {
-            uint256 tid = _allRegisteredTokens[i];
-            if (registrations[tid].isPublic) {
-                tokenIds[idx++] = tid;
+        emit CollaboratorRemoved(projectId, collaborator);
+    }
+
+    /// @notice Transfer project ownership. $INKD stays locked.
+    function transferProject(uint256 projectId, address newOwner) external onlyProjectOwner(projectId) {
+        if (newOwner == address(0)) revert ZeroAddress();
+
+        address oldOwner = projects[projectId].owner;
+        projects[projectId].owner = newOwner;
+
+        // Update owner project lists
+        _ownerProjects[newOwner].push(projectId);
+        _removeFromOwnerProjects(oldOwner, projectId);
+
+        // Remove new owner from collaborators if they were one
+        if (isCollaborator[projectId][newOwner]) {
+            isCollaborator[projectId][newOwner] = false;
+            address[] storage collabs = _collaborators[projectId];
+            for (uint256 i; i < collabs.length; i++) {
+                if (collabs[i] == newOwner) {
+                    collabs[i] = collabs[collabs.length - 1];
+                    collabs.pop();
+                    break;
+                }
             }
-            unchecked { ++i; }
-        }
-    }
-
-    // ─── Marketplace ──────────────────────────────────────────────────────
-
-    function listForSale(
-        uint256 tokenId,
-        uint256 price
-    ) external onlyInkdHolder onlyTokenOwner(tokenId) {
-        if (price == 0) revert ZeroPrice();
-
-        listings[tokenId] = Listing({
-            tokenId: tokenId,
-            seller: msg.sender,
-            price: price,
-            listedAt: block.timestamp,
-            active: true
-        });
-
-        _activeListings.push(tokenId);
-        emit TokenListed(tokenId, msg.sender, price);
-    }
-
-    function cancelListing(
-        uint256 tokenId
-    ) external onlyInkdHolder onlyTokenOwner(tokenId) {
-        if (!listings[tokenId].active) revert NotListed(tokenId);
-        listings[tokenId].active = false;
-        emit ListingCancelled(tokenId);
-    }
-
-    function buyToken(uint256 tokenId) external payable nonReentrant {
-        Listing storage listing = listings[tokenId];
-        if (!listing.active) revert NotListed(tokenId);
-        if (msg.value < listing.price) revert InsufficientPayment(listing.price, msg.value);
-        if (msg.sender == listing.seller) revert CannotBuyOwnListing();
-
-        address seller = listing.seller;
-        uint256 price = listing.price;
-
-        uint256 fee = (price * marketplaceFeeBps) / 10_000;
-        uint256 payout = price - fee;
-
-        listing.active = false;
-        marketplaceFeeBalance += fee;
-        totalVolume += price;
-        totalSales++;
-
-        inkdToken.transferFrom(seller, msg.sender, tokenId);
-
-        if (registrations[tokenId].registeredAt != 0) {
-            registrations[tokenId].owner = msg.sender;
-            _ownerTokens[msg.sender].push(tokenId);
         }
 
-        (bool success, ) = payable(seller).call{value: payout}("");
-        if (!success) revert TransferFailed();
-
-        if (msg.value > price) {
-            (bool refundSuccess, ) = payable(msg.sender).call{value: msg.value - price}("");
-            if (!refundSuccess) revert TransferFailed();
-        }
-
-        emit TokenSold(tokenId, seller, msg.sender, price, fee);
+        emit ProjectTransferred(projectId, oldOwner, newOwner);
     }
 
-    function getActiveListings(
-        uint256 offset,
-        uint256 limit
-    ) external view returns (Listing[] memory result) {
-        uint256 total = _activeListings.length;
-        if (offset >= total) {
-            return new Listing[](0);
-        }
+    /// @notice Set project visibility. Owner only.
+    function setVisibility(uint256 projectId, bool isPublic) external onlyProjectOwner(projectId) {
+        projects[projectId].isPublic = isPublic;
+        emit VisibilityChanged(projectId, isPublic);
+    }
 
-        uint256 end = offset + limit > total ? total : offset + limit;
-        uint256 activeCount;
+    // ───── View Functions ─────
 
-        for (uint256 i = offset; i < end; ) {
-            if (listings[_activeListings[i]].active) {
-                activeCount++;
+    function getProject(uint256 projectId) external view returns (Project memory) {
+        return projects[projectId];
+    }
+
+    function getVersion(uint256 projectId, uint256 versionIndex) external view returns (Version memory) {
+        return _versions[projectId][versionIndex];
+    }
+
+    function getVersionCount(uint256 projectId) external view returns (uint256) {
+        return _versions[projectId].length;
+    }
+
+    function getCollaborators(uint256 projectId) external view returns (address[] memory) {
+        return _collaborators[projectId];
+    }
+
+    function getOwnerProjects(address owner_) external view returns (uint256[] memory) {
+        return _ownerProjects[owner_];
+    }
+
+    // ───── Internal ─────
+
+    function _removeFromOwnerProjects(address owner_, uint256 projectId) internal {
+        uint256[] storage ids = _ownerProjects[owner_];
+        for (uint256 i; i < ids.length; i++) {
+            if (ids[i] == projectId) {
+                ids[i] = ids[ids.length - 1];
+                ids.pop();
+                break;
             }
-            unchecked { ++i; }
         }
-
-        result = new Listing[](activeCount);
-        uint256 idx;
-        for (uint256 i = offset; i < end; ) {
-            uint256 tid = _activeListings[i];
-            if (listings[tid].active) {
-                result[idx++] = listings[tid];
-            }
-            unchecked { ++i; }
-        }
-    }
-
-    // ─── Content Type Indexing ─────────────────────────────────────────────
-
-    function indexContentType(
-        uint256 tokenId,
-        string calldata contentType
-    ) external onlyInkdHolder onlyTokenOwner(tokenId) {
-        _contentTypeToTokens[contentType].push(tokenId);
-    }
-
-    // ─── Stats ────────────────────────────────────────────────────────────
-
-    function getStats() external view returns (
-        uint256 _totalTokens,
-        uint256 _totalInscriptions,
-        uint256 _totalVolume,
-        uint256 _totalSales
-    ) {
-        return (totalRegisteredTokens, totalTrackedInscriptions, totalVolume, totalSales);
-    }
-
-    // ─── Admin ────────────────────────────────────────────────────────────
-
-    function setMarketplaceFee(uint256 bps) external onlyOwner {
-        if (bps > 1000) revert FeeExceedsMax(bps);
-        marketplaceFeeBps = bps;
-    }
-
-    function withdrawFees() external onlyOwner {
-        uint256 amount = marketplaceFeeBalance;
-        if (amount == 0) revert NoFeesToWithdraw();
-        marketplaceFeeBalance = 0;
-
-        (bool success, ) = payable(owner()).call{value: amount}("");
-        if (!success) revert TransferFailed();
-
-        emit FeesWithdrawn(owner(), amount);
-    }
-
-    function setInkdToken(address _inkdToken) external onlyOwner {
-        if (_inkdToken == address(0)) revert ZeroAddress();
-        inkdToken = IInkdTokenForRegistry(_inkdToken);
     }
 
     function _authorizeUpgrade(address) internal override onlyOwner {}
