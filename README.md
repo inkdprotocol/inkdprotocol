@@ -3,6 +3,7 @@
 [![CI](https://github.com/inkdprotocol/inkd-protocol/actions/workflows/ci.yml/badge.svg)](https://github.com/inkdprotocol/inkd-protocol/actions/workflows/ci.yml)
 [![Deploy Testnet](https://github.com/inkdprotocol/inkd-protocol/actions/workflows/deploy-testnet.yml/badge.svg)](https://github.com/inkdprotocol/inkd-protocol/actions/workflows/deploy-testnet.yml)
 [![Weekly Audit](https://github.com/inkdprotocol/inkd-protocol/actions/workflows/audit.yml/badge.svg)](https://github.com/inkdprotocol/inkd-protocol/actions/workflows/audit.yml)
+[![X](https://img.shields.io/badge/X-@inkdprotocol-black?logo=x)](https://x.com/inkdprotocol)
 
 **Permanent on-chain project registry. Powered by Base.**
 
