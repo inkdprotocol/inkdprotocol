@@ -13,8 +13,32 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Mainnet deployment (Base) — pending external audit
 - Website launch at inkdprotocol.xyz — awaiting `VERCEL_TOKEN` secret
 - SDK publish to npm (`@inkd/sdk`) — awaiting `NPM_TOKEN` secret
+- CLI publish to npm (`@inkd/cli`) — awaiting `NPM_TOKEN` secret
 - External smart contract audit
-- CLI tool (`npx inkd`)
+
+---
+
+## [0.8.0] — 2026-03-02
+
+### Added
+- **`cli/`** — `@inkd/cli` npm package: full-featured `npx inkd` CLI tool
+  - `inkd init [--mainnet] [--force]` — scaffold `inkd.config.json`
+  - `inkd status` — show network, contract addresses, live fees from on-chain
+  - `inkd project create` — register a project with token approval auto-handled
+  - `inkd project get <id>` — fetch project details + collaborators
+  - `inkd project list <address>` — list all projects owned by address
+  - `inkd project transfer --id --to` — transfer ownership with fee
+  - `inkd project collab add|remove --id --address` — collaborator management
+  - `inkd version push --id --hash --tag [--changelog]` — push new version
+  - `inkd version list <id>` — list all versions (newest first)
+  - `inkd version show --id --index` — show specific version details
+  - `inkd agent list [--offset --limit]` — paginated agent directory
+  - `inkd agent lookup <name>` — find agent by name (linear scan)
+  - Full ANSI colour output with `NO_COLOR` support
+  - `INKD_PRIVATE_KEY` / `INKD_NETWORK` / `INKD_RPC_URL` / `INKD_DEBUG` env vars
+  - `cli/README.md` with complete command reference
+- **`cli` workspace** added to root `package.json`
+- **CI `cli` job** — type check + build in GitHub Actions; added to `all-checks` gate
 
 ---
 

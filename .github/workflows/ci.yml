@@ -74,17 +74,40 @@ jobs:
       - name: Build
         run: cd sdk && npm run build
 
+  cli:
+    name: CLI — Type Check & Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: cli/package-lock.json
+
+      - name: Install
+        run: cd cli && npm ci
+
+      - name: Type check
+        run: cd cli && npm run typecheck
+
+      - name: Build
+        run: cd cli && npm run build
+
   # ─── Summary ───────────────────────────────────────────────────────────
   all-checks:
     name: All checks passed
-    needs: [contracts, sdk]
+    needs: [contracts, sdk, cli]
     runs-on: ubuntu-latest
     if: always()
     steps:
       - name: Check all jobs
         run: |
           if [ "${{ needs.contracts.result }}" != "success" ] || \
-             [ "${{ needs.sdk.result }}" != "success" ]; then
+             [ "${{ needs.sdk.result }}"       != "success" ] || \
+             [ "${{ needs.cli.result }}"        != "success" ]; then
             echo "❌ One or more checks failed"
             exit 1
           fi
