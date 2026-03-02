@@ -492,7 +492,7 @@ describe("InkdClient — mintToken() batch", () => {
     const client = new InkdClient(TEST_CONFIG);
     const MINT_PRICE = 10_000_000_000_000_000n; // 0.01 ETH
 
-    const { pub, wal } = connectClient(client, {
+    const { pub: _pub, wal } = connectClient(client, {
       readContract: vi.fn().mockResolvedValue(MINT_PRICE),
       waitForTransactionReceipt: vi.fn().mockResolvedValue({
         logs: [

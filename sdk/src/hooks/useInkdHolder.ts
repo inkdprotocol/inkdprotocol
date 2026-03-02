@@ -43,7 +43,7 @@ export function useInkdHolder(client: InkdClient, address: Address): UseInkdHold
       }
     }
 
-    checkHolder();
+    void checkHolder();
 
     return () => {
       cancelled = true;
