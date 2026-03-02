@@ -1,6 +1,6 @@
 {
   "name": "inkd-protocol",
-  "version": "0.1.0",
+  "version": "0.9.0",
   "private": true,
   "description": "The decentralized ownership layer for AI agents on Base",
   "workspaces": [
