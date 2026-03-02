@@ -18,6 +18,7 @@
  */
 
 import { formatEther, parseEther, getAddress, type Address } from 'viem'
+import { base, baseSepolia } from 'viem/chains'
 import {
   loadConfig, requirePrivateKey, ADDRESSES,
   error, info, success, warn,
@@ -223,6 +224,8 @@ export async function cmdTokenApprove(args: string[]): Promise<void> {
     abi: FULL_TOKEN_ABI,
     functionName: 'approve',
     args: [addrs.registry, amount],
+    chain: cfg.network === 'mainnet' ? base : baseSepolia,
+    account,
   })
 
   if (!jsonMode) info(`TX hash: ${DIM}${hash}${RESET}`)
@@ -308,6 +311,8 @@ export async function cmdTokenTransfer(args: string[]): Promise<void> {
     abi: FULL_TOKEN_ABI,
     functionName: 'transfer',
     args: [to, amount],
+    chain: cfg.network === 'mainnet' ? base : baseSepolia,
+    account,
   })
 
   if (!jsonMode) info(`TX hash: ${DIM}${hash}${RESET}`)

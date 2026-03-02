@@ -186,7 +186,7 @@ export class InkdClient {
     this.public = createPublicClient({
       chain,
       transport: http(opts.rpcUrl),
-    })
+    }) as unknown as PublicClient
   }
 
   // ─── Token Helpers ──────────────────────────────────────────────────────────
@@ -210,7 +210,7 @@ export class InkdClient {
       abi: TOKEN_ABI,
       functionName: 'balanceOf',
       args: [address ?? account],
-    })
+    }) as Promise<bigint>
   }
 
   // ─── Projects ───────────────────────────────────────────────────────────────
@@ -284,7 +284,7 @@ export class InkdClient {
       address: this.addrs.registry,
       abi: REGISTRY_ABI,
       functionName: 'versionFee',
-    })
+    }) as Promise<bigint>
   }
 
   async transferProject(projectId: bigint, newOwner: Address): Promise<Hash> {
@@ -293,7 +293,7 @@ export class InkdClient {
       address: this.addrs.registry,
       abi: REGISTRY_ABI,
       functionName: 'transferFee',
-    })
+    }) as bigint
     return this.wallet.writeContract({
       address: this.addrs.registry,
       abi: REGISTRY_ABI,
@@ -311,6 +311,6 @@ export class InkdClient {
       abi: REGISTRY_ABI,
       functionName: 'getAgentProjects',
       args: [offset, limit],
-    })
+    }) as Promise<readonly bigint[]>
   }
 }

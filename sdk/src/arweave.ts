@@ -42,6 +42,7 @@ export class ArweaveClient {
 
   /** Initialize the Irys client connection. */
   async connect(): Promise<void> {
+    // @ts-ignore – @irys/sdk is an optional peer dep; types may not be installed
     const { default: Irys } = await import("@irys/sdk");
 
     this.irys = new Irys({
@@ -50,7 +51,6 @@ export class ArweaveClient {
       key: this.privateKey,
     });
 
-    // @ts-expect-error Irys SDK types may vary
     await (this.irys as { ready: () => Promise<void> }).ready();
   }
 

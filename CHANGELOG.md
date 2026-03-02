@@ -6,7 +6,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [v1.1.0] — 2026-03-02
+## [v0.10.0] — 2026-03-02
 
 ### Added
 - **`inkd token` CLI command** — Full $INKD token management from the terminal:
@@ -20,7 +20,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [v1.0.0] — 2026-03-02
+## [v0.9.0] — 2026-03-02
 
 ### Added
 - **Makefile** — root-level developer convenience targets: `make install`, `make build`,
