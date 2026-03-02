@@ -39,8 +39,10 @@ import {
   cmdAgentList,
   cmdAgentLookup,
 } from './commands/agent.js'
-import { cmdWatch }  from './commands/watch.js'
-import { cmdSearch } from './commands/search.js'
+import { cmdWatch }   from './commands/watch.js'
+import { cmdSearch }  from './commands/search.js'
+import { cmdAgentd }  from './commands/agentd.js'
+import { cmdToken }   from './commands/token.js'
 
 // ─── Help ─────────────────────────────────────────────────────────────────────
 
@@ -97,11 +99,35 @@ function showHelp(): void {
 
     ${CYAN}agent lookup${RESET} <name>           Find agent project by name
 
+  ${BOLD}TOKEN${RESET}
+    ${CYAN}token balance${RESET} [address]        Show $INKD + ETH balance (default: own wallet)
+    ${CYAN}token allowance${RESET} [address]      Check registry spend allowance
+    ${CYAN}token approve${RESET} <amount>         Approve registry to spend N $INKD
+    ${CYAN}token transfer${RESET} <to> <amount>   Send $INKD to another address
+    ${CYAN}token info${RESET}                     Show total supply + token metadata
+      ${DIM}--json${RESET}                       JSON output for all token commands
+
   ${BOLD}SEARCH${RESET}
     ${CYAN}search${RESET} <query>                Search projects by name or description
       ${DIM}--agents${RESET}                     Only search agent projects
       ${DIM}--limit  <n>${RESET}                 Max results (default: 20)
       ${DIM}--json${RESET}                       JSON output (for scripting)
+
+  ${BOLD}DAEMON${RESET}
+    ${CYAN}agentd start${RESET}                  Run autonomous agent daemon (long-running)
+      ${DIM}--interval <ms>${RESET}              Sync interval in ms (default: 60000)
+      ${DIM}--dry-run${RESET}                    Simulate only — no on-chain transactions
+      ${DIM}--quiet${RESET}                      Only print errors
+      ${DIM}--json${RESET}                       Newline-delimited JSON output (for log pipelines)
+      ${DIM}--once${RESET}                       Single cycle then exit (great for cron)
+
+    ${CYAN}agentd status${RESET}                 Print current daemon state
+    ${CYAN}agentd peers${RESET}                  List all discovered peer agents
+
+    ${DIM}Env vars:${RESET}
+      ${GREEN}INKD_AGENT_NAME${RESET}             Your agent's project name (required)
+      ${GREEN}INKD_AGENT_ENDPOINT${RESET}         API endpoint to advertise to peers
+      ${GREEN}INKD_INTERVAL${RESET}               Default interval override in ms
 
   ${BOLD}WATCH${RESET}
     ${CYAN}watch${RESET} [filter]                Stream real-time on-chain events
@@ -126,6 +152,15 @@ function showHelp(): void {
     ${DIM}inkd search "trading bot" --agents${RESET}
     ${DIM}inkd watch versions --poll 5000${RESET}
     ${DIM}inkd watch --json | jq .${RESET}
+    ${DIM}inkd token balance${RESET}
+    ${DIM}inkd token balance 0xABC...${RESET}
+    ${DIM}inkd token approve 10${RESET}
+    ${DIM}inkd token transfer 0xDEF... 5${RESET}
+    ${DIM}inkd token info --json${RESET}
+    ${DIM}INKD_AGENT_NAME=my-bot inkd agentd start --interval 30000${RESET}
+    ${DIM}inkd agentd start --once${RESET}
+    ${DIM}inkd agentd status${RESET}
+    ${DIM}inkd agentd peers${RESET}
 
   ${BOLD}DOCS${RESET}    https://inkdprotocol.xyz/docs
   ${BOLD}GITHUB${RESET}  https://github.com/inkdprotocol/inkd-protocol
@@ -200,12 +235,20 @@ async function main(): Promise<void> {
       break
     }
 
+    case 'token':
+      await cmdToken(rest)
+      break
+
     case 'search':
       await cmdSearch(rest)
       break
 
     case 'watch':
       await cmdWatch(rest)
+      break
+
+    case 'agentd':
+      await cmdAgentd(rest)
       break
 
     default:
