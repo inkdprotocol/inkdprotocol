@@ -632,4 +632,173 @@ contract InkdRegistryTest is Test {
         assertTrue(registry.nameTaken("unique-name"));
         assertFalse(registry.nameTaken("other-name"));
     }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  Event Emissions
+    // ═══════════════════════════════════════════════════════════════════════
+
+    function test_createProject_emitsProjectCreated() public {
+        vm.startPrank(alice);
+        token.approve(address(registry), 1 ether);
+        vm.expectEmit(true, true, false, true);
+        emit InkdRegistry.ProjectCreated(1, alice, "emitted", "MIT");
+        registry.createProject("emitted", "desc", "MIT", true, "", false, "");
+        vm.stopPrank();
+    }
+
+    function test_createProject_agentEmitsAgentRegistered() public {
+        vm.startPrank(alice);
+        token.approve(address(registry), 1 ether);
+        vm.expectEmit(true, false, false, true);
+        emit InkdRegistry.AgentRegistered(1, "https://agent.ai");
+        registry.createProject("agent-emit", "desc", "MIT", true, "", true, "https://agent.ai");
+        vm.stopPrank();
+    }
+
+    function test_pushVersion_emitsVersionPushed() public {
+        uint256 id = _createProject(alice, "push-emit");
+        vm.deal(alice, 1 ether);
+        vm.prank(alice);
+        vm.expectEmit(true, false, false, true);
+        emit InkdRegistry.VersionPushed(id, "ar://xyz", "2.0.0", alice);
+        registry.pushVersion{value: 0.001 ether}(id, "ar://xyz", "2.0.0", "Changelog");
+    }
+
+    function test_addCollaborator_emitsEvent() public {
+        uint256 id = _createProject(alice, "collab-emit");
+        vm.prank(alice);
+        vm.expectEmit(true, false, false, true);
+        emit InkdRegistry.CollaboratorAdded(id, bob);
+        registry.addCollaborator(id, bob);
+    }
+
+    function test_removeCollaborator_emitsEvent() public {
+        uint256 id = _createProject(alice, "remove-emit");
+        vm.prank(alice);
+        registry.addCollaborator(id, bob);
+        vm.prank(alice);
+        vm.expectEmit(true, false, false, true);
+        emit InkdRegistry.CollaboratorRemoved(id, bob);
+        registry.removeCollaborator(id, bob);
+    }
+
+    function test_transferProject_emitsEvent() public {
+        uint256 id = _createProject(alice, "transfer-emit");
+        vm.deal(alice, 1 ether);
+        vm.prank(alice);
+        vm.expectEmit(true, true, true, false);
+        emit InkdRegistry.ProjectTransferred(id, alice, charlie);
+        registry.transferProject{value: 0.005 ether}(id, charlie);
+    }
+
+    function test_setVisibility_emitsEvent() public {
+        uint256 id = _createProject(alice, "vis-emit");
+        vm.prank(alice);
+        vm.expectEmit(true, false, false, true);
+        emit InkdRegistry.VisibilityChanged(id, false);
+        registry.setVisibility(id, false);
+    }
+
+    function test_setReadme_emitsEvent() public {
+        uint256 id = _createProject(alice, "readme-emit");
+        vm.prank(alice);
+        vm.expectEmit(true, false, false, true);
+        emit InkdRegistry.ReadmeUpdated(id, "ar://readme-hash");
+        registry.setReadme(id, "ar://readme-hash");
+    }
+
+    function test_setAgentEndpoint_emitsAgentRegistered() public {
+        uint256 id = _createAgentProject(alice, "agent-ep-emit", "https://old.io");
+        vm.prank(alice);
+        vm.expectEmit(true, false, false, true);
+        emit InkdRegistry.AgentRegistered(id, "https://new.io");
+        registry.setAgentEndpoint(id, "https://new.io");
+    }
+
+    function test_setVersionFee_emitsEvent() public {
+        vm.expectEmit(false, false, false, true);
+        emit InkdRegistry.VersionFeeUpdated(0.001 ether, 0.002 ether);
+        registry.setVersionFee(0.002 ether);
+    }
+
+    function test_setTransferFee_emitsEvent() public {
+        vm.expectEmit(false, false, false, true);
+        emit InkdRegistry.TransferFeeUpdated(0.005 ether, 0.01 ether);
+        registry.setTransferFee(0.01 ether);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  Edge Cases
+    // ═══════════════════════════════════════════════════════════════════════
+
+    function test_getVersionCount_nonExistentProject() public view {
+        // Non-existent project returns 0 (no revert)
+        assertEq(registry.getVersionCount(999), 0);
+    }
+
+    function test_getAgentProjects_zeroLimit() public {
+        _createAgentProject(alice, "agent-limit", "https://agent.io");
+        InkdRegistry.Project[] memory result = registry.getAgentProjects(0, 0);
+        assertEq(result.length, 0);
+    }
+
+    function test_transferProject_newOwnerProjectsList() public {
+        uint256 id = _createProject(alice, "transfer-list");
+        vm.deal(alice, 1 ether);
+        vm.prank(alice);
+        registry.transferProject{value: 0.005 ether}(id, charlie);
+
+        uint256[] memory charlieProjects = registry.getOwnerProjects(charlie);
+        assertEq(charlieProjects.length, 1);
+        assertEq(charlieProjects[0], id);
+
+        uint256[] memory aliceProjects = registry.getOwnerProjects(alice);
+        assertEq(aliceProjects.length, 0);
+    }
+
+    function test_removeCollaborator_canReadd() public {
+        uint256 id = _createProject(alice, "readd-collab");
+        vm.prank(alice);
+        registry.addCollaborator(id, bob);
+        assertTrue(registry.isCollaborator(id, bob));
+
+        vm.prank(alice);
+        registry.removeCollaborator(id, bob);
+        assertFalse(registry.isCollaborator(id, bob));
+
+        // Re-add should succeed
+        vm.prank(alice);
+        registry.addCollaborator(id, bob);
+        assertTrue(registry.isCollaborator(id, bob));
+    }
+
+    function test_createAgentProject_emptyEndpoint_allowed() public {
+        vm.startPrank(alice);
+        token.approve(address(registry), 1 ether);
+        registry.createProject("agent-no-ep", "desc", "MIT", true, "", true, "");
+        vm.stopPrank();
+        uint256 id = registry.projectCount();
+        assertEq(registry.getProject(id).agentEndpoint, "");
+        assertTrue(registry.getProject(id).isAgent);
+    }
+
+    function test_pushVersion_storesAllFields() public {
+        uint256 id = _createProject(alice, "fields-check");
+        vm.deal(alice, 1 ether);
+        vm.prank(alice);
+        registry.pushVersion{value: 0.001 ether}(id, "ar://hash-42", "3.1.4", "Fixed pi");
+
+        InkdRegistry.Version memory v = registry.getVersion(id, 0);
+        assertEq(v.projectId, id);
+        assertEq(v.arweaveHash, "ar://hash-42");
+        assertEq(v.versionTag, "3.1.4");
+        assertEq(v.changelog, "Fixed pi");
+        assertEq(v.pushedBy, alice);
+        assertGt(v.pushedAt, 0);
+    }
+
+    function test_getOwnerProjects_noProjects() public view {
+        uint256[] memory projects_ = registry.getOwnerProjects(address(0xdead));
+        assertEq(projects_.length, 0);
+    }
 }
