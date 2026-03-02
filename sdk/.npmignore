@@ -1,0 +1,25 @@
+# Source (compiled output in dist/ is what gets published)
+src/
+tsconfig.json
+vitest.config.ts
+
+# Tests
+src/__tests__/
+coverage/
+
+# Dev config
+.eslintrc*
+.prettierrc*
+*.local
+
+# Git
+.git/
+.gitignore
+
+# CI
+.github/
+
+# Misc
+*.log
+*.tgz
+node_modules/

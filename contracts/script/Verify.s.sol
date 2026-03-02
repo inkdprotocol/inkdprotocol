@@ -44,7 +44,7 @@ contract Verify is Script {
         string memory apiKey = vm.envString("BASESCAN_API_KEY");
 
         console.log("========================================");
-        console.log("  Inkd Protocol — Verification Commands");
+        console.log("  Inkd Protocol - Verification Commands");
         console.log("========================================");
         console.log("");
         console.log("Run the following to verify all contracts:");

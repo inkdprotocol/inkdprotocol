@@ -68,6 +68,9 @@ jobs:
       - name: Type check
         run: cd sdk && npx tsc --noEmit
 
+      - name: Test
+        run: cd sdk && npm test
+
       - name: Build
         run: cd sdk && npm run build
 

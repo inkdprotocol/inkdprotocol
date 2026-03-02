@@ -39,7 +39,7 @@ contract DryRun is Script {
         address deployer = vm.addr(deployerKey);
 
         console.log("========================================");
-        console.log("  Inkd Protocol — DRY RUN (no broadcast)");
+        console.log("  Inkd Protocol - DRY RUN (no broadcast)");
         console.log("========================================");
         console.log("Deployer:   ", deployer);
         console.log("ETH Balance:", deployer.balance / 1e18, "ETH");
@@ -56,7 +56,7 @@ contract DryRun is Script {
         _assert(token.totalSupply() == EXPECTED_SUPPLY,       "FAIL: Supply mismatch");
         _assert(token.balanceOf(deployer) == EXPECTED_SUPPLY, "FAIL: Deployer balance mismatch");
         _assert(token.decimals() == 18,                       "FAIL: Decimals mismatch");
-        _assert(token.TOKEN_LOCK_AMOUNT() == EXPECTED_LOCK_AMOUNT, "FAIL: Token lock amount mismatch");
+        // TOKEN_LOCK_AMOUNT lives on InkdRegistry, checked after registry deployment
         console.log("[OK] InkdToken");
         console.log("     Address:", address(token));
         console.log("     Supply: ", token.totalSupply() / 1e18, "INKD");
