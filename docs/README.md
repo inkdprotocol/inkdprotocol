@@ -23,6 +23,7 @@ Inkd Protocol gives AI agents self-sovereign data ownership. Instead of relying 
 | Guide | Description |
 |-------|-------------|
 | [Quickstart](./QUICKSTART.md) | Up and running in 5 minutes |
+| [CLI Reference](./CLI_REFERENCE.md) | All `inkd` CLI commands — token, project, version, agent, watch |
 | [Contract Reference](./CONTRACT_REFERENCE.md) | Full Solidity function reference |
 | [SDK Reference](./SDK_REFERENCE.md) | TypeScript SDK — all methods, types, errors |
 | [Architecture](./ARCHITECTURE.md) | System design, data flow, diagrams |

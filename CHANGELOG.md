@@ -6,6 +6,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v1.1.0] — 2026-03-02
+
+### Added
+- **`inkd token` CLI command** — Full $INKD token management from the terminal:
+  - `inkd token balance [address]` — Shows INKD + ETH balance for any address (defaults to own wallet via `INKD_PRIVATE_KEY`)
+  - `inkd token allowance [address]` — Checks how much INKD the registry is approved to spend; warns when below 1 INKD required for project creation
+  - `inkd token approve <amount>` — Approves the registry to spend N INKD; waits for confirmation + prints block number
+  - `inkd token transfer <to> <amount>` — Transfers INKD to any address with receipt confirmation
+  - `inkd token info` — Displays token name, symbol, decimals, and total supply
+  - All sub-commands support `--json` flag for scripting / log pipelines
+- **Extended `TOKEN_ABI`** in `cli/src/abi.ts` — Added `transfer`, `name`, `symbol`, `decimals` to the shared ABI (was previously missing, limited scripting options)
+
+---
+
 ## [v1.0.0] — 2026-03-02
 
 ### Added
