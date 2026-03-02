@@ -12,8 +12,40 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Planned
 - Mainnet deployment (Base)
 - Website launch at inkdprotocol.xyz
-- SDK publish to npm (`@inkd/sdk`)
-- Vercel deployment for frontend
+- SDK publish to npm (`@inkd/sdk`) — awaiting `NPM_TOKEN` secret
+- Vercel deployment for frontend — awaiting `VERCEL_TOKEN` secret
+
+---
+
+## [0.6.0] — 2026-03-02
+
+### Added
+- **SDK test suite** (`sdk/src/__tests__/`):
+  - `errors.test.ts` — 14 tests covering all 11 custom error classes (message content, codes, names,
+    inheritance chain, bigint fields)
+  - `InkdClient.test.ts` — 17 tests: connection guard enforcement (`ClientNotConnected`,
+    `ArweaveNotConnected`), `mintToken` flow with log parsing, `getToken` parallel reads,
+    `hasInkdToken`, `getStats` tuple mapping, `estimateInscribeCost` scaling,
+    `setEncryptionProvider`, custom mock clients
+  - `types.test.ts` — 4 tests: `ContentType` enum values, MIME string format, count
+  - `encryption.test.ts` — 7 tests: passthrough round-trip, empty/large payloads, JSON payload,
+    multi-token isolation
+  - **Total: 42 tests, all passing**
+- **Vitest** added to SDK dev dependencies with `vitest.config.ts` (coverage thresholds configured)
+- **`sdk/package.json`** improvements:
+  - `test`, `test:watch`, `test:coverage` scripts
+  - `prepublishOnly` hook (`typecheck → test → build`)
+  - `exports` map with ESM + CJS + types entries
+  - `keywords`, `author`, `repository`, `homepage`, `bugs` fields
+  - `module` field for ESM consumers
+- **Release workflow** (`.github/workflows/release.yml`):
+  - Triggered by `v*.*.*` tags
+  - Validates contracts (build + unit + invariant) + SDK (tests + typecheck + build)
+  - Creates GitHub Release with changelog excerpt, pre-release detection for `-beta`/`-rc` tags
+  - Publishes `@inkd/sdk` to npm with provenance attestation
+  - Requires `NPM_TOKEN` secret in `npm-publish` environment
+- **`sdk/.npmignore`** — excludes `src/`, `__tests__/`, `vitest.config.ts`, coverage from publish
+- **CI updated** — `sdk` job now runs `npm test` between typecheck and build
 
 ---
 
@@ -110,7 +142,9 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
-[Unreleased]: https://github.com/inkdprotocol/inkd-protocol/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/inkdprotocol/inkd-protocol/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/inkdprotocol/inkd-protocol/compare/v0.5.0...v0.6.0
+[0.5.0]: https://github.com/inkdprotocol/inkd-protocol/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/inkdprotocol/inkd-protocol/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/inkdprotocol/inkd-protocol/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/inkdprotocol/inkd-protocol/compare/v0.1.0...v0.2.0

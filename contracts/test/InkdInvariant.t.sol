@@ -24,10 +24,14 @@ contract InkdHandler is Test {
         treasury = _treasury;
         registry = _registry;
 
-        // Pre-fund 3 actors
+        // msg.sender is the test contract which holds all INKD tokens
+        address tokenOwner = msg.sender;
+
+        // Pre-fund 3 actors — tokens are transferred FROM the deploying test contract
         for (uint256 i = 0; i < 3; i++) {
             address a = makeAddr(string(abi.encodePacked("actor-", vm.toString(i))));
             actors.push(a);
+            vm.prank(tokenOwner);
             token.transfer(a, 10_000 ether);
             vm.deal(a, 100 ether);
         }

@@ -57,9 +57,10 @@ contract InkdFuzzTest is Test {
     function testFuzz_burn_reducesSupply(uint256 burnAmount) public {
         burnAmount = bound(burnAmount, 0, token.balanceOf(owner));
         uint256 supplyBefore = token.totalSupply();
+        uint256 ownerBefore  = token.balanceOf(owner);
         token.burn(burnAmount);
-        assertEq(token.totalSupply(), supplyBefore - burnAmount);
-        assertEq(token.balanceOf(owner), supplyBefore - burnAmount);
+        assertEq(token.totalSupply(),   supplyBefore - burnAmount, "supply decreases by burn amount");
+        assertEq(token.balanceOf(owner), ownerBefore - burnAmount, "owner balance decreases by burn amount");
     }
 
     function testFuzz_totalSupply_neverExceedsConstant(uint256 burnAmount) public {
