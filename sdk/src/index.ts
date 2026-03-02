@@ -17,6 +17,20 @@ export type {
   VersionPushedFilter,
 } from "./events.js";
 
+// ─── Batch Reads (Multicall3) ─────────────────────────────────────────────────
+export {
+  batchGetProjects,
+  batchGetVersions,
+  batchGetFees,
+  batchGetProjectsWithVersions,
+} from "./multicall.js";
+export type {
+  ProjectData,
+  VersionData,
+  RegistryFees,
+  BatchResult,
+} from "./multicall.js";
+
 import { 
   createPublicClient, createWalletClient, http, parseEther,
   type PublicClient, type WalletClient, type Address, type Hash
