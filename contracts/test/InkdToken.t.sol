@@ -116,6 +116,51 @@ contract InkdTokenTest is Test {
         assertEq(token.allowance(signer, bob), 50 ether);
     }
 
+    // ───── Approve / allowance ─────
+
+    function test_approve_and_read_allowance() public {
+        token.transfer(alice, 100 ether);
+        vm.prank(alice);
+        token.approve(bob, 75 ether);
+        assertEq(token.allowance(alice, bob), 75 ether);
+    }
+
+    function test_approve_overwrites_allowance() public {
+        token.transfer(alice, 100 ether);
+        vm.startPrank(alice);
+        token.approve(bob, 50 ether);
+        token.approve(bob, 80 ether);
+        vm.stopPrank();
+        assertEq(token.allowance(alice, bob), 80 ether);
+    }
+
+    // ───── Transfer edge cases ─────
+
+    function test_transfer_reverts_insufficient_balance() public {
+        token.transfer(alice, 100 ether);
+        vm.prank(alice);
+        vm.expectRevert();
+        token.transfer(bob, 101 ether);
+    }
+
+    function test_transfer_zeroAmount() public {
+        token.transfer(alice, 0);
+        assertEq(token.balanceOf(alice), 0);
+    }
+
+    function test_balanceOf_returns_zero_for_new_address() public {
+        address nobody = makeAddr("nobody");
+        assertEq(token.balanceOf(nobody), 0);
+    }
+
+    // ───── BurnFrom edge case ─────
+
+    function test_burnFrom_reverts_without_allowance() public {
+        token.transfer(alice, 100 ether);
+        vm.expectRevert();
+        token.burnFrom(alice, 50 ether);
+    }
+
     function test_permit_expired_reverts() public {
         uint256 privateKey = 0xA11CE;
         address signer = vm.addr(privateKey);

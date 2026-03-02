@@ -121,6 +121,53 @@ contract InkdTreasuryTest is Test {
         assertEq(address(treasury).balance, 0.003 ether);
     }
 
+    // ───── Event coverage ─────
+
+    function test_setRegistry_emitsRegistrySet() public {
+        address newRegistry = makeAddr("newRegistry");
+        vm.expectEmit(true, false, false, false);
+        emit InkdTreasury.RegistrySet(newRegistry);
+        treasury.setRegistry(newRegistry);
+    }
+
+    function test_deposit_emitsDeposited() public {
+        vm.deal(registry, 1 ether);
+        vm.expectEmit(true, false, false, true);
+        emit InkdTreasury.Deposited(registry, 0.001 ether);
+        vm.prank(registry);
+        treasury.deposit{value: 0.001 ether}();
+    }
+
+    function test_withdraw_emitsWithdrawn() public {
+        vm.deal(registry, 1 ether);
+        vm.prank(registry);
+        treasury.deposit{value: 0.1 ether}();
+
+        vm.expectEmit(true, false, false, true);
+        emit InkdTreasury.Withdrawn(alice, 0.05 ether);
+        treasury.withdraw(alice, 0.05 ether);
+    }
+
+    // ───── Withdraw edge cases ─────
+
+    function test_withdraw_zeroAmount() public {
+        // zero-value withdraw should succeed (call succeeds with 0 value)
+        vm.deal(registry, 1 ether);
+        vm.prank(registry);
+        treasury.deposit{value: 0.1 ether}();
+        treasury.withdraw(alice, 0);
+        assertEq(address(treasury).balance, 0.1 ether);
+    }
+
+    function test_withdraw_fullBalance() public {
+        vm.deal(registry, 1 ether);
+        vm.prank(registry);
+        treasury.deposit{value: 0.5 ether}();
+        treasury.withdraw(alice, 0.5 ether);
+        assertEq(address(treasury).balance, 0);
+        assertEq(alice.balance, 0.5 ether);
+    }
+
     // ═══════════════════════════════════════════════════════════════════════
     //  Implementation Guard — constructor _disableInitializers()
     // ═══════════════════════════════════════════════════════════════════════
