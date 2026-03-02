@@ -443,3 +443,46 @@ describe("BatchResult type contract", () => {
     expect(r.error).toBe("boom");
   });
 });
+
+// ─── coerceResult — non-Error error branch ────────────────────────────────────
+
+describe("coerceResult — non-Error error formats", () => {
+  it("serialises a plain-string error via String() when error is not an Error instance", async () => {
+    // Build a multicall result where `error` is a plain string (not an Error object).
+    // coerceResult should hit the `String(raw.error ?? "unknown")` branch.
+    const client = makePublicClient(async () => [
+      { result: undefined, status: "failure" as const, error: "plain-string-error" },
+    ]);
+
+    const results = await batchGetProjects(client, REGISTRY, [1n]);
+    const r = results[0];
+
+    expect(r.success).toBe(false);
+    expect(r.data).toBeNull();
+    expect(r.error).toBe("plain-string-error");
+  });
+
+  it("serialises a numeric error via String() when error is a number", async () => {
+    const client = makePublicClient(async () => [
+      { result: undefined, status: "failure" as const, error: 404 },
+    ]);
+
+    const results = await batchGetProjects(client, REGISTRY, [1n]);
+    expect(results[0].error).toBe("404");
+  });
+
+  it("falls back to 'unknown' when error field is undefined/null on a failure", async () => {
+    // status === undefined && result === undefined → also hits the failure branch
+    const client = makePublicClient(async () => [
+      { result: undefined, status: undefined, error: undefined },
+    ]);
+
+    const results = await batchGetProjects(
+      client,
+      REGISTRY,
+      [1n]
+    ) as { success: boolean; data: unknown; error?: string }[];
+    expect(results[0].success).toBe(false);
+    expect(results[0].error).toBe("unknown");
+  });
+});

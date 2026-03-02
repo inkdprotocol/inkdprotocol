@@ -857,3 +857,47 @@ describe("INKD_REGISTRY_ABI / INKD_ERC20_ABI exports", () => {
     expect(fns).toContain("balanceOf");
   });
 });
+
+// ─── extractProjectIdFromLogs — catch branch ─────────────────────────────────
+
+describe("ProjectRegistry — extractProjectIdFromLogs invalid topic catch", () => {
+  it("skips log with unparseable topics[1] and falls back to 0n projectId", async () => {
+    const r = new ProjectRegistry(BASE_CONFIG);
+    const pub = makeMockPublicClient();
+    const LOCK = 1_000_000_000_000_000_000n;
+    pub.readContract
+      .mockResolvedValueOnce(LOCK)
+      .mockResolvedValueOnce(LOCK)
+      .mockResolvedValueOnce(LOCK);
+    pub.waitForTransactionReceipt.mockResolvedValue({
+      // topics[1] is not parseable by BigInt → catch block fires → continue → return 0n
+      logs: [{ topics: ["0xProjectCreated", "not-a-valid-uint"] }],
+    });
+    const wlt = makeMockWalletClient();
+    r.connect(wlt as any, pub as any);
+
+    const { projectId } = await r.createProject({ name: "invalid-topic-agent" });
+    expect(projectId).toBe(0n);
+  });
+
+  it("skips invalid log and extracts projectId from the next valid log", async () => {
+    const r = new ProjectRegistry(BASE_CONFIG);
+    const pub = makeMockPublicClient();
+    const LOCK = 1_000_000_000_000_000_000n;
+    pub.readContract
+      .mockResolvedValueOnce(LOCK)
+      .mockResolvedValueOnce(LOCK)
+      .mockResolvedValueOnce(LOCK);
+    pub.waitForTransactionReceipt.mockResolvedValue({
+      logs: [
+        { topics: ["0xProjectCreated", "BAD-TOPICS"] },  // invalid → catch → continue
+        { topics: ["0xProjectCreated", "0xA"] },          // valid → 10n
+      ],
+    });
+    const wlt = makeMockWalletClient();
+    r.connect(wlt as any, pub as any);
+
+    const { projectId } = await r.createProject({ name: "fallback-agent" });
+    expect(projectId).toBe(10n);
+  });
+});
