@@ -8,14 +8,12 @@ import type { PublicClient, WalletClient, Account, Chain, Transport } from "viem
 import { INKD_TOKEN_ABI, INKD_VAULT_ABI, INKD_REGISTRY_ABI } from "./abi";
 import { ArweaveClient } from "./arweave";
 import { PassthroughEncryption, type IEncryptionProvider } from "./encryption";
-import { ClientNotConnected, ArweaveNotConnected, NotInkdHolder } from "./errors";
+import { ClientNotConnected, ArweaveNotConnected } from "./errors";
 import type {
   Address,
   InkdClientConfig,
   InkdTokenData,
   Inscription,
-  AccessGrant,
-  SaleData,
   ProtocolStats,
   MintOptions,
   InscribeOptions,
