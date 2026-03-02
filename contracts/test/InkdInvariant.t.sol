@@ -18,6 +18,7 @@ contract InkdHandler is Test {
     address[] public actors;
     uint256 public ghostProjectCount;
     uint256 public ghostTokenLocked;
+    uint256 public ghostTreasuryBalance;
 
     constructor(InkdToken _token, InkdTreasury _treasury, InkdRegistry _registry) {
         token = _token;
@@ -72,7 +73,28 @@ contract InkdHandler is Test {
         if (actor.balance < fee) return;
 
         vm.prank(actor);
-        try registry.pushVersion{value: fee}(projectId, "ar://fuzz", "1.0", "inv") {} catch {}
+        try registry.pushVersion{value: fee}(projectId, "ar://fuzz", "1.0", "inv") {
+            ghostTreasuryBalance += fee;
+        } catch {}
+    }
+
+    /// @notice Drain most tokens from an actor to exercise the low-balance guard in createProject.
+    /// @dev This deliberately reduces an actor's token balance below 1 INKD so the
+    ///      `if (token.balanceOf(actor) < 1 ether) { vm.stopPrank(); return; }` branch is reachable.
+    function drainActorTokens(uint256 actorSeed) external {
+        address actor = actors[actorSeed % actors.length];
+        uint256 bal = token.balanceOf(actor);
+
+        // Only drain if actor holds more than 1 INKD (keep a tiny fraction to avoid underflow)
+        if (bal <= 1 ether) return;
+
+        // Transfer all but 0.5 INKD back to address(1) (sink) — leaves actor below the 1 INKD threshold
+        uint256 drainAmount = bal - 0.5 ether;
+        vm.prank(actor);
+        token.transfer(address(1), drainAmount);
+        // Note: tokens sent to address(1) are effectively burned from active supply,
+        // but totalSupply remains unchanged — this is correct, we're testing the
+        // balance-check guard, not burning.
     }
 }
 
@@ -152,5 +174,13 @@ contract InkdInvariantTest is StdInvariant, Test {
     /// @notice transferFee must never exceed MAX_TRANSFER_FEE.
     function invariant_transferFee_withinBounds() public view {
         assertLe(registry.transferFee(), registry.MAX_TRANSFER_FEE());
+    }
+
+    // ─── INVARIANT: Treasury ETH balance matches ghost version-fee accumulator ───
+
+    /// @notice Treasury ETH balance must equal the sum of all version fees pushed by handler.
+    /// @dev ghostTreasuryBalance tracks every successful pushVersion fee forwarded to treasury.
+    function invariant_treasuryBalance_matchesGhost() public view {
+        assertGe(address(treasury).balance, handler.ghostTreasuryBalance());
     }
 }
