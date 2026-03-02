@@ -10,10 +10,31 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Planned
-- Mainnet deployment (Base)
-- Website launch at inkdprotocol.xyz
+- Mainnet deployment (Base) — pending external audit
+- Website launch at inkdprotocol.xyz — awaiting `VERCEL_TOKEN` secret
 - SDK publish to npm (`@inkd/sdk`) — awaiting `NPM_TOKEN` secret
-- Vercel deployment for frontend — awaiting `VERCEL_TOKEN` secret
+- External smart contract audit
+- CLI tool (`npx inkd`)
+
+---
+
+## [0.7.0] — 2026-03-02
+
+### Added
+- **`SECURITY.md`** — full security disclosure policy with scope, SLA table, bug bounty tiers
+  (Critical 1–5 ETH, High 0.5–1 ETH, Medium 0.1–0.5 ETH), known limitations, audit history,
+  and hall of fame. Email: `security@inkdprotocol.xyz`
+- **`sdk/README.md`** — complete npm-ready SDK documentation with install instructions,
+  Quick Start, full API reference table, error handling guide, React hooks section,
+  AI agent usage examples, network addresses table, and badges (npm, CI, license, Base)
+- **`sdk/eslint.config.js`** — ESLint flat config for TypeScript:
+  `@typescript-eslint/no-floating-promises`, `await-thenable`, `no-misused-promises`,
+  `consistent-type-imports`; lenient test overrides; `dist/` + `coverage/` ignored
+- **`.github/dependabot.yml`** — automated dependency updates for GitHub Actions (weekly),
+  SDK npm deps (weekly, grouped dev-deps), root npm deps; viem major pinned manually
+- **`ROADMAP.md`** — public-facing 4-phase roadmap: Phase 0 (Foundation ✅), Phase 1 (Launch Q1),
+  Phase 2 (Ecosystem Q2), Phase 3 (AI Agent Layer Q3), Phase 4 (Protocol Evolution TBD);
+  includes explicit non-goals section
 
 ---
 

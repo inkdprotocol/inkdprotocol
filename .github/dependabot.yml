@@ -1,0 +1,62 @@
+version: 2
+
+updates:
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "UTC"
+    labels:
+      - "dependencies"
+      - "ci"
+    commit-message:
+      prefix: "chore(ci)"
+
+  # SDK npm dependencies
+  - package-ecosystem: "npm"
+    directory: "/sdk"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "UTC"
+    labels:
+      - "dependencies"
+      - "sdk"
+    commit-message:
+      prefix: "chore(sdk)"
+    ignore:
+      # Pin major versions manually
+      - dependency-name: "viem"
+        update-types: ["version-update:semver-major"]
+    groups:
+      dev-deps:
+        patterns:
+          - "vitest"
+          - "@vitest/*"
+          - "typescript"
+          - "@eslint/*"
+          - "@typescript-eslint/*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Root npm dependencies
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "UTC"
+    labels:
+      - "dependencies"
+    commit-message:
+      prefix: "chore(deps)"
+    ignore:
+      # Don't auto-bump contract tooling — pin manually
+      - dependency-name: "foundry*"
+        update-types: ["version-update:semver-major"]
