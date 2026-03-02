@@ -32,7 +32,7 @@ export type {
 } from "./multicall.js";
 
 import { 
-  createPublicClient, createWalletClient, http, parseEther,
+  createPublicClient, http, parseEther,
   type PublicClient, type WalletClient, type Address, type Hash
 } from 'viem'
 import { base, baseSepolia } from 'viem/chains'
