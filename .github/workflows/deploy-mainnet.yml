@@ -1,0 +1,98 @@
+name: Deploy to Base Mainnet
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "DEPLOY TO MAINNET" to confirm'
+        required: true
+        default: ''
+
+jobs:
+  validate-confirmation:
+    name: Validate Confirmation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check confirmation phrase
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "DEPLOY TO MAINNET" ]; then
+            echo "❌ Confirmation failed."
+            echo "You must type exactly: DEPLOY TO MAINNET"
+            echo "Got: ${{ github.event.inputs.confirm }}"
+            exit 1
+          fi
+          echo "✅ Confirmation accepted. Proceeding with mainnet deployment."
+
+  deploy-mainnet:
+    name: Deploy Contracts to Base Mainnet
+    runs-on: ubuntu-latest
+    needs: validate-confirmation
+    environment: mainnet
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Cache Foundry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.foundry
+            ~/.cargo
+          key: foundry-${{ runner.os }}-${{ hashFiles('foundry.toml') }}
+          restore-keys: |
+            foundry-${{ runner.os }}-
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Install Forge dependencies
+        run: forge install
+
+      - name: Build contracts
+        run: forge build
+
+      - name: Deploy to Base Mainnet
+        id: deploy
+        env:
+          DEPLOYER_PRIVATE_KEY: ${{ secrets.DEPLOYER_PRIVATE_KEY_MAINNET }}
+          BASE_RPC: ${{ secrets.BASE_RPC }}
+          BASESCAN_API_KEY: ${{ secrets.BASESCAN_API_KEY }}
+        run: |
+          forge script contracts/Deploy.s.sol \
+            --rpc-url $BASE_RPC \
+            --private-key $DEPLOYER_PRIVATE_KEY \
+            --broadcast \
+            --verify \
+            --etherscan-api-key $BASESCAN_API_KEY \
+            -v 2>&1 | tee deploy-output.txt
+
+      - name: Extract deployed addresses
+        run: |
+          python3 -c "
+          import re, json
+
+          with open('deploy-output.txt', 'r') as f:
+              content = f.read()
+
+          pattern = r'(\w+) deployed at: (0x[a-fA-F0-9]{40})'
+          matches = re.findall(pattern, content)
+
+          addresses = {name: addr for name, addr in matches}
+          addresses['network'] = 'base-mainnet'
+          addresses['chainId'] = 8453
+
+          with open('deployed-addresses.json', 'w') as f:
+              json.dump(addresses, f, indent=2)
+
+          print(json.dumps(addresses, indent=2))
+          "
+
+      - name: Upload deployed addresses
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployed-addresses-mainnet
+          path: deployed-addresses.json
+          retention-days: 30
