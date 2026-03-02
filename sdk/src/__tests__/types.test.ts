@@ -31,7 +31,7 @@ describe("ContentType enum", () => {
 
   it("all values follow <type>/<subtype> format", () => {
     for (const value of Object.values(ContentType)) {
-      expect(value).toMatch(/^[a-z]+\/[a-z0-9.+\-]+$/);
+      expect(value).toMatch(/^[a-z]+\/[a-z0-9.+\-]+$/u); // eslint-disable-line no-useless-escape
     }
   });
 });

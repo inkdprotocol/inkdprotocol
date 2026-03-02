@@ -6,7 +6,7 @@
  * viem's publicClient.multicall is mocked via vi.fn().
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   batchGetProjects,
   batchGetVersions,
@@ -56,7 +56,7 @@ function makeVersionData(overrides: Partial<VersionData> = {}): VersionData {
 
 /** Factory: create a mock PublicClient with a controllable multicall */
 function makePublicClient(
-  multicallImpl: (...args: unknown[]) => Promise<unknown[]>
+  multicallImpl: (..._args: unknown[]) => Promise<unknown[]>
 ): PublicClient {
   return {
     multicall: vi.fn().mockImplementation(multicallImpl),

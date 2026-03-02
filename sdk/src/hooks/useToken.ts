@@ -43,7 +43,7 @@ export function useToken(client: InkdClient, tokenId: bigint): UseTokenReturn {
       }
     }
 
-    fetchToken();
+    void fetchToken();
 
     return () => {
       cancelled = true;
