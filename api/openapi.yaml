@@ -1,0 +1,499 @@
+openapi: '3.1.0'
+
+info:
+  title: Inkd Protocol API
+  version: '0.1.0'
+  description: |
+    HTTP REST API for the Inkd Protocol — the decentralized ownership layer for AI agents on Base.
+
+    Every project is a permanent on-chain record. Every version is a content-addressed snapshot
+    stored on Arweave. Every agent is a first-class protocol citizen with a resolvable endpoint.
+
+    **Authentication**
+
+    When `INKD_API_KEY` is configured, all `/v1/projects` and `/v1/agents` endpoints require:
+    ```
+    Authorization: Bearer <your-api-key>
+    ```
+    `/v1/health` and `/v1/status` are always public.
+
+    **Write operations** (`POST`) also require a `privateKey` field in the request body.
+    This is the wallet private key that signs the on-chain transaction. It is NEVER stored
+    or logged — it is used once, in-memory, to sign and broadcast the transaction.
+
+    **Base URLs**
+    - Local dev: `http://localhost:3000`
+    - Self-hosted: `https://api.inkdprotocol.xyz` (after deployment)
+
+  contact:
+    name: Inkd Protocol
+    url: https://inkdprotocol.xyz
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:3000
+    description: Local development
+  - url: https://api.inkdprotocol.xyz
+    description: Production (self-hosted)
+
+tags:
+  - name: Health
+    description: Liveness and protocol status — always public
+  - name: Projects
+    description: On-chain project registry — read/write
+  - name: Agents
+    description: AI agent discovery — filtered view of projects with isAgent=true
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: API key
+
+  schemas:
+    Project:
+      type: object
+      required: [id, name, description, license, readmeHash, owner, isPublic, isAgent, agentEndpoint, createdAt, versionCount]
+      properties:
+        id:
+          type: string
+          description: On-chain project id (uint256 as string)
+          example: '1'
+        name:
+          type: string
+          example: 'my-agent'
+        description:
+          type: string
+          example: 'An autonomous AI agent for content generation'
+        license:
+          type: string
+          example: 'MIT'
+        readmeHash:
+          type: string
+          description: Arweave transaction id for the README
+          example: 'AbCdEfGhIjKlMnOpQrStUvWxYz'
+        owner:
+          type: string
+          description: Wallet address of the project owner
+          example: '0x1234567890abcdef1234567890abcdef12345678'
+        isPublic:
+          type: boolean
+        isAgent:
+          type: boolean
+          description: True if this project represents an AI agent
+        agentEndpoint:
+          type: string
+          description: HTTP endpoint for direct agent interaction
+          example: 'https://my-agent.example.com'
+        createdAt:
+          type: string
+          description: Unix timestamp as string
+          example: '1709337600'
+        versionCount:
+          type: string
+          description: Number of pushed versions
+          example: '3'
+
+    Version:
+      type: object
+      required: [versionId, projectId, tag, contentHash, metadataHash, pushedAt, pusher]
+      properties:
+        versionId:
+          type: string
+          example: '1'
+        projectId:
+          type: string
+          example: '1'
+        tag:
+          type: string
+          example: 'v1.2.0'
+        contentHash:
+          type: string
+          description: Arweave transaction id containing the file content
+          example: 'AbCdEfGhIjKlMnOpQrStUvWxYz1234'
+        metadataHash:
+          type: string
+          description: Optional Arweave transaction id for metadata JSON
+          example: ''
+        pushedAt:
+          type: string
+          description: Unix timestamp as string
+          example: '1709337700'
+        pusher:
+          type: string
+          description: Wallet address that pushed this version
+          example: '0xabcdef1234567890abcdef1234567890abcdef12'
+
+    Agent:
+      type: object
+      required: [id, name, description, owner, agentEndpoint, isPublic, versionCount, createdAt]
+      properties:
+        id:
+          type: string
+          example: '5'
+        name:
+          type: string
+          example: 'trading-agent-alpha'
+        description:
+          type: string
+          example: 'Autonomous DeFi trading agent'
+        owner:
+          type: string
+          example: '0x1234567890abcdef1234567890abcdef12345678'
+        agentEndpoint:
+          type: string
+          example: 'https://trading-agent.example.com/api'
+        isPublic:
+          type: boolean
+        versionCount:
+          type: string
+          example: '12'
+        createdAt:
+          type: string
+          example: '1709337600'
+
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              example: 'NOT_FOUND'
+            message:
+              type: string
+              example: 'Project #99 not found'
+
+security:
+  - bearerAuth: []
+
+paths:
+  /v1/health:
+    get:
+      tags: [Health]
+      summary: Liveness probe
+      description: Returns 200 immediately. No RPC call. Use for uptime monitoring.
+      security: []
+      responses:
+        '200':
+          description: Server is alive
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:       { type: boolean, example: true }
+                  service:  { type: string, example: '@inkd/api' }
+                  version:  { type: string, example: '0.1.0' }
+                  uptimeMs: { type: number, example: 123456 }
+
+  /v1/status:
+    get:
+      tags: [Health]
+      summary: Protocol status
+      description: |
+        Returns protocol metrics including project count and total $INKD supply.
+        Makes one RPC call to the registry contract. Safe to poll every few minutes.
+      security: []
+      responses:
+        '200':
+          description: Protocol status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:          { type: boolean }
+                  network:     { type: string, example: 'testnet' }
+                  rpcUrl:      { type: string }
+                  rpcReachable:{ type: boolean }
+                  contracts:
+                    type: object
+                    properties:
+                      token:    { type: string, nullable: true }
+                      registry: { type: string, nullable: true }
+                      treasury: { type: string, nullable: true }
+                      deployed: { type: boolean }
+                  protocol:
+                    type: object
+                    properties:
+                      projectCount: { type: string, nullable: true, example: '42' }
+                      totalSupply:  { type: string, nullable: true, example: '1000000.0000 INKD' }
+
+  /v1/projects:
+    get:
+      tags: [Projects]
+      summary: List all projects
+      description: Returns paginated list of all registered projects (agents and non-agents).
+      parameters:
+        - name: offset
+          in: query
+          schema: { type: integer, default: 0 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20, maximum: 100 }
+      responses:
+        '200':
+          description: Paginated project list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:   { type: array, items: { $ref: '#/components/schemas/Project' } }
+                  total:  { type: string, example: '42' }
+                  offset: { type: integer }
+                  limit:  { type: integer }
+        '503':
+          description: Registry contract not deployed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+    post:
+      tags: [Projects]
+      summary: Create a new project
+      description: |
+        Registers a new project on-chain. Submits a transaction and waits for confirmation.
+
+        ⚠️ The `privateKey` is used in-memory to sign the transaction and is **never stored**.
+        Use a dedicated hot wallet with minimal funds.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, privateKey]
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 64
+                  example: 'my-agent'
+                description:
+                  type: string
+                  maxLength: 256
+                  example: 'An AI agent for content generation'
+                license:
+                  type: string
+                  default: MIT
+                  example: 'MIT'
+                isPublic:
+                  type: boolean
+                  default: true
+                readmeHash:
+                  type: string
+                  description: Arweave transaction id for README (upload separately)
+                  example: ''
+                isAgent:
+                  type: boolean
+                  default: false
+                  description: Set true to appear in /v1/agents
+                agentEndpoint:
+                  type: string
+                  description: HTTP endpoint for agent interaction
+                  example: 'https://my-agent.example.com'
+                privateKey:
+                  type: string
+                  description: Hex private key for signing. Never stored.
+                  example: '0xabc123...'
+      responses:
+        '201':
+          description: Project created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  txHash:    { type: string }
+                  projectId: { type: string }
+                  wallet:    { type: string }
+                  status:    { type: string, example: 'success' }
+                  blockNumber: { type: string }
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /v1/projects/{id}:
+    get:
+      tags: [Projects]
+      summary: Get a project by id
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, example: 1 }
+      responses:
+        '200':
+          description: Project found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Project' }
+        '404':
+          description: Project not found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /v1/projects/{id}/versions:
+    get:
+      tags: [Projects]
+      summary: List versions for a project
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+        - name: offset
+          in: query
+          schema: { type: integer, default: 0 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20, maximum: 100 }
+      responses:
+        '200':
+          description: Paginated version list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:      { type: array, items: { $ref: '#/components/schemas/Version' } }
+                  total:     { type: string }
+                  projectId: { type: string }
+                  offset:    { type: integer }
+                  limit:     { type: integer }
+        '404':
+          description: Project not found
+
+    post:
+      tags: [Projects]
+      summary: Push a new version
+      description: |
+        Pushes a new version to an existing project. The wallet signing the transaction
+        must be an authorized pusher for this project.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tag, contentHash, privateKey]
+              properties:
+                tag:
+                  type: string
+                  example: 'v1.2.0'
+                contentHash:
+                  type: string
+                  description: Arweave transaction id containing the version content
+                  example: 'AbCdEfGhIjKlMnOpQrStUvWxYz1234'
+                metadataHash:
+                  type: string
+                  default: ''
+                  example: ''
+                privateKey:
+                  type: string
+                  description: Signing key. Never stored.
+                  example: '0xabc123...'
+      responses:
+        '201':
+          description: Version pushed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  txHash:    { type: string }
+                  projectId: { type: string }
+                  tag:       { type: string }
+                  contentHash: { type: string }
+                  pusher:    { type: string }
+                  status:    { type: string }
+                  blockNumber: { type: string }
+
+  /v1/agents:
+    get:
+      tags: [Agents]
+      summary: List all AI agents
+      description: |
+        Returns all projects with `isAgent=true`. AI agents are the core primitive of
+        Inkd Protocol — autonomous programs with on-chain identity and Arweave memory.
+      parameters:
+        - name: offset
+          in: query
+          schema: { type: integer, default: 0 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20, maximum: 100 }
+      responses:
+        '200':
+          description: Agent list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:   { type: array, items: { $ref: '#/components/schemas/Agent' } }
+                  offset: { type: integer }
+                  limit:  { type: integer }
+                  count:  { type: integer }
+
+  /v1/agents/{id}:
+    get:
+      tags: [Agents]
+      summary: Get an agent by numeric id
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Agent found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Agent' }
+        '404':
+          description: Agent not found or project is not an agent
+
+  /v1/agents/by-name/{name}:
+    get:
+      tags: [Agents]
+      summary: Get an agent by name
+      description: Look up an agent using its human-readable project name.
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema: { type: string, example: 'trading-agent-alpha' }
+      responses:
+        '200':
+          description: Agent found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Agent' }
+        '404':
+          description: Agent not found
