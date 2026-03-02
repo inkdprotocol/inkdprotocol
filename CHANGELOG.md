@@ -3,6 +3,27 @@
 All notable changes to the Inkd Protocol are documented here.
 
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+
+---
+
+## [v1.0.0] — 2026-03-02
+
+### Added
+- **Makefile** — root-level developer convenience targets: `make install`, `make build`,
+  `make test`, `make test-fuzz`, `make test-invariant`, `make coverage`, `make snapshot`,
+  `make lint`, `make typecheck`, `make fmt`, `make check`, `make ci`, `make deploy-dry`,
+  `make deploy-base`, `make anvil`. Full help via `make help`.
+- **GitHub Issue Templates** — structured YAML forms for bug reports and feature requests,
+  with component dropdowns, environment fields, checklists, and a `config.yml` routing
+  security issues and support questions to the right channels.
+- **CODE_OF_CONDUCT.md** — Contributor Covenant 2.1 extended with agent-specific guidelines
+  covering transparency requirements, protocol interaction rules, and enforcement ladder.
+
+### Improved
+- Developer experience: single `make ci` command replicates the full CI pipeline locally
+  (fmt-check → build → test → gas snapshot → typecheck).
+
+---
 This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---

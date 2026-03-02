@@ -1,0 +1,12 @@
+blank_issues_enabled: false
+
+contact_links:
+  - name: 💬 Discord Community
+    url: https://discord.gg/inkdprotocol
+    about: For questions, help, and general discussion about Inkd Protocol.
+  - name: 🔒 Security Vulnerability
+    url: https://github.com/inkdprotocol/inkd-protocol/blob/main/SECURITY.md
+    about: Report security issues privately — do not open a public issue.
+  - name: 📚 Documentation
+    url: https://docs.inkdprotocol.xyz
+    about: Check the docs before opening an issue — your answer may already be there.
