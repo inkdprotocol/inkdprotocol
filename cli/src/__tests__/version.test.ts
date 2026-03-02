@@ -177,7 +177,7 @@ describe("cmdVersionPush", () => {
       "--tag", "v0.9.0",
     ]);
 
-    const logged = consoleLog.mock.calls.map((c) => c.join(" ")).join("\n");
+    const logged = consoleLog.mock.calls.map((c: unknown[]) => c.join(" ")).join("\n");
     expect(logged).toMatch(/v0\.9\.0/);
     expect(logged).toMatch(/arweave_hash_abc/);
   });
@@ -214,7 +214,7 @@ describe("cmdVersionList", () => {
     const { cmdVersionList } = await import("../commands/version.js");
     await cmdVersionList(["1"]);
 
-    const logged = consoleLog.mock.calls.map((c) => c.join(" ")).join("\n");
+    const logged = consoleLog.mock.calls.map((c: unknown[]) => c.join(" ")).join("\n");
     expect(logged).toMatch(/No versions/i);
   });
 
@@ -229,7 +229,7 @@ describe("cmdVersionList", () => {
     const { cmdVersionList } = await import("../commands/version.js");
     await cmdVersionList(["1"]);
 
-    const logged = consoleLog.mock.calls.map((c) => c.join(" ")).join("\n");
+    const logged = consoleLog.mock.calls.map((c: unknown[]) => c.join(" ")).join("\n");
     expect(logged).toMatch(/v0\.1\.0/);
     expect(logged).toMatch(/v0\.2\.0/);
   });
@@ -265,7 +265,7 @@ describe("cmdVersionList", () => {
     const { cmdVersionList } = await import("../commands/version.js");
     await cmdVersionList(["1"]);
 
-    const logged = consoleLog.mock.calls.map((c) => c.join(" ")).join("\n");
+    const logged = consoleLog.mock.calls.map((c: unknown[]) => c.join(" ")).join("\n");
     expect(logged).toMatch(/Fixed critical bug/);
   });
 });
@@ -305,7 +305,7 @@ describe("cmdVersionShow", () => {
     const { cmdVersionShow } = await import("../commands/version.js");
     await cmdVersionShow(["--id", "1", "--index", "0"]);
 
-    const logged = consoleLog.mock.calls.map((c) => c.join(" ")).join("\n");
+    const logged = consoleLog.mock.calls.map((c: unknown[]) => c.join(" ")).join("\n");
     expect(logged).toMatch(/v0\.5\.0/);
     expect(logged).toMatch(/xyz_arweave_hash/);
     expect(logged).toMatch(/Perf improvements/);
@@ -328,7 +328,7 @@ describe("cmdVersionShow", () => {
     const { cmdVersionShow } = await import("../commands/version.js");
     await cmdVersionShow(["--id", "1", "--index", "0"]);
 
-    const logged = consoleLog.mock.calls.map((c) => c.join(" ")).join("\n");
+    const logged = consoleLog.mock.calls.map((c: unknown[]) => c.join(" ")).join("\n");
     expect(logged).not.toMatch(/Changelog/i);
   });
 });

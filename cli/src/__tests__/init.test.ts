@@ -92,7 +92,7 @@ describe("cmdInit", () => {
     await cmdInit([]);
 
     // One of the console.log calls should mention inkd.config.json
-    const logged = consoleLog.mock.calls.map((c) => c.join(" ")).join("\n");
+    const logged = consoleLog.mock.calls.map((c: unknown[]) => c.join(" ")).join("\n");
     expect(logged).toMatch(/inkd\.config\.json/);
   });
 
@@ -100,7 +100,7 @@ describe("cmdInit", () => {
     const { cmdInit } = await import("../commands/init.js");
     await cmdInit([]);
 
-    const logged = consoleLog.mock.calls.map((c) => c.join(" ")).join("\n");
+    const logged = consoleLog.mock.calls.map((c: unknown[]) => c.join(" ")).join("\n");
     expect(logged).toMatch(/INKD_PRIVATE_KEY/);
     expect(logged).toMatch(/inkd status/);
   });

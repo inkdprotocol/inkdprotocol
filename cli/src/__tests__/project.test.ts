@@ -135,7 +135,7 @@ describe("cmdProjectGet", () => {
     await cmdProjectGet(["1"]);
 
     expect(mockReadContract).toHaveBeenCalledTimes(2);
-    const logged = consoleLog.mock.calls.map((c) => c.join(" ")).join("\n");
+    const logged = consoleLog.mock.calls.map((c: unknown[]) => c.join(" ")).join("\n");
     expect(logged).toMatch(/test-agent/);
     expect(logged).toMatch(/MIT/);
   });
@@ -156,7 +156,7 @@ describe("cmdProjectGet", () => {
     const { cmdProjectGet } = await import("../commands/project.js");
     await cmdProjectGet(["1"]);
 
-    const logged = consoleLog.mock.calls.map((c) => c.join(" ")).join("\n");
+    const logged = consoleLog.mock.calls.map((c: unknown[]) => c.join(" ")).join("\n");
     expect(logged).toMatch(/agent/i);
   });
 
@@ -179,7 +179,7 @@ describe("cmdProjectGet", () => {
     const { cmdProjectGet } = await import("../commands/project.js");
     await cmdProjectGet(["1"]);
 
-    const logged = consoleLog.mock.calls.map((c) => c.join(" ")).join("\n");
+    const logged = consoleLog.mock.calls.map((c: unknown[]) => c.join(" ")).join("\n");
     expect(logged).toMatch(new RegExp(MOCK_TO, "i"));
   });
 });
@@ -221,7 +221,7 @@ describe("cmdProjectList", () => {
     const { cmdProjectList } = await import("../commands/project.js");
     await cmdProjectList([MOCK_OWNER]);
 
-    const logged = consoleLog.mock.calls.map((c) => c.join(" ")).join("\n");
+    const logged = consoleLog.mock.calls.map((c: unknown[]) => c.join(" ")).join("\n");
     expect(logged).toMatch(/No projects/i);
   });
 
@@ -235,7 +235,7 @@ describe("cmdProjectList", () => {
     await cmdProjectList([MOCK_OWNER]);
 
     expect(mockReadContract).toHaveBeenCalledTimes(3); // 1 owner call + 2 project calls
-    const logged = consoleLog.mock.calls.map((c) => c.join(" ")).join("\n");
+    const logged = consoleLog.mock.calls.map((c: unknown[]) => c.join(" ")).join("\n");
     expect(logged).toMatch(/test-agent/);
   });
 });
@@ -346,7 +346,7 @@ describe("cmdProjectCreate", () => {
     const { cmdProjectCreate } = await import("../commands/project.js");
     await cmdProjectCreate(["--name", "ok-agent"]);
 
-    const logged = consoleLog.mock.calls.map((c) => c.join(" ")).join("\n");
+    const logged = consoleLog.mock.calls.map((c: unknown[]) => c.join(" ")).join("\n");
     expect(logged).toMatch(/ok-agent/);
   });
 
