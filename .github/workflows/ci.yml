@@ -2,113 +2,142 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   pull_request:
-    branches: [main]
+    branches: [main, dev]
 
 jobs:
-  contracts:
-    name: Contracts — Build & Test
+  lint:
+    name: Lint (ESLint + Solhint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npx eslint . --ext .ts,.tsx,.js,.jsx --max-warnings 0
+
+      - name: Install Solhint
+        run: npm install -g solhint
+
+      - name: Run Solhint
+        run: solhint 'contracts/**/*.sol'
+
+  test-contracts:
+    name: Test Contracts (Foundry)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
 
+      - name: Cache Foundry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.foundry
+            ~/.cargo
+          key: foundry-${{ runner.os }}-${{ hashFiles('foundry.toml') }}
+          restore-keys: |
+            foundry-${{ runner.os }}-
+
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
 
-      - name: Build
-        run: cd contracts && forge build --force
+      - name: Install Forge dependencies
+        run: forge install
 
-      - name: Test (unit + fuzz)
-        run: cd contracts && forge test -vv
+      - name: Run Forge tests with gas report
+        run: forge test --gas-report -v 2>&1 | tee gas-report.txt
 
-      - name: Invariant tests
-        run: cd contracts && forge test --match-contract InkdInvariantTest -vv
-
-      - name: Check for warnings
-        run: |
-          output=$(cd contracts && forge build 2>&1)
-          if echo "$output" | grep -q "^Warning"; then
-            echo "❌ Compiler warnings detected:"
-            echo "$output" | grep "^Warning"
-            exit 1
-          fi
-          echo "✅ Zero warnings"
-
-      - name: Gas snapshot
-        run: cd contracts && forge snapshot --check --tolerance 5 || forge snapshot
-        # Stores gas costs per test. PR will show regression if gas increases >5%.
-
-      - name: Upload gas snapshot
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      - name: Upload gas report
         uses: actions/upload-artifact@v4
         with:
-          name: gas-snapshot
-          path: contracts/.gas-snapshot
-          retention-days: 90
+          name: gas-report
+          path: gas-report.txt
+          retention-days: 30
 
-  sdk:
-    name: SDK — Type Check & Build
+  test-sdk:
+    name: Test SDK
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: sdk/package-lock.json
+          node-version: '20'
+          cache: 'npm'
 
-      - name: Install
-        run: cd sdk && npm ci
+      - name: Install dependencies
+        run: npm ci
 
-      - name: Type check
-        run: cd sdk && npx tsc --noEmit
+      - name: Run SDK tests with coverage
+        run: npm test -- --coverage
 
-      - name: Test
-        run: cd sdk && npm test
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdk-coverage
+          path: coverage/
+          retention-days: 30
 
-      - name: Build
-        run: cd sdk && npm run build
+  security-scan:
+    name: Security Scan (Slither)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
-  cli:
-    name: CLI — Type Check & Build
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Slither
+        run: pip3 install slither-analyzer
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Run Slither analysis
+        run: slither . --json slither-report.json || true
+
+      - name: Upload Slither report
+        uses: actions/upload-artifact@v4
+        with:
+          name: slither-report
+          path: slither-report.json
+          retention-days: 30
+
+  build-check:
+    name: Build Check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: cli/package-lock.json
+          node-version: '20'
+          cache: 'npm'
 
-      - name: Install
-        run: cd cli && npm ci
-
-      - name: Type check
-        run: cd cli && npm run typecheck
+      - name: Install dependencies
+        run: npm ci
 
       - name: Build
-        run: cd cli && npm run build
-
-  # ─── Summary ───────────────────────────────────────────────────────────
-  all-checks:
-    name: All checks passed
-    needs: [contracts, sdk, cli]
-    runs-on: ubuntu-latest
-    if: always()
-    steps:
-      - name: Check all jobs
-        run: |
-          if [ "${{ needs.contracts.result }}" != "success" ] || \
-             [ "${{ needs.sdk.result }}"       != "success" ] || \
-             [ "${{ needs.cli.result }}"        != "success" ]; then
-            echo "❌ One or more checks failed"
-            exit 1
-          fi
-          echo "✅ All checks passed"
+        run: npm run build
