@@ -19,37 +19,47 @@ This document tracks where Inkd is going. It's a living document — updated as 
 
 ## Phase 0 — Foundation ✅ *Complete*
 
-Core protocol, tooling, and infrastructure.
+Core protocol, tooling, and infrastructure — fully shipped.
 
 | Item | Status |
 |------|--------|
 | Smart contracts (InkdToken, InkdRegistry, InkdTreasury) | ✅ |
-| TypeScript SDK (`@inkd/sdk`) | ✅ |
-| 42-test unit suite (vitest) | ✅ |
-| Fuzz + invariant tests (Foundry) | ✅ |
-| Security review (internal) | ✅ |
-| The Graph subgraph (Base mainnet) | ✅ |
-| Full documentation (contract, SDK, architecture, tokenomics) | ✅ |
+| TypeScript SDK (`@inkd/sdk`) — full client, AgentMemory, Arweave, encryption | ✅ |
+| **83-test SDK suite** (vitest) — unit, integration, advanced, error, encryption | ✅ |
+| **159-test contract suite** (Foundry) — unit, fuzz, invariant, UUPS upgrade | ✅ |
+| Fuzz tests (13) + Invariant tests (6) | ✅ |
+| Security review (internal) — re-entrancy, access control, upgrade safety | ✅ |
+| The Graph subgraph definition (Base mainnet + Sepolia) | ✅ |
+| Full documentation — contract, SDK, architecture, tokenomics, whitepaper | ✅ |
+| **Technical Whitepaper PDF** (`docs/whitepaper.pdf`, A4, 430KB) | ✅ |
 | CI/CD pipeline (GitHub Actions) | ✅ |
 | Deploy scripts + post-deploy playbook | ✅ |
-| Twitter/X content strategy (23 posts queued) | ✅ |
+| **CLI tool** (`inkd`) — create, push, list, search, watch, token, agent, agentd | ✅ |
+| **CLI test suite** (vitest) — 40+ CLI-specific tests | ✅ |
+| Twitter/X content strategy (26 posts queued) | ✅ |
+| AI agent examples (autonomous, OpenAI, LangChain, multi-agent) | ✅ |
+| Makefile — `make test`, `make ci`, `make deploy-dry`, 15+ targets | ✅ |
+| Base Sepolia E2E integration test script | ✅ |
 
 ---
 
-## Phase 1 — Launch 📅 *Q1 2026*
+## Phase 1 — Launch 🔄 *Q1 2026*
 
 Deploy to mainnet. Establish presence.
 
 | Item | Status | Notes |
 |------|--------|-------|
 | External smart contract audit | 📅 | Pre-requisite for mainnet |
-| Base mainnet deployment | 📅 | Pending audit |
+| Base mainnet deployment | 📅 | Needs ~$15 ETH on deployer + `BASESCAN_API_KEY` |
 | Contract addresses published | 📅 | Post-deploy |
-| Subgraph deployed to The Graph | 📅 | After contracts live |
-| `@inkd/sdk` published to npm | 📅 | Awaiting `NPM_TOKEN` |
-| Website live at `inkdprotocol.xyz` | 📅 | Awaiting `VERCEL_TOKEN` |
-| Twitter launch campaign | 📅 | 23 posts ready |
-| First AI agent registered on-chain | 📅 | |
+| Subgraph deployed to The Graph Studio | 📅 | After contracts live |
+| `@inkd/sdk` published to npm | 📅 | Needs `NPM_TOKEN` |
+| `@inkd/cli` published to npm | 📅 | Needs `NPM_TOKEN` |
+| Website live at `inkdprotocol.xyz` | 🔄 | Running at `inkd-protocol.vercel.app` — needs custom domain DNS |
+| Discord community launched | 📅 | Setup guide ready in `docs/DISCORD_SETUP.md` |
+| Twitter launch campaign | 📅 | 26 posts ready in `docs/twitter-queue.md` |
+| Base Sepolia E2E test (live network) | 📅 | Script ready; needs `DEPLOYER_PRIVATE_KEY` + `BASE_SEPOLIA_RPC` |
+| First AI agent registered on-chain | 📅 | Post-deploy |
 
 ---
 
@@ -61,7 +71,6 @@ Grow usage. Build community. Improve UX.
 |------|--------|-------|
 | **SDK v0.2** — event subscriptions, watch mode | 📅 | viem `watchEvent` wrappers |
 | **SDK v0.2** — batch reads (multi-project fetch) | 📅 | Multicall3 integration |
-| **CLI tool** (`npx inkd`) — create/push from terminal | 📅 | For devs and agents |
 | **Arweave bundler integration** — push content + register in one call | 📅 | |
 | **Project explorer** (web UI) — browse all registered projects | 📅 | On website |
 | **Analytics dashboard** — protocol stats, volume, top projects | 📅 | Powered by subgraph |
@@ -119,4 +128,4 @@ Want to contribute? See [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ---
 
-*Last updated: 2026-03-02 | Phase 0 complete, Phase 1 in motion*
+*Last updated: 2026-03-02 | Phase 0 complete, Phase 1 in motion — 242 tests passing, all green*
