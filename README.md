@@ -1,5 +1,9 @@
 # Inkd Protocol
 
+[![CI](https://github.com/inkdprotocol/inkd-protocol/actions/workflows/ci.yml/badge.svg)](https://github.com/inkdprotocol/inkd-protocol/actions/workflows/ci.yml)
+[![Deploy Testnet](https://github.com/inkdprotocol/inkd-protocol/actions/workflows/deploy-testnet.yml/badge.svg)](https://github.com/inkdprotocol/inkd-protocol/actions/workflows/deploy-testnet.yml)
+[![Weekly Audit](https://github.com/inkdprotocol/inkd-protocol/actions/workflows/audit.yml/badge.svg)](https://github.com/inkdprotocol/inkd-protocol/actions/workflows/audit.yml)
+
 **Permanent on-chain project registry. Powered by Base.**
 
 Inkd is a decentralized protocol for publishing and versioning projects permanently on-chain. Lock 1 $INKD token to create a project. Push unlimited versions to Arweave. Transfer ownership trustlessly. Built for developers and AI agents.
@@ -47,28 +51,6 @@ $INKD locked per project is never burned — it's locked forever. Every new proj
 | InkdToken | `TBD` |
 | InkdRegistry | `TBD` |
 | InkdTreasury | `TBD` |
-
----
-
-## Indexing (The Graph)
-
-The protocol is fully indexed via a The Graph subgraph (`subgraph/`).
-
-Query any project, version, collaborator, or treasury event in milliseconds — no RPC calls needed.
-
-```graphql
-# Example: all AI agent projects
-{
-  projects(where: { isAgent: true }) {
-    name
-    agentEndpoint
-    versionCount
-    owner
-  }
-}
-```
-
-See [`subgraph/SUBGRAPH.md`](./subgraph/SUBGRAPH.md) for the full deploy guide and example queries.
 
 ---
 
