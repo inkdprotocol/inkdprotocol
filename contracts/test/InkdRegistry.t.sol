@@ -801,4 +801,190 @@ contract InkdRegistryTest is Test {
         uint256[] memory projects_ = registry.getOwnerProjects(address(0xdead));
         assertEq(projects_.length, 0);
     }
+
+    // ───── Coverage: Array swap-and-pop branches ─────
+
+    /// @notice Remove first-of-three collaborators — exercises swap-and-pop with non-last element.
+    function test_removeCollaborator_firstOfThree() public {
+        uint256 id = _createProject(alice, "multi-collab-remove");
+        address dave = makeAddr("dave");
+        address eve = makeAddr("eve");
+
+        vm.startPrank(alice);
+        registry.addCollaborator(id, bob);
+        registry.addCollaborator(id, dave);
+        registry.addCollaborator(id, eve);
+        vm.stopPrank();
+
+        // Confirm all three are collaborators
+        address[] memory before = registry.getCollaborators(id);
+        assertEq(before.length, 3);
+        assertTrue(registry.isCollaborator(id, bob));
+        assertTrue(registry.isCollaborator(id, dave));
+        assertTrue(registry.isCollaborator(id, eve));
+
+        // Remove first element (bob) — triggers swap-and-pop where bob ≠ last
+        vm.prank(alice);
+        registry.removeCollaborator(id, bob);
+
+        address[] memory afterCollabs = registry.getCollaborators(id);
+        assertEq(afterCollabs.length, 2);
+        assertFalse(registry.isCollaborator(id, bob));
+        // Remaining two should still be collaborators
+        assertTrue(registry.isCollaborator(id, dave));
+        assertTrue(registry.isCollaborator(id, eve));
+    }
+
+    /// @notice Remove middle collaborator of three — swap brings last element into middle slot.
+    function test_removeCollaborator_middleOfThree() public {
+        uint256 id = _createProject(alice, "multi-collab-middle");
+        address dave = makeAddr("dave2");
+
+        vm.startPrank(alice);
+        registry.addCollaborator(id, bob);
+        registry.addCollaborator(id, dave);
+        registry.addCollaborator(id, charlie);
+        vm.stopPrank();
+
+        // Remove middle element (dave)
+        vm.prank(alice);
+        registry.removeCollaborator(id, dave);
+
+        assertFalse(registry.isCollaborator(id, dave));
+        assertTrue(registry.isCollaborator(id, bob));
+        assertTrue(registry.isCollaborator(id, charlie));
+        assertEq(registry.getCollaborators(id).length, 2);
+    }
+
+    /// @notice Transfer to a collaborator who is NOT the last in a 3-collab array.
+    function test_transferProject_newOwnerIsFirstCollaborator() public {
+        uint256 id = _createProject(alice, "transfer-first-collab");
+        address dave = makeAddr("dave3");
+
+        vm.startPrank(alice);
+        registry.addCollaborator(id, bob);    // index 0 — will be new owner
+        registry.addCollaborator(id, charlie); // index 1
+        registry.addCollaborator(id, dave);    // index 2
+        vm.stopPrank();
+
+        assertEq(registry.getCollaborators(id).length, 3);
+
+        vm.deal(alice, 1 ether);
+        vm.prank(alice);
+        registry.transferProject{value: 0.005 ether}(id, bob);
+
+        // Bob is owner, no longer a collaborator
+        assertEq(registry.getProject(id).owner, bob);
+        assertFalse(registry.isCollaborator(id, bob));
+        // Other collabs unaffected
+        assertTrue(registry.isCollaborator(id, charlie));
+        assertTrue(registry.isCollaborator(id, dave));
+        assertEq(registry.getCollaborators(id).length, 2);
+    }
+
+    /// @notice _removeFromOwnerProjects: Alice owns 3 projects, transfers the first one.
+    /// Verifies the owner's project list shrinks and remaining IDs are intact.
+    function test_ownerProjectList_transferFirstOfThree() public {
+        // Alice creates 3 projects
+        vm.startPrank(alice);
+        token.approve(address(registry), 300 ether);
+        registry.createProject("proj-a", "desc", "MIT", false, "", false, "");
+        registry.createProject("proj-b", "desc", "MIT", false, "", false, "");
+        registry.createProject("proj-c", "desc", "MIT", false, "", false, "");
+        vm.stopPrank();
+
+        uint256 total = registry.projectCount();
+        uint256 idA = total - 2;
+        uint256 idB = total - 1;
+        uint256 idC = total;
+
+        // Confirm Alice owns all three
+        uint256[] memory beforeList = registry.getOwnerProjects(alice);
+        assertEq(beforeList.length, 3);
+
+        // Transfer the first project — exercises _removeFromOwnerProjects with a non-last element
+        vm.deal(alice, 1 ether);
+        vm.prank(alice);
+        registry.transferProject{value: 0.005 ether}(idA, bob);
+
+        // Alice now owns two
+        uint256[] memory afterList = registry.getOwnerProjects(alice);
+        assertEq(afterList.length, 2);
+
+        // The two remaining IDs should be B and C (order may vary due to swap)
+        bool hasB;
+        bool hasC;
+        for (uint256 i; i < afterList.length; i++) {
+            if (afterList[i] == idB) hasB = true;
+            if (afterList[i] == idC) hasC = true;
+        }
+        assertTrue(hasB, "idB should remain in Alice list");
+        assertTrue(hasC, "idC should remain in Alice list");
+
+        // Bob owns the transferred project
+        uint256[] memory bobList = registry.getOwnerProjects(bob);
+        assertEq(bobList.length, 1);
+        assertEq(bobList[0], idA);
+    }
+
+    /// @notice _removeFromOwnerProjects: Transfer the middle project of three.
+    function test_ownerProjectList_transferMiddleOfThree() public {
+        vm.startPrank(alice);
+        token.approve(address(registry), 300 ether);
+        registry.createProject("mid-a", "desc", "MIT", false, "", false, "");
+        registry.createProject("mid-b", "desc", "MIT", false, "", false, "");
+        registry.createProject("mid-c", "desc", "MIT", false, "", false, "");
+        vm.stopPrank();
+
+        uint256 total = registry.projectCount();
+        uint256 idA = total - 2;
+        uint256 idB = total - 1; // middle
+        uint256 idC = total;
+
+        vm.deal(alice, 1 ether);
+        vm.prank(alice);
+        registry.transferProject{value: 0.005 ether}(idB, charlie);
+
+        uint256[] memory afterList = registry.getOwnerProjects(alice);
+        assertEq(afterList.length, 2);
+
+        bool hasA;
+        bool hasC;
+        for (uint256 i; i < afterList.length; i++) {
+            if (afterList[i] == idA) hasA = true;
+            if (afterList[i] == idC) hasC = true;
+        }
+        assertTrue(hasA, "idA should remain in Alice list");
+        assertTrue(hasC, "idC should remain in Alice list");
+    }
+
+    /// @notice getAgentProjects: offset equals exactly the count — returns empty.
+    function test_getAgentProjects_offsetEqualsCount() public {
+        // Create 2 agent projects
+        vm.startPrank(alice);
+        token.approve(address(registry), 200 ether);
+        registry.createProject("ag-off-1", "desc", "MIT", false, "", true, "https://ep1");
+        registry.createProject("ag-off-2", "desc", "MIT", false, "", true, "https://ep2");
+        vm.stopPrank();
+
+        // Offset == count returns empty
+        InkdRegistry.Project[] memory result = registry.getAgentProjects(2, 10);
+        assertEq(result.length, 0);
+    }
+
+    /// @notice pushVersion: collaborator stores arweaveHash and pushedBy correctly.
+    function test_pushVersion_collaboratorStoresFields() public {
+        uint256 id = _createProject(alice, "collab-push");
+        vm.prank(alice);
+        registry.addCollaborator(id, bob);
+
+        vm.deal(bob, 1 ether);
+        vm.prank(bob);
+        registry.pushVersion{value: 0.001 ether}(id, "ar://collab-hash", "1.0.0", "Collab pushed");
+
+        assertEq(registry.getVersionCount(id), 1);
+        InkdRegistry.Version memory v = registry.getVersion(id, 0);
+        assertEq(v.pushedBy, bob);
+        assertEq(v.arweaveHash, "ar://collab-hash");
+    }
 }
