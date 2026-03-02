@@ -1,0 +1,51 @@
+{
+  "lastUpdated": "2026-03-03T01:14:00+04:00",
+  "version": "0.9.x",
+  "tasks": [
+    {
+      "id": "test-project-registry",
+      "priority": 1,
+      "status": "done",
+      "title": "Add ProjectRegistry.ts test suite",
+      "description": "ProjectRegistry (872 lines, core class) had zero tests. Added 70-test comprehensive suite covering all read/write methods, error classes, guard paths, and edge cases.",
+      "completedAt": "2026-03-03T00:45:00+04:00",
+      "commit": "ae00a04",
+      "result": "SDK tests: 83 → 153 (+70). All 312 tests passing (153 SDK + 159 contracts)."
+    },
+    {
+      "id": "test-arweave-module",
+      "priority": 2,
+      "status": "done",
+      "title": "Add arweave.ts unit tests",
+      "description": "src/arweave.ts (168 lines) had no dedicated test. Added 41-test suite covering connect/upload/download/pricing/encrypted/getUrl with Irys dynamic-import mock and fetch stub.",
+      "completedAt": "2026-03-03T01:14:00+04:00",
+      "commit": "8dc84c6",
+      "result": "SDK tests: 153 → 194 (+41). All 194 passing (194 SDK + 159 contracts)."
+    },
+    {
+      "id": "test-hooks-vitest-env",
+      "priority": 3,
+      "status": "blocked",
+      "title": "Add React hook tests (useInkd, useToken, etc.)",
+      "description": "Hooks are excluded from coverage in vitest.config.ts. Would need jsdom environment or @testing-library/react. Requires dependency addition.",
+      "blockedBy": "needs jsdom or @testing-library/react added to devDependencies"
+    },
+    {
+      "id": "sdk-event-subscriptions",
+      "priority": 4,
+      "status": "pending",
+      "title": "SDK v0.2 — event subscriptions (watchEvent wrappers)",
+      "description": "Phase 2 roadmap item. Add viem watchEvent wrappers for ProjectCreated, VersionPushed events. Keep on 0.9.x versioning.",
+      "blockedBy": null
+    },
+    {
+      "id": "sdk-batch-reads",
+      "priority": 5,
+      "status": "pending",
+      "title": "SDK v0.2 — batch reads (Multicall3 integration)",
+      "description": "Phase 2 roadmap item. Add multi-project fetch via Multicall3.",
+      "blockedBy": null
+    }
+  ],
+  "notes": "File auto-created 2026-03-03 — no prior file existed. inkd-autonomous.json was missing; initialized with current state based on git log and ROADMAP.md."
+}
