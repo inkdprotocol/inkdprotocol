@@ -25,7 +25,7 @@ Core protocol, tooling, and infrastructure — fully shipped.
 |------|--------|
 | Smart contracts (InkdToken, InkdRegistry, InkdTreasury) | ✅ |
 | TypeScript SDK (`@inkd/sdk`) — full client, AgentMemory, Arweave, encryption | ✅ |
-| **83-test SDK suite** (vitest) — unit, integration, advanced, error, encryption | ✅ |
+| **153-test SDK suite** (vitest) — unit, integration, advanced, error, encryption, ProjectRegistry | ✅ |
 | **159-test contract suite** (Foundry) — unit, fuzz, invariant, UUPS upgrade | ✅ |
 | Fuzz tests (13) + Invariant tests (6) | ✅ |
 | Security review (internal) — re-entrancy, access control, upgrade safety | ✅ |
@@ -128,4 +128,4 @@ Want to contribute? See [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ---
 
-*Last updated: 2026-03-02 | Phase 0 complete, Phase 1 in motion — 242 tests passing, all green*
+*Last updated: 2026-03-03 | Phase 0 complete, Phase 1 in motion — 312 tests passing, all green*
