@@ -39,6 +39,8 @@ import {
   cmdAgentList,
   cmdAgentLookup,
 } from './commands/agent.js'
+import { cmdWatch }  from './commands/watch.js'
+import { cmdSearch } from './commands/search.js'
 
 // ─── Help ─────────────────────────────────────────────────────────────────────
 
@@ -95,6 +97,19 @@ function showHelp(): void {
 
     ${CYAN}agent lookup${RESET} <name>           Find agent project by name
 
+  ${BOLD}SEARCH${RESET}
+    ${CYAN}search${RESET} <query>                Search projects by name or description
+      ${DIM}--agents${RESET}                     Only search agent projects
+      ${DIM}--limit  <n>${RESET}                 Max results (default: 20)
+      ${DIM}--json${RESET}                       JSON output (for scripting)
+
+  ${BOLD}WATCH${RESET}
+    ${CYAN}watch${RESET} [filter]                Stream real-time on-chain events
+      ${DIM}filter: all | projects | versions | agents${RESET}  (default: all)
+      ${DIM}--poll <ms>${RESET}                  Polling interval (default: 3000)
+      ${DIM}--from <block>${RESET}               Start from block (default: latest-1000)
+      ${DIM}--json${RESET}                       Newline-delimited JSON output
+
   ${BOLD}ENVIRONMENT${RESET}
     ${GREEN}INKD_PRIVATE_KEY${RESET}              Wallet private key (hex, with or without 0x)
     ${GREEN}INKD_NETWORK${RESET}                  ${DIM}mainnet${RESET} | ${DIM}testnet${RESET} (overrides config file)
@@ -108,6 +123,9 @@ function showHelp(): void {
     ${DIM}inkd version push --id 1 --hash abc123xyz --tag v0.1.0 --changelog "initial release"${RESET}
     ${DIM}inkd agent list --limit 50${RESET}
     ${DIM}inkd agent lookup my-agent${RESET}
+    ${DIM}inkd search "trading bot" --agents${RESET}
+    ${DIM}inkd watch versions --poll 5000${RESET}
+    ${DIM}inkd watch --json | jq .${RESET}
 
   ${BOLD}DOCS${RESET}    https://inkdprotocol.xyz/docs
   ${BOLD}GITHUB${RESET}  https://github.com/inkdprotocol/inkd-protocol
@@ -181,6 +199,14 @@ async function main(): Promise<void> {
       }
       break
     }
+
+    case 'search':
+      await cmdSearch(rest)
+      break
+
+    case 'watch':
+      await cmdWatch(rest)
+      break
 
     default:
       console.error(`\n  ${YELLOW}Unknown command: ${cmd}${RESET}`)

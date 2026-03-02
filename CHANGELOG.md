@@ -18,6 +18,35 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [0.9.0] — 2026-03-02
+
+### Added
+- **`inkd watch`** — real-time on-chain event streaming for the registry
+  - Filter modes: `all | projects | versions | agents`
+  - Flags: `--poll <ms>` (default 3000), `--from <block>`, `--json`
+  - Color-coded terminal output with block numbers and timestamps
+  - `--json` flag for `jq`-compatible newline-delimited output
+- **`inkd search`** — project search by name/description
+  - Case-insensitive substring match across all registered projects
+  - `--agents` flag to restrict to agent projects only
+  - `--limit <n>` (default 20, max 100)
+  - `--json` for machine-readable output
+  - Parallel batched reads (20 at a time) for speed
+  - Inline match highlighting in terminal output
+- **`examples/`** directory with two integration scripts:
+  - `register-agent.ts` — end-to-end agent registration with approval flow
+  - `watch-events.ts` — standalone event monitor with JSON mode
+  - `README.md` — complete usage guide with env vars and CLI equivalents
+- **`.github/workflows/cli-release.yml`** — tag-triggered CLI publish workflow
+  - Trigger: push `cli-v*` tag (e.g., `git tag cli-v0.1.0 && git push --tags`)
+  - TypeChecks → builds → bumps version → publishes `@inkd/cli` to npm
+  - Auto-creates GitHub Release with install instructions
+
+### Improved
+- CLI help text updated with `search` and `watch` command reference + examples
+
+---
+
 ## [0.8.0] — 2026-03-02
 
 ### Added
