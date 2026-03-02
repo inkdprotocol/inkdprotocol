@@ -1036,4 +1036,23 @@ contract InkdRegistryTest is Test {
         vm.expectRevert(InkdRegistry.ProjectNotFound.selector);
         registry.setAgentEndpoint(999, "https://agent.ai");
     }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  Implementation Guard — constructor _disableInitializers()
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// @notice The InkdRegistry implementation contract cannot be re-initialized.
+    /// @dev Verifies that _disableInitializers() in the constructor locks the impl.
+    function test_implementation_cannotBeInitialized() public {
+        InkdRegistry impl = new InkdRegistry();
+        vm.expectRevert();
+        impl.initialize(address(this), address(token), address(treasury));
+    }
+
+    /// @notice A second InkdRegistry implementation also blocks initialization.
+    function test_implementation_cannotBeInitialized_fresh() public {
+        InkdRegistry impl2 = new InkdRegistry();
+        vm.expectRevert();
+        impl2.initialize(makeAddr("owner2"), address(token), address(treasury));
+    }
 }
