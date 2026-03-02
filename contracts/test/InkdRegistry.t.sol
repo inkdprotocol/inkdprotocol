@@ -987,4 +987,53 @@ contract InkdRegistryTest is Test {
         assertEq(v.pushedBy, bob);
         assertEq(v.arweaveHash, "ar://collab-hash");
     }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  onlyProjectOwner modifier — ProjectNotFound branch
+    //  These tests close the 1 uncovered branch in the modifier: calling
+    //  a modifier-guarded function with a non-existent project ID.
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// @notice addCollaborator reverts ProjectNotFound when project doesn't exist.
+    function test_addCollaborator_reverts_projectNotFound() public {
+        vm.prank(alice);
+        vm.expectRevert(InkdRegistry.ProjectNotFound.selector);
+        registry.addCollaborator(999, bob);
+    }
+
+    /// @notice removeCollaborator reverts ProjectNotFound when project doesn't exist.
+    function test_removeCollaborator_reverts_projectNotFound() public {
+        vm.prank(alice);
+        vm.expectRevert(InkdRegistry.ProjectNotFound.selector);
+        registry.removeCollaborator(999, bob);
+    }
+
+    /// @notice transferProject reverts ProjectNotFound when project doesn't exist.
+    function test_transferProject_reverts_projectNotFound() public {
+        vm.deal(alice, 1 ether);
+        vm.prank(alice);
+        vm.expectRevert(InkdRegistry.ProjectNotFound.selector);
+        registry.transferProject{value: 0.005 ether}(999, bob);
+    }
+
+    /// @notice setVisibility reverts ProjectNotFound when project doesn't exist.
+    function test_setVisibility_reverts_projectNotFound() public {
+        vm.prank(alice);
+        vm.expectRevert(InkdRegistry.ProjectNotFound.selector);
+        registry.setVisibility(999, true);
+    }
+
+    /// @notice setReadme reverts ProjectNotFound when project doesn't exist.
+    function test_setReadme_reverts_projectNotFound() public {
+        vm.prank(alice);
+        vm.expectRevert(InkdRegistry.ProjectNotFound.selector);
+        registry.setReadme(999, "ar://x");
+    }
+
+    /// @notice setAgentEndpoint reverts ProjectNotFound when project doesn't exist.
+    function test_setAgentEndpoint_reverts_projectNotFound() public {
+        vm.prank(alice);
+        vm.expectRevert(InkdRegistry.ProjectNotFound.selector);
+        registry.setAgentEndpoint(999, "https://agent.ai");
+    }
 }
