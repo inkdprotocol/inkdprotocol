@@ -93,7 +93,7 @@ export class ArweaveClient {
 
     try {
       const receipt = await irysClient.upload(
-        data instanceof Uint8Array ? Buffer.from(data) : data,
+        Buffer.isBuffer(data) ? data : Buffer.from(data),
         { tags: tagList }
       );
 
