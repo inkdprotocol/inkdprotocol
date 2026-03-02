@@ -5,10 +5,14 @@ import tsParser from '@typescript-eslint/parser'
 
 /** @type {import('eslint').Linter.FlatConfig[]} */
 export default [
-  // Base JS recommended rules
+  // Base JS recommended rules (with no-unused-vars disabled — TS version handles it)
   {
     ...js.configs.recommended,
     files: ['src/**/*.ts'],
+    rules: {
+      ...js.configs.recommended.rules,
+      'no-unused-vars': 'off', // Handled by @typescript-eslint/no-unused-vars
+    },
   },
 
   // TypeScript rules
@@ -27,7 +31,14 @@ export default [
     rules: {
       // TypeScript-specific
       '@typescript-eslint/no-explicit-any': 'warn',
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_',
+        },
+      ],
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/consistent-type-imports': ['error', { prefer: 'type-imports' }],
       '@typescript-eslint/no-floating-promises': 'error',
@@ -41,9 +52,10 @@ export default [
       'prefer-const': 'error',
       'no-var': 'error',
 
-      // Disabled (handled by TypeScript compiler)
+      // Disabled (handled by TypeScript compiler or TS-specific rules)
       'no-undef': 'off',
       'no-redeclare': 'off',
+      'no-unused-vars': 'off',
     },
   },
 
