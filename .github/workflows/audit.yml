@@ -1,0 +1,150 @@
+name: Weekly Security Audit
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'  # Every Monday at 9 AM UTC
+  workflow_dispatch:
+
+jobs:
+  npm-audit:
+    name: npm Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run npm audit
+        id: npm_audit
+        run: |
+          npm audit --json > npm-audit-report.json 2>&1 || true
+          npm audit 2>&1 | tee npm-audit-summary.txt || true
+
+      - name: Upload npm audit report
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-audit-report
+          path: |
+            npm-audit-report.json
+            npm-audit-summary.txt
+          retention-days: 30
+
+  slither-audit:
+    name: Slither Full Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Slither
+        run: pip3 install slither-analyzer
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Install Forge dependencies
+        run: forge install
+
+      - name: Run Slither full analysis
+        id: slither
+        run: |
+          slither . \
+            --json slither-full-report.json \
+            --checklist \
+            --markdown-root . \
+            2>&1 | tee slither-summary.txt || true
+
+      - name: Upload Slither report
+        uses: actions/upload-artifact@v4
+        with:
+          name: slither-full-report
+          path: |
+            slither-full-report.json
+            slither-summary.txt
+          retention-days: 30
+
+  send-telegram-report:
+    name: Send Telegram Report
+    runs-on: ubuntu-latest
+    needs: [npm-audit, slither-audit]
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download audit artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: audit-results/
+
+      - name: Build and send Telegram report
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          # Parse npm audit results
+          NPM_SUMMARY="No npm audit report found."
+          if [ -f "audit-results/npm-audit-report/npm-audit-summary.txt" ]; then
+            NPM_SUMMARY=$(tail -20 audit-results/npm-audit-report/npm-audit-summary.txt)
+          fi
+
+          # Parse Slither results
+          SLITHER_SUMMARY="No Slither report found."
+          if [ -f "audit-results/slither-full-report/slither-summary.txt" ]; then
+            SLITHER_SUMMARY=$(tail -20 audit-results/slither-full-report/slither-summary.txt)
+          fi
+
+          DATE=$(date -u +"%Y-%m-%d")
+          REPO="${{ github.repository }}"
+          RUN_URL="https://github.com/$REPO/actions/runs/${{ github.run_id }}"
+
+          MESSAGE="🔐 *Inkd Protocol — Weekly Security Audit*
+          📅 Date: $DATE
+          🔗 [View Full Report]($RUN_URL)
+
+          *📦 npm Audit:*
+          \`\`\`
+          $(echo "$NPM_SUMMARY" | head -15)
+          \`\`\`
+
+          *🔎 Slither Analysis:*
+          \`\`\`
+          $(echo "$SLITHER_SUMMARY" | head -15)
+          \`\`\`
+
+          _Run completed. Check artifacts for full details._"
+
+          curl -s -X POST \
+            "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"chat_id\": \"${TELEGRAM_CHAT_ID}\",
+              \"text\": $(echo "$MESSAGE" | python3 -c 'import sys,json; print(json.dumps(sys.stdin.read()))'),
+              \"parse_mode\": \"Markdown\",
+              \"disable_web_page_preview\": true
+            }"
+
+          echo "✅ Telegram report sent"
