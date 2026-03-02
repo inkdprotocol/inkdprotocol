@@ -215,16 +215,7 @@ contract InkdRegistry is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         if (!isCollaborator[projectId][collaborator]) revert NotCollaborator();
 
         isCollaborator[projectId][collaborator] = false;
-
-        // Remove from array
-        address[] storage collabs = _collaborators[projectId];
-        for (uint256 i; i < collabs.length; i++) {
-            if (collabs[i] == collaborator) {
-                collabs[i] = collabs[collabs.length - 1];
-                collabs.pop();
-                break;
-            }
-        }
+        _removeFromAddressArray(_collaborators[projectId], collaborator);
 
         emit CollaboratorRemoved(projectId, collaborator);
     }
@@ -244,14 +235,7 @@ contract InkdRegistry is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         // Remove new owner from collaborators if they were one
         if (isCollaborator[projectId][newOwner]) {
             isCollaborator[projectId][newOwner] = false;
-            address[] storage collabs = _collaborators[projectId];
-            for (uint256 i; i < collabs.length; i++) {
-                if (collabs[i] == newOwner) {
-                    collabs[i] = collabs[collabs.length - 1];
-                    collabs.pop();
-                    break;
-                }
-            }
+            _removeFromAddressArray(_collaborators[projectId], newOwner);
         }
 
         // Forward fee to treasury
@@ -342,12 +326,29 @@ contract InkdRegistry is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     }
 
     function _removeFromOwnerProjects(address owner_, uint256 projectId) internal {
-        uint256[] storage ids = _ownerProjects[owner_];
-        for (uint256 i; i < ids.length; i++) {
-            if (ids[i] == projectId) {
-                ids[i] = ids[ids.length - 1];
-                ids.pop();
-                break;
+        _removeFromUint256Array(_ownerProjects[owner_], projectId);
+    }
+
+    /// @dev Swap-and-pop removal from an address array. O(n) search, O(1) delete.
+    function _removeFromAddressArray(address[] storage arr, address item) internal {
+        uint256 len = arr.length;
+        for (uint256 i; i < len; i++) {
+            if (arr[i] == item) {
+                arr[i] = arr[len - 1];
+                arr.pop();
+                return;
+            }
+        }
+    }
+
+    /// @dev Swap-and-pop removal from a uint256 array. O(n) search, O(1) delete.
+    function _removeFromUint256Array(uint256[] storage arr, uint256 item) internal {
+        uint256 len = arr.length;
+        for (uint256 i; i < len; i++) {
+            if (arr[i] == item) {
+                arr[i] = arr[len - 1];
+                arr.pop();
+                return;
             }
         }
     }
