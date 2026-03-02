@@ -120,4 +120,23 @@ contract InkdTreasuryTest is Test {
         vm.stopPrank();
         assertEq(address(treasury).balance, 0.003 ether);
     }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  Implementation Guard — constructor _disableInitializers()
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// @notice The InkdTreasury implementation contract cannot be re-initialized.
+    /// @dev Verifies that _disableInitializers() in the constructor locks the impl.
+    function test_implementation_cannotBeInitialized() public {
+        InkdTreasury impl = new InkdTreasury();
+        vm.expectRevert();
+        impl.initialize(address(this));
+    }
+
+    /// @notice A fresh implementation also blocks initialization — guard is immutable.
+    function test_implementation_cannotBeInitialized_fresh() public {
+        InkdTreasury impl2 = new InkdTreasury();
+        vm.expectRevert();
+        impl2.initialize(makeAddr("owner2"));
+    }
 }
