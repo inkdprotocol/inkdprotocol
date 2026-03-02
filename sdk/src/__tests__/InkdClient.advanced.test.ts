@@ -741,3 +741,124 @@ describe("InkdClient — custom encryption provider with inscribe", () => {
     );
   });
 });
+
+// ─── extractAllTokenIdsFromLogs — catch branch ────────────────────────────────
+
+describe("InkdClient — extractAllTokenIdsFromLogs invalid topic catch", () => {
+  it("skips logs with unparseable topics[3] and still returns valid tokenIds", async () => {
+    const client = new InkdClient(TEST_CONFIG);
+    const MINT_PRICE = 0n;
+
+    connectClient(client, {
+      readContract: vi.fn().mockResolvedValue(MINT_PRICE),
+      waitForTransactionReceipt: vi.fn().mockResolvedValue({
+        logs: [
+          // valid — topics[3] = "0x1" → BigInt("0x1") = 1n
+          { topics: ["0xTransfer", "0x0", "0xuser", "0x1"] },
+          // invalid — topics[3] is not parseable by BigInt → catch block fires
+          { topics: ["0xTransfer", "0x0", "0xuser", "not-a-valid-hex"] },
+          // valid — topics[3] = "0x2" → BigInt("0x2") = 2n
+          { topics: ["0xTransfer", "0x0", "0xuser", "0x2"] },
+        ],
+      }),
+    });
+
+    const result = await client.mintToken({ quantity: 3 });
+
+    // tokenId is the first valid one from the batch
+    expect(result.tokenId).toBe(1n);
+  });
+
+  it("returns 0n tokenId when all batch log topics are unparseable", async () => {
+    const client = new InkdClient(TEST_CONFIG);
+
+    connectClient(client, {
+      readContract: vi.fn().mockResolvedValue(0n),
+      waitForTransactionReceipt: vi.fn().mockResolvedValue({
+        logs: [
+          { topics: ["0xTransfer", "0x0", "0xuser", "INVALID"] },
+          { topics: ["0xTransfer", "0x0", "0xuser", "ALSO-BAD"] },
+        ],
+      }),
+    });
+
+    const result = await client.mintToken({ quantity: 2 });
+    // No valid tokenIds extracted → tokenIds[] is empty → tokenIds[0] is undefined
+    expect(result.tokenId).toBeUndefined();
+  });
+});
+
+// ─── extractInscriptionIndexFromLogs — catch branch ──────────────────────────
+
+describe("InkdClient — extractInscriptionIndexFromLogs invalid topic catch", () => {
+  it("skips log with unparseable topics[2] and falls back to 0n inscriptionIndex", async () => {
+    const client = new InkdClient(TEST_CONFIG);
+    connectClient(client, {
+      waitForTransactionReceipt: vi.fn().mockResolvedValue({
+        logs: [
+          // topics[2] is invalid — BigInt throws → catch fires → continue → loop exhausts → return 0n
+          { topics: ["0xInscribed", "0x5", "not-valid-inscription-index"] },
+        ],
+      }),
+    });
+    injectMockArweave(client);
+
+    const result = await client.inscribe(1n, Buffer.from("data"));
+    expect(result.inscriptionIndex).toBe(0n);
+  });
+
+  it("skips invalid log and picks valid inscriptionIndex from subsequent log", async () => {
+    const client = new InkdClient(TEST_CONFIG);
+    connectClient(client, {
+      waitForTransactionReceipt: vi.fn().mockResolvedValue({
+        logs: [
+          { topics: ["0xInscribed", "0x5", "BAD"] },    // invalid → skip
+          { topics: ["0xInscribed", "0x5", "0x7"] },    // valid → 7n
+        ],
+      }),
+    });
+    injectMockArweave(client);
+
+    const result = await client.inscribe(1n, Buffer.from("data"));
+    expect(result.inscriptionIndex).toBe(7n);
+  });
+});
+
+// ─── extractTokenIdFromLogs — catch branch (single mint) ─────────────────────
+
+describe("InkdClient — extractTokenIdFromLogs invalid topic catch (single mint)", () => {
+  it("skips log with unparseable topics[3] and returns undefined tokenId for single mint", async () => {
+    const client = new InkdClient(TEST_CONFIG);
+
+    connectClient(client, {
+      readContract: vi.fn().mockResolvedValue(0n),
+      waitForTransactionReceipt: vi.fn().mockResolvedValue({
+        logs: [
+          // topics[3] is invalid — BigInt throws → catch fires → continue → return undefined
+          { topics: ["0xTransfer", "0x0", "0xuser", "not-parseable-at-all"] },
+        ],
+      }),
+    });
+
+    // quantity=1 (or omitted) uses single mint → extractTokenIdFromLogs
+    const result = await client.mintToken();
+    expect(result.tokenId).toBeUndefined();
+  });
+
+  it("skips invalid topic, falls through to valid log in single mint", async () => {
+    const client = new InkdClient(TEST_CONFIG);
+
+    connectClient(client, {
+      readContract: vi.fn().mockResolvedValue(0n),
+      waitForTransactionReceipt: vi.fn().mockResolvedValue({
+        logs: [
+          { topics: ["0xTransfer", "0x0", "0xuser", "BAD"] }, // invalid → catch → continue
+          { topics: ["0xTransfer", "0x0", "0xuser", "0x9"] }, // valid → 9n
+        ],
+      }),
+    });
+
+    const result = await client.mintToken();
+    expect(result.tokenId).toBe(9n);
+  });
+});
