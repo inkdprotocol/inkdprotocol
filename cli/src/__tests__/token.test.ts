@@ -36,7 +36,7 @@ vi.mock("../config.js", async (importOriginal) => {
         token: MOCK_TOKEN,
         treasury: MOCK_TREASURY,
       },
-      mainnet: { registry: "", token: "", treasury: "" },
+      mainnet: { registry: MOCK_REGISTRY, token: MOCK_TOKEN, treasury: MOCK_TREASURY },
     },
     error:   vi.fn((msg: string) => { throw new Error(msg); }),
     info:    vi.fn(),
@@ -568,6 +568,67 @@ describe("cmdToken router — approve/transfer break coverage", () => {
     await expect(cmdToken(["transfer", MOCK_RECIPIENT, "1"])).resolves.toBeUndefined();
     expect(mockWriteContract).toHaveBeenCalledWith(
       expect.objectContaining({ functionName: "transfer" })
+    );
+  });
+});
+
+// ─── Mainnet chain branch coverage (token.ts lines 227 + 314) ────────────────
+
+describe("cmdTokenApprove + cmdTokenTransfer — mainnet chain branch", () => {
+  /**
+   * When cfg.network === 'mainnet', token.ts passes `chain: base` (mainnet)
+   * instead of `chain: baseSepolia` to writeContract.  These tests cover the
+   * true branch of the ternary on lines 227 and 314.
+   */
+  beforeEach(() => {
+    setupConsoleMocks();
+    mockWriteContract  = vi.fn().mockResolvedValue(MOCK_TX_HASH);
+    mockWaitForReceipt = vi.fn().mockResolvedValue({ status: "success", blockNumber: 100n });
+    mockReadContract   = vi.fn();
+    mockGetBalance     = vi.fn();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("cmdTokenApprove passes chain:base (id=8453) when network is mainnet (covers line 227 true branch)", async () => {
+    // Override loadConfig to return mainnet for this one test
+    const { loadConfig } = await import("../config.js");
+    vi.mocked(loadConfig).mockReturnValueOnce({
+      network: "mainnet",
+      privateKey: MOCK_PK,
+      rpcUrl: undefined,
+    });
+
+    const { cmdTokenApprove } = await import("../commands/token.js");
+    await cmdTokenApprove(["5"]);
+
+    expect(mockWriteContract).toHaveBeenCalledWith(
+      expect.objectContaining({
+        functionName: "approve",
+        // base mainnet chain has id 8453; baseSepolia is 84532
+        chain: expect.objectContaining({ id: 8453 }),
+      })
+    );
+  });
+
+  it("cmdTokenTransfer passes chain:base (id=8453) when network is mainnet (covers line 314 true branch)", async () => {
+    const { loadConfig } = await import("../config.js");
+    vi.mocked(loadConfig).mockReturnValueOnce({
+      network: "mainnet",
+      privateKey: MOCK_PK,
+      rpcUrl: undefined,
+    });
+
+    const { cmdTokenTransfer } = await import("../commands/token.js");
+    await cmdTokenTransfer([MOCK_RECIPIENT, "3"]);
+
+    expect(mockWriteContract).toHaveBeenCalledWith(
+      expect.objectContaining({
+        functionName: "transfer",
+        chain: expect.objectContaining({ id: 8453 }),
+      })
     );
   });
 });
