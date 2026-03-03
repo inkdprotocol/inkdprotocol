@@ -1,5 +1,5 @@
 {
-  "lastUpdated": "2026-03-03T23:44:00+04:00",
+  "lastUpdated": "2026-03-03T10:53:00+04:00",
   "version": "0.9.x",
   "tasks": [
     {
@@ -92,15 +92,6 @@
       "result": "CLI tests: 198 → 246 (+48). watch.ts: 0% → 100% stmts/funcs/lines."
     },
     {
-      "id": "improve-branch-coverage-version-project",
-      "priority": 12,
-      "status": "done",
-      "title": "Improve branch coverage: version.ts 78%→96%, project.ts 84%→95%",
-      "completedAt": "2026-03-03T12:30:00+04:00",
-      "commit": "12eaf12",
-      "result": "CLI tests: 276 → 292 (+16). version.ts: 78.57%→96.42% branch, 95.45%→100% stmts. project.ts: 84.28%→95.71% branch, 94.69%→100% stmts. Total: 732 tests. Quality gate: Contracts 159/159 ✅ SDK 281/281 ✅ CLI 292/292 ✅"
-    },
-    {
       "id": "fix-regression-restore-deleted-tests",
       "priority": 11,
       "status": "done",
@@ -109,59 +100,14 @@
       "completedAt": "2026-03-03T10:53:00+04:00",
       "commit": "e1c081d",
       "result": "Restored: events.ts, multicall.ts, events.test.ts, multicall.test.ts, encryption.test.ts (206 lines), InkdClient.connectArweave.test.ts, token.test.ts, watch.test.ts. Quality gate: Contracts 159/159 ✅  SDK 281/281 ✅  CLI 276/276 ✅  Total: 716 tests."
-    },
-    {
-      "id": "test-sdk-index-inkdclient",
-      "priority": 13,
-      "status": "done",
-      "title": "sdk/src/index.ts InkdClient — 0%→100% coverage, 35 new tests",
-      "completedAt": "2026-03-03T12:57:00+04:00",
-      "commit": "c4db95d",
-      "result": "SDK tests: 281 → 316 (+35). index.ts: 0%→100% stmts/branches/funcs/lines. Tests cover: ADDRESSES export, constructor (testnet/mainnet/custom rpc), approveToken (default+custom amount), tokenBalance (caller/custom addr), createProject (defaults+custom opts), pushVersion (fee fetch+args), getProject, getVersions, getVersionFee, transferProject (reads transferFee), getAgentProjects (default+custom pagination), re-export smoke tests. Quality gate: Contracts 159/159 ✅ SDK 316/316 ✅"
-    },
-    {
-      "id": "cover-residual-cli-branches",
-      "priority": 14,
-      "status": "done",
-      "title": "Cover residual CLI branches — agentd 100% stmts, project 98.57% branch",
-      "completedAt": "2026-03-03T13:58:00+04:00",
-      "commit": "f219c27",
-      "result": "CLI tests: 292 → 298 (+6). agentd.ts: 97.71%→100% stmts (loadState catch + setInterval callback body). project.ts: 95.71%→98.57% branch (empty description + isPublic false). search.ts: agentEndpoint in non-JSON plain mode. Quality gate: Contracts 159/159 ✅ SDK 320/320 ✅ CLI 298/298 ✅ Total: 777 tests."
-    },
-    {
-      "id": "sdk-branch-coverage-perfect",
-      "priority": 15,
-      "status": "done",
-      "title": "SDK branch coverage 98.89%→100% — arweave.ts + multicall.ts edge paths",
-      "completedAt": "2026-03-03T15:05:00+04:00",
-      "commit": "980260f",
-      "result": "SDK tests: 320 → 323 (+3). arweave.ts: false branch of `data instanceof Uint8Array` ternary covered via non-Uint8Array plain-object cast. multicall.ts coerceResult: string-error path (instanceof Error → false → String()) and undefined-status+undefined-result implicit-failure path with null-error `?? 'unknown'` fallback. SDK: 100%/100%/100%/100% stmts/branches/funcs/lines (all 11 files). Quality gate: Contracts 170/170 ✅ SDK 323/323 ✅ CLI 318/318 ✅ Total: 811 tests."
-    },
-    {
-      "id": "contracts-inkd-timelock",
-      "priority": 16,
-      "status": "done",
-      "title": "Commit InkdTimelock.sol + full test suite (41 tests, contracts 170→211)",
-      "completedAt": "2026-03-03T18:12:00+04:00",
-      "commit": "4f6145a",
-      "result": "InkdTimelock.sol: 48h admin timelock (queue/execute/cancel/admin handover). InkdTimelock.t.sol: 41 tests — constants, constructor, receive, setPendingAdmin (4), acceptAdmin (5), queueTransaction (8), cancelTransaction (4), executeTransaction (11), 3 integration flows. All edge cases: replay guard, grace period boundary, stale tx, execution failure, ETH forwarding, admin handover flow. Contracts: 170→211 tests. Quality gate: Contracts 211/211 ✅ SDK 323/323 ✅ CLI 318/318 ✅ Total: 852 tests."
-    },
-    {
-      "id": "test-inkd-testtoken",
-      "priority": 17,
-      "status": "done",
-      "title": "InkdTestToken.t.sol — 0%→100% coverage, 27 tests (contracts 211→238)",
-      "completedAt": "2026-03-03T19:17:00+04:00",
-      "commit": "b74b9c5",
-      "result": "InkdTestToken.sol was the only production contract with 0% coverage. Added dedicated test suite: metadata (name/symbol/decimals), supply (totalSupply=1B, deployer balance, TOTAL_SUPPLY constant), ERC-20 transfer + approve + transferFrom, ERC-20Burnable (burn, burnFrom), ERC-2612 Permit (domain separator, nonce, gasless approval via vm.sign, expired deadline + wrong signer reverts), 2 fuzz tests (transfer roundtrip, burn supply). InkdTestToken.sol: 100%/100%/100%/100% stmts/branches/funcs/lines. Note: InkdRegistry.sol L96 and InkdTreasury.sol L23 remain at 0 hits in coverage (both are `_disableInitializers()` in constructors — confirmed Foundry --ir-minimum artifact; guards ARE exercised by tests). Quality gate: Contracts 238/238 ✅ SDK 323/323 ✅ Total: 879 tests."
     }
   ],
-  "notes": "Deployment infrastructure updated (2026-03-03T23:44): Deploy.s.sol now deploys all 6 contracts including InkdTimelock (admin=deployer); Verify.s.sol prints forge verify-contract for InkdTimelock; POST_DEPLOY.md updated with stale test count fix (79→238), 6-contract checklist, InkdTimelock smoke tests (admin + DELAY), new Step 4.5 (cast send ownership transfers to timelock + verification), DEPLOYED.md + SDK templates updated with timelock address, Emergency Rollback and Notes sections updated. Commit 77bb2a0. All non-blocked tasks done. Blocked: React hooks (needs jsdom/testing-library). SDK: 100% stmts/lines/funcs/branches (perfect coverage achieved 2026-03-03T14:59). CLI: 351 tests; token.ts branch coverage 95.45%→98.48% (mainnet chain ternary lines 227+314 now covered); overall CLI 99.35% stmts/97.36% branch. Contracts: InkdTimelock.sol + InkdTestToken.t.sol committed. Coverage note: InkdRegistry.sol L96 and InkdTreasury.sol L23 (both `_disableInitializers()` in constructors) show 0 hits under --ir-minimum mode — this is a Foundry instrumentation artifact, not a real gap. Remaining uncovered branches: config.ts L106-112 (module-level ANSI noColor ternaries, test env always sets noColor=true), agentd.ts L102 (humanLine else-if false branch — dead code path), index.ts L272-275 (auto-run guard intentionally disabled by INKD_TEST=1), token.ts L46 (parseAddress(!raw) guard — unreachable via public API). DOCS: CONTRACT_REFERENCE.md now fully documents InkdTimelock (added 2026-03-03T20:18). CHANGELOG.md updated with v0.10.1 and v0.10.2 entries. ROADMAP.md synced 2026-03-03T20:37 (commit 61b13d2): Phase 2 SDK v0.2 items marked ✅, InkdTimelock + LitEncryptionProvider added to Phase 0, test counts updated 312→912, Phase 1 InkdTimelock deployment step added, Phase 4 cross-references updated. Chore commit b34bfdd: CI split into test-sdk + test-cli jobs, sdk@0.10.0 version bump, .gitignore now blocks workspace files (AGENTS.md, SOUL.md, etc.) from being committed, coverage + dist synced. IMPORTANT: workspace auto-save bot must not run git add -A from builds/inkd-protocol — workspace files now gitignored as safeguard. SDK_REFERENCE.md completed 2026-03-03T22:42: added full module docs for events.ts (watchProjectCreated, watchVersionPushed, watchRegistryEvents), multicall.ts (batchGetProjects, batchGetVersions, batchGetFees, batchGetProjectsWithVersions), and encryption.ts (PassthroughEncryption V1, LitEncryptionProvider V2 stub). Also fixed QUICKSTART.md stale '63 tests' comment. Commit a39b6ee. SECURITY/AUDIT docs updated 2026-03-03T23:15 (commit d03e92d): SECURITY_REVIEW.md updated with InkdTimelock analysis (LOW-3, INFO-6, access control table extended, test count 79→238, verdict updated to 'ready for external audit'); docs/AUDIT_PREP.md created (342 lines) — comprehensive guide for external auditors covering scope, trust model, 10 focus areas, 7 known design decisions, forge commands. All quality gates passing.",
+  "notes": "All non-blocked tasks done. Blocked: React hooks (needs jsdom/testing-library). Remaining low-coverage CLI files: agentd.ts (daemon/long-running process, hard to unit test), index.ts (CLI entry dispatcher, expected). IMPORTANT: workspace auto-save bot must not run git add -A from builds/inkd-protocol — it deletes tracked test files. Consider adding builds/ to workspace .gitignore or use a separate commit script for inkd builds.",
   "testCounts": {
-    "contracts": 238,
-    "sdk": 323,
-    "cli": 351,
-    "total": 912,
-    "asOf": "2026-03-03T19:46:00+04:00"
+    "contracts": 159,
+    "sdk": 281,
+    "cli": 276,
+    "total": 716,
+    "asOf": "2026-03-03T10:53:00+04:00"
   }
 }
