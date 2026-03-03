@@ -6,6 +6,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v0.10.1] — 2026-03-03
+
+### Improved
+- **SDK test coverage 94.24% → 94.54%** — All non-barrel source files now at 100% across all metrics (statements/branches/functions/lines):
+  - `InkdClient.ts` — added `connectArweave` test suite (10 tests) covering default args, custom irysUrl/gateway, resolve/reject paths, multi-call, and Buffer vs Uint8Array dispatch branch. Uses `vi.hoisted()` for correct ArweaveClient mock timing.
+  - `encryption.ts` — added `LitEncryptionProvider` test suite (16 tests) covering constructor, connect, encrypt, decrypt, encryptForToken, decryptWithToken (all V1 stubs). Coverage: 52.94% → 100%.
+  - `arweave.ts` — added full Irys dynamic-import + fetch stub tests (41 tests): connect/upload/download/pricing/encrypted/getUrl.
+  - `ProjectRegistry.ts` — comprehensive test suite (72 tests) covering all read/write methods, error classes, and guard paths.
+- **SDK test count: 153 → 292** (+139 new tests across 4 test files)
+- **All tests green: 292 SDK + 159 contracts = 451 total** — zero failures
+- **SDK_REFERENCE.md** — Added complete documentation for two previously undocumented SDK v0.2 modules:
+  - `Event Subscriptions` section: `watchProjectCreated`, `watchVersionPushed`, `watchRegistryEvents` — full API reference with type definitions, parameter tables, and runnable examples
+  - `Batch Reads (Multicall)` section: `batchGetProjects`, `batchGetVersions`, `batchGetFees`, `batchGetProjectsWithVersions` — full API reference with `BatchResult<T>` type, Multicall3 context, and examples
+  - Updated Table of Contents and Changelog table
+
+---
+
 ## [v0.10.0] — 2026-03-02
 
 ### Added
