@@ -44,7 +44,7 @@ export function useInscriptions(client: InkdClient, tokenId: bigint): UseInscrip
       }
     }
 
-    void fetchInscriptions();
+    fetchInscriptions();
 
     return () => {
       cancelled = true;

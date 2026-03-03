@@ -1,0 +1,1263 @@
+│
+◇  Doctor warnings ───────────────────────────────────────╮
+│                                                         │
+│  - State dir migration skipped: target already exists   │
+│    (/Users/hazar/.openclaw). Remove or merge manually.  │
+│                                                         │
+├─────────────────────────────────────────────────────────╯
+│
+◇  Doctor warnings ────────────────────────────────────────────────────────╮
+│                                                                          │
+│  - channels.telegram.groupPolicy is "allowlist" but groupAllowFrom (and  │
+│    allowFrom) is empty — all group messages will be silently dropped.    │
+│    Add sender IDs to channels.telegram.groupAllowFrom or                 │
+│    channels.telegram.allowFrom, or set groupPolicy to "open".            │
+│                                                                          │
+├──────────────────────────────────────────────────────────────────────────╯
+2026-03-02T11:55:49.131Z [canvas] host mounted at http://127.0.0.1:18789/__openclaw__/canvas/ (root /Users/hazar/.openclaw/canvas)
+2026-03-02T11:55:49.388Z [heartbeat] started
+2026-03-02T11:55:49.391Z [health-monitor] started (interval: 300s, grace: 60s)
+2026-03-02T11:55:49.392Z [gateway] agent model: anthropic/claude-sonnet-4-6
+2026-03-02T11:55:49.393Z [gateway] listening on ws://127.0.0.1:18789, ws://[::1]:18789 (PID 24767)
+2026-03-02T11:55:49.396Z [gateway] log file: /tmp/openclaw/openclaw-2026-03-02.log
+2026-03-02T11:55:49.412Z [browser/server] Chrome extension relay init failed for profile "chrome": Error: extension relay requires gateway auth token (set gateway.auth.token or OPENCLAW_GATEWAY_TOKEN)
+2026-03-02T11:55:49.413Z [browser/server] Browser control listening on http://127.0.0.1:18791/ (auth=password)
+2026-03-02T11:55:49.731Z [hooks:loader] Registered hook: boot-md -> gateway:startup
+2026-03-02T11:55:49.742Z [hooks:loader] Registered hook: bootstrap-extra-files -> agent:bootstrap
+2026-03-02T11:55:49.744Z [hooks:loader] Registered hook: command-logger -> command
+2026-03-02T11:55:49.766Z [hooks:loader] Registered hook: session-memory -> command:new, command:reset
+2026-03-02T11:55:49.768Z [hooks] loaded 4 internal hook handlers
+2026-03-02T11:55:50.312Z [telegram] [default] starting provider (@hazarclawbot)
+2026-03-02T11:55:50.323Z [telegram] autoSelectFamily=true (default-node22)
+2026-03-02T11:55:50.326Z [telegram] dnsResultOrder=ipv4first (default-node22)
+2026-03-02T11:55:50.550Z [telegram] limits bots to 100 commands. 117 configured; registering first 100. Use channels.telegram.commands.native: false to disable, or reduce plugin/skill/custom commands.
+2026-03-02T11:55:50.713Z [gateway] signal SIGTERM received
+2026-03-02T11:55:50.714Z [gateway] received SIGTERM; shutting down
+2026-03-02T11:55:50.735Z [gateway] signal SIGTERM received
+2026-03-02T11:55:50.735Z [gateway] received SIGTERM during shutdown; ignoring
+2026-03-02T11:55:50.815Z [gmail-watcher] gmail watcher stopped
+│
+◇  Doctor warnings ───────────────────────────────────────╮
+│                                                         │
+│  - State dir migration skipped: target already exists   │
+│    (/Users/hazar/.openclaw). Remove or merge manually.  │
+│                                                         │
+├─────────────────────────────────────────────────────────╯
+│
+◇  Doctor warnings ────────────────────────────────────────────────────────╮
+│                                                                          │
+│  - channels.telegram.groupPolicy is "allowlist" but groupAllowFrom (and  │
+│    allowFrom) is empty — all group messages will be silently dropped.    │
+│    Add sender IDs to channels.telegram.groupAllowFrom or                 │
+│    channels.telegram.allowFrom, or set groupPolicy to "open".            │
+│                                                                          │
+├──────────────────────────────────────────────────────────────────────────╯
+2026-03-02T11:56:54.080Z [canvas] host mounted at http://127.0.0.1:18789/__openclaw__/canvas/ (root /Users/hazar/.openclaw/canvas)
+2026-03-02T11:56:54.314Z [heartbeat] started
+2026-03-02T11:56:54.317Z [health-monitor] started (interval: 300s, grace: 60s)
+2026-03-02T11:56:54.318Z [gateway] agent model: anthropic/claude-sonnet-4-6
+2026-03-02T11:56:54.319Z [gateway] listening on ws://127.0.0.1:18789, ws://[::1]:18789 (PID 24871)
+2026-03-02T11:56:54.322Z [gateway] log file: /tmp/openclaw/openclaw-2026-03-02.log
+2026-03-02T11:56:54.333Z [browser/server] Chrome extension relay init failed for profile "chrome": Error: extension relay requires gateway auth token (set gateway.auth.token or OPENCLAW_GATEWAY_TOKEN)
+2026-03-02T11:56:54.334Z [browser/server] Browser control listening on http://127.0.0.1:18791/ (auth=password)
+2026-03-02T11:56:54.535Z [hooks:loader] Registered hook: boot-md -> gateway:startup
+2026-03-02T11:56:54.547Z [hooks:loader] Registered hook: bootstrap-extra-files -> agent:bootstrap
+2026-03-02T11:56:54.549Z [hooks:loader] Registered hook: command-logger -> command
+2026-03-02T11:56:54.555Z [hooks:loader] Registered hook: session-memory -> command:new, command:reset
+2026-03-02T11:56:54.556Z [hooks] loaded 4 internal hook handlers
+2026-03-02T11:56:55.105Z [telegram] [default] starting provider (@hazarclawbot)
+2026-03-02T11:56:55.116Z [telegram] autoSelectFamily=true (default-node22)
+2026-03-02T11:56:55.118Z [telegram] dnsResultOrder=ipv4first (default-node22)
+2026-03-02T11:56:55.333Z [telegram] limits bots to 100 commands. 117 configured; registering first 100. Use channels.telegram.commands.native: false to disable, or reduce plugin/skill/custom commands.
+2026-03-02T11:56:55.625Z [telegram] setMyCommands failed: Call to 'setMyCommands' failed! (400: Bad Request: BOT_COMMANDS_TOO_MUCH)
+2026-03-02T11:56:55.627Z [telegram] rejected 100 commands (BOT_COMMANDS_TOO_MUCH); retrying with 80.
+2026-03-02T11:56:55.781Z [telegram] setMyCommands failed: Call to 'setMyCommands' failed! (400: Bad Request: BOT_COMMANDS_TOO_MUCH)
+2026-03-02T11:56:55.784Z [telegram] rejected 80 commands (BOT_COMMANDS_TOO_MUCH); retrying with 64.
+2026-03-02T11:56:55.849Z [gateway] signal SIGTERM received
+2026-03-02T11:56:55.850Z [gateway] received SIGTERM; shutting down
+2026-03-02T11:56:55.852Z [gateway] signal SIGTERM received
+2026-03-02T11:56:55.853Z [gateway] received SIGTERM during shutdown; ignoring
+2026-03-02T11:56:55.874Z [gmail-watcher] gmail watcher stopped
+│
+◇  Doctor warnings ───────────────────────────────────────╮
+│                                                         │
+│  - State dir migration skipped: target already exists   │
+│    (/Users/hazar/.openclaw). Remove or merge manually.  │
+│                                                         │
+├─────────────────────────────────────────────────────────╯
+│
+◇  Doctor warnings ────────────────────────────────────────────────────────╮
+│                                                                          │
+│  - channels.telegram.groupPolicy is "allowlist" but groupAllowFrom (and  │
+│    allowFrom) is empty — all group messages will be silently dropped.    │
+│    Add sender IDs to channels.telegram.groupAllowFrom or                 │
+│    channels.telegram.allowFrom, or set groupPolicy to "open".            │
+│                                                                          │
+├──────────────────────────────────────────────────────────────────────────╯
+2026-03-02T11:57:59.120Z [canvas] host mounted at http://127.0.0.1:18789/__openclaw__/canvas/ (root /Users/hazar/.openclaw/canvas)
+2026-03-02T11:57:59.368Z [heartbeat] started
+2026-03-02T11:57:59.370Z [health-monitor] started (interval: 300s, grace: 60s)
+2026-03-02T11:57:59.372Z [gateway] agent model: anthropic/claude-sonnet-4-6
+2026-03-02T11:57:59.372Z [gateway] listening on ws://127.0.0.1:18789, ws://[::1]:18789 (PID 24978)
+2026-03-02T11:57:59.376Z [gateway] log file: /tmp/openclaw/openclaw-2026-03-02.log
+2026-03-02T11:57:59.387Z [browser/server] Chrome extension relay init failed for profile "chrome": Error: extension relay requires gateway auth token (set gateway.auth.token or OPENCLAW_GATEWAY_TOKEN)
+2026-03-02T11:57:59.387Z [browser/server] Browser control listening on http://127.0.0.1:18791/ (auth=password)
+2026-03-02T11:57:59.591Z [hooks:loader] Registered hook: boot-md -> gateway:startup
+2026-03-02T11:57:59.595Z [hooks:loader] Registered hook: bootstrap-extra-files -> agent:bootstrap
+2026-03-02T11:57:59.601Z [hooks:loader] Registered hook: command-logger -> command
+2026-03-02T11:57:59.605Z [hooks:loader] Registered hook: session-memory -> command:new, command:reset
+2026-03-02T11:57:59.606Z [hooks] loaded 4 internal hook handlers
+2026-03-02T11:58:00.127Z [telegram] [default] starting provider (@hazarclawbot)
+2026-03-02T11:58:00.133Z [telegram] autoSelectFamily=true (default-node22)
+2026-03-02T11:58:00.134Z [telegram] dnsResultOrder=ipv4first (default-node22)
+2026-03-02T11:58:00.348Z [telegram] limits bots to 100 commands. 117 configured; registering first 100. Use channels.telegram.commands.native: false to disable, or reduce plugin/skill/custom commands.
+2026-03-02T11:58:00.666Z [telegram] setMyCommands failed: Call to 'setMyCommands' failed! (400: Bad Request: BOT_COMMANDS_TOO_MUCH)
+2026-03-02T11:58:00.668Z [telegram] rejected 100 commands (BOT_COMMANDS_TOO_MUCH); retrying with 80.
+2026-03-02T11:58:00.832Z [telegram] setMyCommands failed: Call to 'setMyCommands' failed! (400: Bad Request: BOT_COMMANDS_TOO_MUCH)
+2026-03-02T11:58:00.835Z [telegram] rejected 80 commands (BOT_COMMANDS_TOO_MUCH); retrying with 64.
+2026-03-02T11:58:01.055Z [gateway] signal SIGTERM received
+2026-03-02T11:58:01.056Z [gateway] received SIGTERM; shutting down
+2026-03-02T11:58:01.058Z [gateway] signal SIGTERM received
+2026-03-02T11:58:01.059Z [gateway] received SIGTERM during shutdown; ignoring
+2026-03-02T11:58:01.082Z [gmail-watcher] gmail watcher stopped
+│
+◇  Doctor warnings ───────────────────────────────────────╮
+│                                                         │
+│  - State dir migration skipped: target already exists   │
+│    (/Users/hazar/.openclaw). Remove or merge manually.  │
+│                                                         │
+├─────────────────────────────────────────────────────────╯
+│
+◇  Doctor warnings ────────────────────────────────────────────────────────╮
+│                                                                          │
+│  - channels.telegram.groupPolicy is "allowlist" but groupAllowFrom (and  │
+│    allowFrom) is empty — all group messages will be silently dropped.    │
+│    Add sender IDs to channels.telegram.groupAllowFrom or                 │
+│    channels.telegram.allowFrom, or set groupPolicy to "open".            │
+│                                                                          │
+├──────────────────────────────────────────────────────────────────────────╯
+2026-03-02T11:59:04.435Z [canvas] host mounted at http://127.0.0.1:18789/__openclaw__/canvas/ (root /Users/hazar/.openclaw/canvas)
+2026-03-02T11:59:04.644Z [heartbeat] started
+2026-03-02T11:59:04.647Z [health-monitor] started (interval: 300s, grace: 60s)
+2026-03-02T11:59:04.648Z [gateway] agent model: anthropic/claude-sonnet-4-6
+2026-03-02T11:59:04.649Z [gateway] listening on ws://127.0.0.1:18789, ws://[::1]:18789 (PID 25064)
+2026-03-02T11:59:04.650Z [gateway] log file: /tmp/openclaw/openclaw-2026-03-02.log
+2026-03-02T11:59:04.660Z [browser/server] Chrome extension relay init failed for profile "chrome": Error: extension relay requires gateway auth token (set gateway.auth.token or OPENCLAW_GATEWAY_TOKEN)
+2026-03-02T11:59:04.661Z [browser/server] Browser control listening on http://127.0.0.1:18791/ (auth=password)
+2026-03-02T11:59:04.850Z [hooks:loader] Registered hook: boot-md -> gateway:startup
+2026-03-02T11:59:04.862Z [hooks:loader] Registered hook: bootstrap-extra-files -> agent:bootstrap
+2026-03-02T11:59:04.864Z [hooks:loader] Registered hook: command-logger -> command
+2026-03-02T11:59:04.868Z [hooks:loader] Registered hook: session-memory -> command:new, command:reset
+2026-03-02T11:59:04.869Z [hooks] loaded 4 internal hook handlers
+2026-03-02T11:59:05.528Z [telegram] [default] starting provider (@hazarclawbot)
+2026-03-02T11:59:05.533Z [telegram] autoSelectFamily=true (default-node22)
+2026-03-02T11:59:05.533Z [telegram] dnsResultOrder=ipv4first (default-node22)
+2026-03-02T11:59:05.753Z [telegram] limits bots to 100 commands. 117 configured; registering first 100. Use channels.telegram.commands.native: false to disable, or reduce plugin/skill/custom commands.
+2026-03-02T11:59:06.146Z [telegram] setMyCommands failed: Call to 'setMyCommands' failed! (400: Bad Request: BOT_COMMANDS_TOO_MUCH)
+2026-03-02T11:59:06.147Z [telegram] rejected 100 commands (BOT_COMMANDS_TOO_MUCH); retrying with 80.
+2026-03-02T11:59:06.170Z [gateway] signal SIGTERM received
+2026-03-02T11:59:06.171Z [gateway] received SIGTERM; shutting down
+2026-03-02T11:59:06.172Z [gateway] signal SIGTERM received
+2026-03-02T11:59:06.173Z [gateway] received SIGTERM during shutdown; ignoring
+2026-03-02T11:59:06.189Z [gmail-watcher] gmail watcher stopped
+│
+◇  Doctor warnings ───────────────────────────────────────╮
+│                                                         │
+│  - State dir migration skipped: target already exists   │
+│    (/Users/hazar/.openclaw). Remove or merge manually.  │
+│                                                         │
+├─────────────────────────────────────────────────────────╯
+│
+◇  Doctor warnings ────────────────────────────────────────────────────────╮
+│                                                                          │
+│  - channels.telegram.groupPolicy is "allowlist" but groupAllowFrom (and  │
+│    allowFrom) is empty — all group messages will be silently dropped.    │
+│    Add sender IDs to channels.telegram.groupAllowFrom or                 │
+│    channels.telegram.allowFrom, or set groupPolicy to "open".            │
+│                                                                          │
+├──────────────────────────────────────────────────────────────────────────╯
+2026-03-02T12:00:09.973Z [canvas] host mounted at http://127.0.0.1:18789/__openclaw__/canvas/ (root /Users/hazar/.openclaw/canvas)
+2026-03-02T12:00:10.215Z [heartbeat] started
+2026-03-02T12:00:10.218Z [health-monitor] started (interval: 300s, grace: 60s)
+2026-03-02T12:00:10.222Z [gateway] agent model: anthropic/claude-sonnet-4-6
+2026-03-02T12:00:10.223Z [gateway] listening on ws://127.0.0.1:18789, ws://[::1]:18789 (PID 25203)
+2026-03-02T12:00:10.224Z [gateway] log file: /tmp/openclaw/openclaw-2026-03-02.log
+2026-03-02T12:00:10.238Z [browser/server] Chrome extension relay init failed for profile "chrome": Error: extension relay requires gateway auth token (set gateway.auth.token or OPENCLAW_GATEWAY_TOKEN)
+2026-03-02T12:00:10.239Z [browser/server] Browser control listening on http://127.0.0.1:18791/ (auth=password)
+2026-03-02T12:00:10.450Z [hooks:loader] Registered hook: boot-md -> gateway:startup
+2026-03-02T12:00:10.461Z [hooks:loader] Registered hook: bootstrap-extra-files -> agent:bootstrap
+2026-03-02T12:00:10.462Z [hooks:loader] Registered hook: command-logger -> command
+2026-03-02T12:00:10.466Z [hooks:loader] Registered hook: session-memory -> command:new, command:reset
+2026-03-02T12:00:10.467Z [hooks] loaded 4 internal hook handlers
+2026-03-02T12:00:11.039Z [telegram] [default] starting provider (@hazarclawbot)
+2026-03-02T12:00:11.051Z [telegram] autoSelectFamily=true (default-node22)
+2026-03-02T12:00:11.054Z [telegram] dnsResultOrder=ipv4first (default-node22)
+2026-03-02T12:00:11.300Z [telegram] limits bots to 100 commands. 117 configured; registering first 100. Use channels.telegram.commands.native: false to disable, or reduce plugin/skill/custom commands.
+2026-03-02T12:00:11.331Z [gateway] signal SIGTERM received
+2026-03-02T12:00:11.332Z [gateway] received SIGTERM; shutting down
+2026-03-02T12:00:11.333Z [gateway] signal SIGTERM received
+2026-03-02T12:00:11.333Z [gateway] received SIGTERM during shutdown; ignoring
+2026-03-02T12:00:12.424Z [ws] webchat connected conn=2d958d3a-9e85-4597-bff0-b92eea53e2e4 remote=127.0.0.1 client=openclaw-control-ui webchat vdev
+2026-03-02T12:00:12.668Z [ws] ⇄ res ✓ device.pair.list 167ms conn=2d958d3a…e2e4 id=e7e8842c…5ebb
+2026-03-02T12:00:12.669Z [ws] ⇄ res ✓ node.list 169ms conn=2d958d3a…e2e4 id=942b8a79…9731
+2026-03-02T12:00:12.684Z [telegram] setMyCommands failed: Call to 'setMyCommands' failed! (400: Bad Request: BOT_COMMANDS_TOO_MUCH)
+2026-03-02T12:00:12.684Z [telegram] rejected 100 commands (BOT_COMMANDS_TOO_MUCH); retrying with 80.
+2026-03-02T12:00:12.946Z [ws] ⇄ res ✓ chat.history 446ms conn=2d958d3a…e2e4 id=7518fa1d…825e
+2026-03-02T12:00:13.118Z [telegram] setMyCommands failed: Call to 'setMyCommands' failed! (400: Bad Request: BOT_COMMANDS_TOO_MUCH)
+2026-03-02T12:00:13.122Z [telegram] rejected 80 commands (BOT_COMMANDS_TOO_MUCH); retrying with 64.
+2026-03-02T12:00:16.340Z [gateway] shutdown timed out; exiting without full cleanup
+│
+◇  Doctor warnings ───────────────────────────────────────╮
+│                                                         │
+│  - State dir migration skipped: target already exists   │
+│    (/Users/hazar/.openclaw). Remove or merge manually.  │
+│                                                         │
+├─────────────────────────────────────────────────────────╯
+│
+◇  Doctor warnings ────────────────────────────────────────────────────────╮
+│                                                                          │
+│  - channels.telegram.groupPolicy is "allowlist" but groupAllowFrom (and  │
+│    allowFrom) is empty — all group messages will be silently dropped.    │
+│    Add sender IDs to channels.telegram.groupAllowFrom or                 │
+│    channels.telegram.allowFrom, or set groupPolicy to "open".            │
+│                                                                          │
+├──────────────────────────────────────────────────────────────────────────╯
+2026-03-02T12:01:14.716Z [canvas] host mounted at http://127.0.0.1:18789/__openclaw__/canvas/ (root /Users/hazar/.openclaw/canvas)
+2026-03-02T12:01:14.975Z [heartbeat] started
+2026-03-02T12:01:14.977Z [health-monitor] started (interval: 300s, grace: 60s)
+2026-03-02T12:01:14.979Z [gateway] agent model: anthropic/claude-sonnet-4-6
+2026-03-02T12:01:14.979Z [gateway] listening on ws://127.0.0.1:18789, ws://[::1]:18789 (PID 25302)
+2026-03-02T12:01:14.980Z [gateway] log file: /tmp/openclaw/openclaw-2026-03-02.log
+2026-03-02T12:01:14.992Z [browser/server] Chrome extension relay init failed for profile "chrome": Error: extension relay requires gateway auth token (set gateway.auth.token or OPENCLAW_GATEWAY_TOKEN)
+2026-03-02T12:01:14.993Z [browser/server] Browser control listening on http://127.0.0.1:18791/ (auth=password)
+2026-03-02T12:01:15.202Z [hooks:loader] Registered hook: boot-md -> gateway:startup
+2026-03-02T12:01:15.213Z [hooks:loader] Registered hook: bootstrap-extra-files -> agent:bootstrap
+2026-03-02T12:01:15.215Z [hooks:loader] Registered hook: command-logger -> command
+2026-03-02T12:01:15.219Z [hooks:loader] Registered hook: session-memory -> command:new, command:reset
+2026-03-02T12:01:15.220Z [hooks] loaded 4 internal hook handlers
+2026-03-02T12:01:15.841Z [telegram] [default] starting provider (@hazarclawbot)
+2026-03-02T12:01:15.846Z [telegram] autoSelectFamily=true (default-node22)
+2026-03-02T12:01:15.847Z [telegram] dnsResultOrder=ipv4first (default-node22)
+2026-03-02T12:01:16.031Z [telegram] limits bots to 100 commands. 117 configured; registering first 100. Use channels.telegram.commands.native: false to disable, or reduce plugin/skill/custom commands.
+2026-03-02T12:01:16.577Z [diagnostic] lane task error: lane=cron durationMs=288 error="FailoverError: Unknown model: anthropic/claude-sonnet-4-5-20250514"
+2026-03-02T12:01:16.578Z [diagnostic] lane task error: lane=session:agent:main:cron:80296f7e-414a-436e-9e9d-79103870db75 durationMs=290 error="FailoverError: Unknown model: anthropic/claude-sonnet-4-5-20250514"
+2026-03-02T12:01:16.599Z [gateway] signal SIGTERM received
+2026-03-02T12:01:16.600Z [gateway] received SIGTERM; shutting down
+2026-03-02T12:01:16.601Z [gateway] signal SIGTERM received
+2026-03-02T12:01:16.602Z [gateway] received SIGTERM during shutdown; ignoring
+2026-03-02T12:01:16.622Z [gmail-watcher] gmail watcher stopped
+│
+◇  Doctor warnings ───────────────────────────────────────╮
+│                                                         │
+│  - State dir migration skipped: target already exists   │
+│    (/Users/hazar/.openclaw). Remove or merge manually.  │
+│                                                         │
+├─────────────────────────────────────────────────────────╯
+│
+◇  Doctor warnings ────────────────────────────────────────────────────────╮
+│                                                                          │
+│  - channels.telegram.groupPolicy is "allowlist" but groupAllowFrom (and  │
+│    allowFrom) is empty — all group messages will be silently dropped.    │
+│    Add sender IDs to channels.telegram.groupAllowFrom or                 │
+│    channels.telegram.allowFrom, or set groupPolicy to "open".            │
+│                                                                          │
+├──────────────────────────────────────────────────────────────────────────╯
+2026-03-02T12:02:19.504Z [canvas] host mounted at http://127.0.0.1:18789/__openclaw__/canvas/ (root /Users/hazar/.openclaw/canvas)
+2026-03-02T12:02:19.765Z [heartbeat] started
+2026-03-02T12:02:19.767Z [health-monitor] started (interval: 300s, grace: 60s)
+2026-03-02T12:02:19.769Z [gateway] agent model: anthropic/claude-sonnet-4-6
+2026-03-02T12:02:19.771Z [gateway] listening on ws://127.0.0.1:18789, ws://[::1]:18789 (PID 25392)
+2026-03-02T12:02:19.772Z [gateway] log file: /tmp/openclaw/openclaw-2026-03-02.log
+2026-03-02T12:02:19.786Z [browser/server] Chrome extension relay init failed for profile "chrome": Error: extension relay requires gateway auth token (set gateway.auth.token or OPENCLAW_GATEWAY_TOKEN)
+2026-03-02T12:02:19.787Z [browser/server] Browser control listening on http://127.0.0.1:18791/ (auth=password)
+2026-03-02T12:02:19.992Z [hooks:loader] Registered hook: boot-md -> gateway:startup
+2026-03-02T12:02:20.004Z [hooks:loader] Registered hook: bootstrap-extra-files -> agent:bootstrap
+2026-03-02T12:02:20.006Z [hooks:loader] Registered hook: command-logger -> command
+2026-03-02T12:02:20.010Z [hooks:loader] Registered hook: session-memory -> command:new, command:reset
+2026-03-02T12:02:20.011Z [hooks] loaded 4 internal hook handlers
+2026-03-02T12:02:20.536Z [telegram] [default] starting provider (@hazarclawbot)
+2026-03-02T12:02:20.551Z [telegram] autoSelectFamily=true (default-node22)
+2026-03-02T12:02:20.557Z [telegram] dnsResultOrder=ipv4first (default-node22)
+2026-03-02T12:02:20.797Z [telegram] limits bots to 100 commands. 117 configured; registering first 100. Use channels.telegram.commands.native: false to disable, or reduce plugin/skill/custom commands.
+2026-03-02T12:02:21.308Z [telegram] setMyCommands failed: Call to 'setMyCommands' failed! (400: Bad Request: BOT_COMMANDS_TOO_MUCH)
+2026-03-02T12:02:21.311Z [telegram] rejected 100 commands (BOT_COMMANDS_TOO_MUCH); retrying with 80.
+2026-03-02T12:02:21.511Z [telegram] setMyCommands failed: Call to 'setMyCommands' failed! (400: Bad Request: BOT_COMMANDS_TOO_MUCH)
+2026-03-02T12:02:21.517Z [telegram] rejected 80 commands (BOT_COMMANDS_TOO_MUCH); retrying with 64.
+2026-03-02T12:02:21.880Z [gateway] signal SIGTERM received
+2026-03-02T12:02:21.882Z [gateway] received SIGTERM; shutting down
+2026-03-02T12:02:21.884Z [gateway] signal SIGTERM received
+2026-03-02T12:02:21.885Z [gateway] received SIGTERM during shutdown; ignoring
+2026-03-02T12:02:21.908Z [gmail-watcher] gmail watcher stopped
+│
+◇  Doctor warnings ───────────────────────────────────────╮
+│                                                         │
+│  - State dir migration skipped: target already exists   │
+│    (/Users/hazar/.openclaw). Remove or merge manually.  │
+│                                                         │
+├─────────────────────────────────────────────────────────╯
+│
+◇  Doctor warnings ────────────────────────────────────────────────────────╮
+│                                                                          │
+│  - channels.telegram.groupPolicy is "allowlist" but groupAllowFrom (and  │
+│    allowFrom) is empty — all group messages will be silently dropped.    │
+│    Add sender IDs to channels.telegram.groupAllowFrom or                 │
+│    channels.telegram.allowFrom, or set groupPolicy to "open".            │
+│                                                                          │
+├──────────────────────────────────────────────────────────────────────────╯
+2026-03-02T12:03:24.885Z [canvas] host mounted at http://127.0.0.1:18789/__openclaw__/canvas/ (root /Users/hazar/.openclaw/canvas)
+2026-03-02T12:03:25.142Z [heartbeat] started
+2026-03-02T12:03:25.144Z [health-monitor] started (interval: 300s, grace: 60s)
+2026-03-02T12:03:25.148Z [gateway] agent model: anthropic/claude-sonnet-4-6
+2026-03-02T12:03:25.149Z [gateway] listening on ws://127.0.0.1:18789, ws://[::1]:18789 (PID 25498)
+2026-03-02T12:03:25.149Z [gateway] log file: /tmp/openclaw/openclaw-2026-03-02.log
+2026-03-02T12:03:25.160Z [browser/server] Chrome extension relay init failed for profile "chrome": Error: extension relay requires gateway auth token (set gateway.auth.token or OPENCLAW_GATEWAY_TOKEN)
+2026-03-02T12:03:25.161Z [browser/server] Browser control listening on http://127.0.0.1:18791/ (auth=password)
+2026-03-02T12:03:25.375Z [hooks:loader] Registered hook: boot-md -> gateway:startup
+2026-03-02T12:03:25.388Z [hooks:loader] Registered hook: bootstrap-extra-files -> agent:bootstrap
+2026-03-02T12:03:25.390Z [hooks:loader] Registered hook: command-logger -> command
+2026-03-02T12:03:25.396Z [hooks:loader] Registered hook: session-memory -> command:new, command:reset
+2026-03-02T12:03:25.397Z [hooks] loaded 4 internal hook handlers
+2026-03-02T12:03:25.955Z [telegram] [default] starting provider (@hazarclawbot)
+2026-03-02T12:03:25.966Z [telegram] autoSelectFamily=true (default-node22)
+2026-03-02T12:03:25.968Z [telegram] dnsResultOrder=ipv4first (default-node22)
+2026-03-02T12:03:26.182Z [telegram] limits bots to 100 commands. 117 configured; registering first 100. Use channels.telegram.commands.native: false to disable, or reduce plugin/skill/custom commands.
+2026-03-02T12:03:26.480Z [telegram] setMyCommands failed: Call to 'setMyCommands' failed! (400: Bad Request: BOT_COMMANDS_TOO_MUCH)
+2026-03-02T12:03:26.483Z [telegram] rejected 100 commands (BOT_COMMANDS_TOO_MUCH); retrying with 80.
+2026-03-02T12:03:26.629Z [telegram] setMyCommands failed: Call to 'setMyCommands' failed! (400: Bad Request: BOT_COMMANDS_TOO_MUCH)
+2026-03-02T12:03:26.633Z [telegram] rejected 80 commands (BOT_COMMANDS_TOO_MUCH); retrying with 64.
+2026-03-02T12:03:27.035Z [gateway] signal SIGTERM received
+2026-03-02T12:03:27.037Z [gateway] received SIGTERM; shutting down
+2026-03-02T12:03:27.039Z [gateway] signal SIGTERM received
+2026-03-02T12:03:27.039Z [gateway] received SIGTERM during shutdown; ignoring
+2026-03-02T12:03:27.064Z [gmail-watcher] gmail watcher stopped
+│
+◇  Doctor warnings ───────────────────────────────────────╮
+│                                                         │
+│  - State dir migration skipped: target already exists   │
+│    (/Users/hazar/.openclaw). Remove or merge manually.  │
+│                                                         │
+├─────────────────────────────────────────────────────────╯
+│
+◇  Doctor warnings ────────────────────────────────────────────────────────╮
+│                                                                          │
+│  - channels.telegram.groupPolicy is "allowlist" but groupAllowFrom (and  │
+│    allowFrom) is empty — all group messages will be silently dropped.    │
+│    Add sender IDs to channels.telegram.groupAllowFrom or                 │
+│    channels.telegram.allowFrom, or set groupPolicy to "open".            │
+│                                                                          │
+├──────────────────────────────────────────────────────────────────────────╯
+2026-03-02T12:04:30.414Z [canvas] host mounted at http://127.0.0.1:18789/__openclaw__/canvas/ (root /Users/hazar/.openclaw/canvas)
+2026-03-02T12:04:30.652Z [heartbeat] started
+2026-03-02T12:04:30.654Z [health-monitor] started (interval: 300s, grace: 60s)
+2026-03-02T12:04:30.658Z [gateway] agent model: anthropic/claude-sonnet-4-6
+2026-03-02T12:04:30.659Z [gateway] listening on ws://127.0.0.1:18789, ws://[::1]:18789 (PID 25597)
+2026-03-02T12:04:30.660Z [gateway] log file: /tmp/openclaw/openclaw-2026-03-02.log
+2026-03-02T12:04:30.670Z [browser/server] Chrome extension relay init failed for profile "chrome": Error: extension relay requires gateway auth token (set gateway.auth.token or OPENCLAW_GATEWAY_TOKEN)
+2026-03-02T12:04:30.671Z [browser/server] Browser control listening on http://127.0.0.1:18791/ (auth=password)
+2026-03-02T12:04:30.869Z [hooks:loader] Registered hook: boot-md -> gateway:startup
+2026-03-02T12:04:30.885Z [hooks:loader] Registered hook: bootstrap-extra-files -> agent:bootstrap
+2026-03-02T12:04:30.889Z [hooks:loader] Registered hook: command-logger -> command
+2026-03-02T12:04:30.893Z [hooks:loader] Registered hook: session-memory -> command:new, command:reset
+2026-03-02T12:04:30.894Z [hooks] loaded 4 internal hook handlers
+2026-03-02T12:04:31.428Z [telegram] [default] starting provider (@hazarclawbot)
+2026-03-02T12:04:31.437Z [telegram] autoSelectFamily=true (default-node22)
+2026-03-02T12:04:31.439Z [telegram] dnsResultOrder=ipv4first (default-node22)
+2026-03-02T12:04:31.673Z [telegram] limits bots to 100 commands. 117 configured; registering first 100. Use channels.telegram.commands.native: false to disable, or reduce plugin/skill/custom commands.
+2026-03-02T12:04:32.252Z [telegram] setMyCommands failed: Call to 'setMyCommands' failed! (400: Bad Request: BOT_COMMANDS_TOO_MUCH)
+2026-03-02T12:04:32.255Z [telegram] rejected 100 commands (BOT_COMMANDS_TOO_MUCH); retrying with 80.
+2026-03-02T12:04:32.319Z [gateway] signal SIGTERM received
+2026-03-02T12:04:32.320Z [gateway] received SIGTERM; shutting down
+2026-03-02T12:04:32.322Z [gateway] signal SIGTERM received
+2026-03-02T12:04:32.323Z [gateway] received SIGTERM during shutdown; ignoring
+2026-03-02T12:04:32.346Z [gmail-watcher] gmail watcher stopped
+│
+◇  Doctor warnings ───────────────────────────────────────╮
+│                                                         │
+│  - State dir migration skipped: target already exists   │
+│    (/Users/hazar/.openclaw). Remove or merge manually.  │
+│                                                         │
+├─────────────────────────────────────────────────────────╯
+│
+◇  Doctor warnings ────────────────────────────────────────────────────────╮
+│                                                                          │
+│  - channels.telegram.groupPolicy is "allowlist" but groupAllowFrom (and  │
+│    allowFrom) is empty — all group messages will be silently dropped.    │
+│    Add sender IDs to channels.telegram.groupAllowFrom or                 │
+│    channels.telegram.allowFrom, or set groupPolicy to "open".            │
+│                                                                          │
+├──────────────────────────────────────────────────────────────────────────╯
+2026-03-02T12:05:35.643Z [canvas] host mounted at http://127.0.0.1:18789/__openclaw__/canvas/ (root /Users/hazar/.openclaw/canvas)
+2026-03-02T12:05:35.878Z [heartbeat] started
+2026-03-02T12:05:35.881Z [health-monitor] started (interval: 300s, grace: 60s)
+2026-03-02T12:05:35.884Z [gateway] agent model: anthropic/claude-sonnet-4-6
+2026-03-02T12:05:35.885Z [gateway] listening on ws://127.0.0.1:18789, ws://[::1]:18789 (PID 25685)
+2026-03-02T12:05:35.886Z [gateway] log file: /tmp/openclaw/openclaw-2026-03-02.log
+2026-03-02T12:05:35.897Z [browser/server] Chrome extension relay init failed for profile "chrome": Error: extension relay requires gateway auth token (set gateway.auth.token or OPENCLAW_GATEWAY_TOKEN)
+2026-03-02T12:05:35.898Z [browser/server] Browser control listening on http://127.0.0.1:18791/ (auth=password)
+2026-03-02T12:05:36.105Z [hooks:loader] Registered hook: boot-md -> gateway:startup
+2026-03-02T12:05:36.113Z [hooks:loader] Registered hook: bootstrap-extra-files -> agent:bootstrap
+2026-03-02T12:05:36.119Z [hooks:loader] Registered hook: command-logger -> command
+2026-03-02T12:05:36.125Z [hooks:loader] Registered hook: session-memory -> command:new, command:reset
+2026-03-02T12:05:36.126Z [hooks] loaded 4 internal hook handlers
+2026-03-02T12:05:36.696Z [telegram] [default] starting provider (@hazarclawbot)
+2026-03-02T12:05:36.707Z [telegram] autoSelectFamily=true (default-node22)
+2026-03-02T12:05:36.709Z [telegram] dnsResultOrder=ipv4first (default-node22)
+2026-03-02T12:05:36.931Z [telegram] limits bots to 100 commands. 117 configured; registering first 100. Use channels.telegram.commands.native: false to disable, or reduce plugin/skill/custom commands.
+2026-03-02T12:05:37.355Z [telegram] setMyCommands failed: Call to 'setMyCommands' failed! (400: Bad Request: BOT_COMMANDS_TOO_MUCH)
+2026-03-02T12:05:37.359Z [telegram] rejected 100 commands (BOT_COMMANDS_TOO_MUCH); retrying with 80.
+2026-03-02T12:05:37.512Z [telegram] setMyCommands failed: Call to 'setMyCommands' failed! (400: Bad Request: BOT_COMMANDS_TOO_MUCH)
+2026-03-02T12:05:37.516Z [telegram] rejected 80 commands (BOT_COMMANDS_TOO_MUCH); retrying with 64.
+2026-03-02T12:05:37.592Z [gateway] signal SIGTERM received
+2026-03-02T12:05:37.593Z [gateway] received SIGTERM; shutting down
+2026-03-02T12:05:37.595Z [gateway] signal SIGTERM received
+2026-03-02T12:05:37.596Z [gateway] received SIGTERM during shutdown; ignoring
+2026-03-02T12:05:37.617Z [gmail-watcher] gmail watcher stopped
+│
+◇  Doctor warnings ───────────────────────────────────────╮
+│                                                         │
+│  - State dir migration skipped: target already exists   │
+│    (/Users/hazar/.openclaw). Remove or merge manually.  │
+│                                                         │
+├─────────────────────────────────────────────────────────╯
+│
+◇  Doctor warnings ────────────────────────────────────────────────────────╮
+│                                                                          │
+│  - channels.telegram.groupPolicy is "allowlist" but groupAllowFrom (and  │
+│    allowFrom) is empty — all group messages will be silently dropped.    │
+│    Add sender IDs to channels.telegram.groupAllowFrom or                 │
+│    channels.telegram.allowFrom, or set groupPolicy to "open".            │
+│                                                                          │
+├──────────────────────────────────────────────────────────────────────────╯
+2026-03-02T12:06:40.940Z [canvas] host mounted at http://127.0.0.1:18789/__openclaw__/canvas/ (root /Users/hazar/.openclaw/canvas)
+2026-03-02T12:06:41.191Z [heartbeat] started
+2026-03-02T12:06:41.194Z [health-monitor] started (interval: 300s, grace: 60s)
+2026-03-02T12:06:41.196Z [gateway] agent model: anthropic/claude-sonnet-4-6
+2026-03-02T12:06:41.198Z [gateway] listening on ws://127.0.0.1:18789, ws://[::1]:18789 (PID 25782)
+2026-03-02T12:06:41.199Z [gateway] log file: /tmp/openclaw/openclaw-2026-03-02.log
+2026-03-02T12:06:41.209Z [browser/server] Chrome extension relay init failed for profile "chrome": Error: extension relay requires gateway auth token (set gateway.auth.token or OPENCLAW_GATEWAY_TOKEN)
+2026-03-02T12:06:41.210Z [browser/server] Browser control listening on http://127.0.0.1:18791/ (auth=password)
+2026-03-02T12:06:41.421Z [hooks:loader] Registered hook: boot-md -> gateway:startup
+2026-03-02T12:06:41.431Z [hooks:loader] Registered hook: bootstrap-extra-files -> agent:bootstrap
+2026-03-02T12:06:41.433Z [hooks:loader] Registered hook: command-logger -> command
+2026-03-02T12:06:41.437Z [hooks:loader] Registered hook: session-memory -> command:new, command:reset
+2026-03-02T12:06:41.438Z [hooks] loaded 4 internal hook handlers
+2026-03-02T12:06:42.078Z [telegram] [default] starting provider (@hazarclawbot)
+2026-03-02T12:06:42.084Z [telegram] autoSelectFamily=true (default-node22)
+2026-03-02T12:06:42.084Z [telegram] dnsResultOrder=ipv4first (default-node22)
+2026-03-02T12:06:42.269Z [telegram] limits bots to 100 commands. 117 configured; registering first 100. Use channels.telegram.commands.native: false to disable, or reduce plugin/skill/custom commands.
+2026-03-02T12:06:42.778Z [gateway] signal SIGTERM received
+2026-03-02T12:06:42.779Z [gateway] received SIGTERM; shutting down
+2026-03-02T12:06:42.781Z [gateway] signal SIGTERM received
+2026-03-02T12:06:42.782Z [gateway] received SIGTERM during shutdown; ignoring
+2026-03-02T12:06:42.805Z [gmail-watcher] gmail watcher stopped
+│
+◇  Doctor warnings ───────────────────────────────────────╮
+│                                                         │
+│  - State dir migration skipped: target already exists   │
+│    (/Users/hazar/.openclaw). Remove or merge manually.  │
+│                                                         │
+├─────────────────────────────────────────────────────────╯
+│
+◇  Doctor warnings ────────────────────────────────────────────────────────╮
+│                                                                          │
+│  - channels.telegram.groupPolicy is "allowlist" but groupAllowFrom (and  │
+│    allowFrom) is empty — all group messages will be silently dropped.    │
+│    Add sender IDs to channels.telegram.groupAllowFrom or                 │
+│    channels.telegram.allowFrom, or set groupPolicy to "open".            │
+│                                                                          │
+├──────────────────────────────────────────────────────────────────────────╯
+2026-03-02T12:07:45.612Z [canvas] host mounted at http://127.0.0.1:18789/__openclaw__/canvas/ (root /Users/hazar/.openclaw/canvas)
+2026-03-02T12:07:45.838Z [heartbeat] started
+2026-03-02T12:07:45.843Z [health-monitor] started (interval: 300s, grace: 60s)
+2026-03-02T12:07:45.845Z [gateway] agent model: anthropic/claude-sonnet-4-6
+2026-03-02T12:07:45.845Z [gateway] listening on ws://127.0.0.1:18789, ws://[::1]:18789 (PID 25872)
+2026-03-02T12:07:45.846Z [gateway] log file: /tmp/openclaw/openclaw-2026-03-02.log
+2026-03-02T12:07:45.857Z [browser/server] Chrome extension relay init failed for profile "chrome": Error: extension relay requires gateway auth token (set gateway.auth.token or OPENCLAW_GATEWAY_TOKEN)
+2026-03-02T12:07:45.858Z [browser/server] Browser control listening on http://127.0.0.1:18791/ (auth=password)
+2026-03-02T12:07:46.060Z [hooks:loader] Registered hook: boot-md -> gateway:startup
+2026-03-02T12:07:46.068Z [hooks:loader] Registered hook: bootstrap-extra-files -> agent:bootstrap
+2026-03-02T12:07:46.074Z [hooks:loader] Registered hook: command-logger -> command
+2026-03-02T12:07:46.078Z [hooks:loader] Registered hook: session-memory -> command:new, command:reset
+2026-03-02T12:07:46.079Z [hooks] loaded 4 internal hook handlers
+2026-03-02T12:07:46.608Z [telegram] [default] starting provider (@hazarclawbot)
+2026-03-02T12:07:46.622Z [telegram] autoSelectFamily=true (default-node22)
+2026-03-02T12:07:46.624Z [telegram] dnsResultOrder=ipv4first (default-node22)
+2026-03-02T12:07:46.845Z [telegram] limits bots to 100 commands. 117 configured; registering first 100. Use channels.telegram.commands.native: false to disable, or reduce plugin/skill/custom commands.
+2026-03-02T12:07:47.378Z [telegram] setMyCommands failed: Call to 'setMyCommands' failed! (400: Bad Request: BOT_COMMANDS_TOO_MUCH)
+2026-03-02T12:07:47.382Z [telegram] rejected 100 commands (BOT_COMMANDS_TOO_MUCH); retrying with 80.
+2026-03-02T12:07:47.533Z [telegram] setMyCommands failed: Call to 'setMyCommands' failed! (400: Bad Request: BOT_COMMANDS_TOO_MUCH)
+2026-03-02T12:07:47.537Z [telegram] rejected 80 commands (BOT_COMMANDS_TOO_MUCH); retrying with 64.
+2026-03-02T12:07:48.062Z [gateway] signal SIGTERM received
+2026-03-02T12:07:48.064Z [gateway] received SIGTERM; shutting down
+2026-03-02T12:07:48.066Z [gateway] signal SIGTERM received
+2026-03-02T12:07:48.067Z [gateway] received SIGTERM during shutdown; ignoring
+2026-03-02T12:07:48.089Z [gmail-watcher] gmail watcher stopped
+│
+◇  Doctor warnings ───────────────────────────────────────╮
+│                                                         │
+│  - State dir migration skipped: target already exists   │
+│    (/Users/hazar/.openclaw). Remove or merge manually.  │
+│                                                         │
+├─────────────────────────────────────────────────────────╯
+│
+◇  Doctor warnings ────────────────────────────────────────────────────────╮
+│                                                                          │
+│  - channels.telegram.groupPolicy is "allowlist" but groupAllowFrom (and  │
+│    allowFrom) is empty — all group messages will be silently dropped.    │
+│    Add sender IDs to channels.telegram.groupAllowFrom or                 │
+│    channels.telegram.allowFrom, or set groupPolicy to "open".            │
+│                                                                          │
+├──────────────────────────────────────────────────────────────────────────╯
+2026-03-02T12:08:51.629Z [canvas] host mounted at http://127.0.0.1:18789/__openclaw__/canvas/ (root /Users/hazar/.openclaw/canvas)
+2026-03-02T12:08:51.876Z [heartbeat] started
+2026-03-02T12:08:51.878Z [health-monitor] started (interval: 300s, grace: 60s)
+2026-03-02T12:08:51.882Z [gateway] agent model: anthropic/claude-sonnet-4-6
+2026-03-02T12:08:51.882Z [gateway] listening on ws://127.0.0.1:18789, ws://[::1]:18789 (PID 25988)
+2026-03-02T12:08:51.883Z [gateway] log file: /tmp/openclaw/openclaw-2026-03-02.log
+2026-03-02T12:08:51.898Z [browser/server] Chrome extension relay init failed for profile "chrome": Error: extension relay requires gateway auth token (set gateway.auth.token or OPENCLAW_GATEWAY_TOKEN)
+2026-03-02T12:08:51.899Z [browser/server] Browser control listening on http://127.0.0.1:18791/ (auth=password)
+2026-03-02T12:08:52.101Z [hooks:loader] Registered hook: boot-md -> gateway:startup
+2026-03-02T12:08:52.112Z [hooks:loader] Registered hook: bootstrap-extra-files -> agent:bootstrap
+2026-03-02T12:08:52.114Z [hooks:loader] Registered hook: command-logger -> command
+2026-03-02T12:08:52.118Z [hooks:loader] Registered hook: session-memory -> command:new, command:reset
+2026-03-02T12:08:52.119Z [hooks] loaded 4 internal hook handlers
+2026-03-02T12:08:52.838Z [telegram] [default] starting provider (@hazarclawbot)
+2026-03-02T12:08:52.941Z [telegram] autoSelectFamily=true (default-node22)
+2026-03-02T12:08:52.942Z [telegram] dnsResultOrder=ipv4first (default-node22)
+2026-03-02T12:08:53.161Z [telegram] limits bots to 100 commands. 117 configured; registering first 100. Use channels.telegram.commands.native: false to disable, or reduce plugin/skill/custom commands.
+2026-03-02T12:08:53.167Z [gateway] signal SIGTERM received
+2026-03-02T12:08:53.168Z [gateway] received SIGTERM; shutting down
+2026-03-02T12:08:53.169Z [gateway] signal SIGTERM received
+2026-03-02T12:08:53.169Z [gateway] received SIGTERM during shutdown; ignoring
+2026-03-02T12:08:53.462Z [telegram] setMyCommands failed: Call to 'setMyCommands' failed! (400: Bad Request: BOT_COMMANDS_TOO_MUCH)
+2026-03-02T12:08:53.465Z [telegram] rejected 100 commands (BOT_COMMANDS_TOO_MUCH); retrying with 80.
+2026-03-02T12:08:53.612Z [telegram] setMyCommands failed: Call to 'setMyCommands' failed! (400: Bad Request: BOT_COMMANDS_TOO_MUCH)
+2026-03-02T12:08:53.617Z [telegram] rejected 80 commands (BOT_COMMANDS_TOO_MUCH); retrying with 64.
+2026-03-02T12:08:58.171Z [gateway] shutdown timed out; exiting without full cleanup
+│
+◇  Doctor warnings ───────────────────────────────────────╮
+│                                                         │
+│  - State dir migration skipped: target already exists   │
+│    (/Users/hazar/.openclaw). Remove or merge manually.  │
+│                                                         │
+├─────────────────────────────────────────────────────────╯
+│
+◇  Doctor warnings ────────────────────────────────────────────────────────╮
+│                                                                          │
+│  - channels.telegram.groupPolicy is "allowlist" but groupAllowFrom (and  │
+│    allowFrom) is empty — all group messages will be silently dropped.    │
+│    Add sender IDs to channels.telegram.groupAllowFrom or                 │
+│    channels.telegram.allowFrom, or set groupPolicy to "open".            │
+│                                                                          │
+├──────────────────────────────────────────────────────────────────────────╯
+2026-03-02T12:09:56.789Z [canvas] host mounted at http://127.0.0.1:18789/__openclaw__/canvas/ (root /Users/hazar/.openclaw/canvas)
+2026-03-02T12:09:57.046Z [heartbeat] started
+2026-03-02T12:09:57.051Z [health-monitor] started (interval: 300s, grace: 60s)
+2026-03-02T12:09:57.053Z [gateway] agent model: anthropic/claude-sonnet-4-6
+2026-03-02T12:09:57.053Z [gateway] listening on ws://127.0.0.1:18789, ws://[::1]:18789 (PID 26085)
+2026-03-02T12:09:57.055Z [gateway] log file: /tmp/openclaw/openclaw-2026-03-02.log
+2026-03-02T12:09:57.069Z [browser/server] Chrome extension relay init failed for profile "chrome": Error: extension relay requires gateway auth token (set gateway.auth.token or OPENCLAW_GATEWAY_TOKEN)
+2026-03-02T12:09:57.070Z [browser/server] Browser control listening on http://127.0.0.1:18791/ (auth=password)
+2026-03-02T12:09:57.269Z [hooks:loader] Registered hook: boot-md -> gateway:startup
+2026-03-02T12:09:57.275Z [hooks:loader] Registered hook: bootstrap-extra-files -> agent:bootstrap
+2026-03-02T12:09:57.281Z [hooks:loader] Registered hook: command-logger -> command
+2026-03-02T12:09:57.285Z [hooks:loader] Registered hook: session-memory -> command:new, command:reset
+2026-03-02T12:09:57.286Z [hooks] loaded 4 internal hook handlers
+2026-03-02T12:09:57.840Z [telegram] [default] starting provider (@hazarclawbot)
+2026-03-02T12:09:57.851Z [telegram] autoSelectFamily=true (default-node22)
+2026-03-02T12:09:57.853Z [telegram] dnsResultOrder=ipv4first (default-node22)
+2026-03-02T12:09:58.111Z [telegram] limits bots to 100 commands. 117 configured; registering first 100. Use channels.telegram.commands.native: false to disable, or reduce plugin/skill/custom commands.
+2026-03-02T12:09:58.412Z [ws] webchat connected conn=9e266032-8938-491b-8553-e4b6b0f2e7ea remote=127.0.0.1 client=openclaw-control-ui webchat vdev
+2026-03-02T12:09:58.512Z [telegram] setMyCommands failed: Call to 'setMyCommands' failed! (400: Bad Request: BOT_COMMANDS_TOO_MUCH)
+2026-03-02T12:09:58.513Z [telegram] rejected 100 commands (BOT_COMMANDS_TOO_MUCH); retrying with 80.
+2026-03-02T12:09:58.609Z [gateway] signal SIGTERM received
+2026-03-02T12:09:58.609Z [gateway] received SIGTERM; shutting down
+2026-03-02T12:09:58.610Z [gateway] signal SIGTERM received
+2026-03-02T12:09:58.611Z [gateway] received SIGTERM during shutdown; ignoring
+2026-03-02T12:09:58.633Z [ws] ⇄ res ✓ node.list 115ms conn=9e266032…e7ea id=e9317363…ef90
+2026-03-02T12:09:58.634Z [ws] ⇄ res ✓ device.pair.list 117ms conn=9e266032…e7ea id=1581c3ed…e43f
+2026-03-02T12:09:58.692Z [telegram] setMyCommands failed: Call to 'setMyCommands' failed! (400: Bad Request: BOT_COMMANDS_TOO_MUCH)
+2026-03-02T12:09:58.693Z [telegram] rejected 80 commands (BOT_COMMANDS_TOO_MUCH); retrying with 64.
+2026-03-02T12:09:58.759Z [gmail-watcher] gmail watcher stopped
+2026-03-02T12:09:58.765Z [ws] webchat disconnected code=1012 reason=service restart conn=9e266032-8938-491b-8553-e4b6b0f2e7ea
+│
+◇  Doctor warnings ───────────────────────────────────────╮
+│                                                         │
+│  - State dir migration skipped: target already exists   │
+│    (/Users/hazar/.openclaw). Remove or merge manually.  │
+│                                                         │
+├─────────────────────────────────────────────────────────╯
+│
+◇  Doctor warnings ────────────────────────────────────────────────────────╮
+│                                                                          │
+│  - channels.telegram.groupPolicy is "allowlist" but groupAllowFrom (and  │
+│    allowFrom) is empty — all group messages will be silently dropped.    │
+│    Add sender IDs to channels.telegram.groupAllowFrom or                 │
+│    channels.telegram.allowFrom, or set groupPolicy to "open".            │
+│                                                                          │
+├──────────────────────────────────────────────────────────────────────────╯
+2026-03-02T12:11:01.965Z [canvas] host mounted at http://127.0.0.1:18789/__openclaw__/canvas/ (root /Users/hazar/.openclaw/canvas)
+2026-03-02T12:11:02.217Z [heartbeat] started
+2026-03-02T12:11:02.220Z [health-monitor] started (interval: 300s, grace: 60s)
+2026-03-02T12:11:02.224Z [gateway] agent model: anthropic/claude-sonnet-4-6
+2026-03-02T12:11:02.224Z [gateway] listening on ws://127.0.0.1:18789, ws://[::1]:18789 (PID 26179)
+2026-03-02T12:11:02.225Z [gateway] log file: /tmp/openclaw/openclaw-2026-03-02.log
+2026-03-02T12:11:02.243Z [browser/server] Chrome extension relay init failed for profile "chrome": Error: extension relay requires gateway auth token (set gateway.auth.token or OPENCLAW_GATEWAY_TOKEN)
+2026-03-02T12:11:02.244Z [browser/server] Browser control listening on http://127.0.0.1:18791/ (auth=password)
+2026-03-02T12:11:02.443Z [hooks:loader] Registered hook: boot-md -> gateway:startup
+2026-03-02T12:11:02.453Z [hooks:loader] Registered hook: bootstrap-extra-files -> agent:bootstrap
+2026-03-02T12:11:02.454Z [hooks:loader] Registered hook: command-logger -> command
+2026-03-02T12:11:02.459Z [hooks:loader] Registered hook: session-memory -> command:new, command:reset
+2026-03-02T12:11:02.459Z [hooks] loaded 4 internal hook handlers
+2026-03-02T12:11:02.993Z [telegram] [default] starting provider (@hazarclawbot)
+2026-03-02T12:11:03.005Z [telegram] autoSelectFamily=true (default-node22)
+2026-03-02T12:11:03.007Z [telegram] dnsResultOrder=ipv4first (default-node22)
+2026-03-02T12:11:03.262Z [telegram] limits bots to 100 commands. 117 configured; registering first 100. Use channels.telegram.commands.native: false to disable, or reduce plugin/skill/custom commands.
+2026-03-02T12:11:03.582Z [telegram] setMyCommands failed: Call to 'setMyCommands' failed! (400: Bad Request: BOT_COMMANDS_TOO_MUCH)
+2026-03-02T12:11:03.584Z [telegram] rejected 100 commands (BOT_COMMANDS_TOO_MUCH); retrying with 80.
+2026-03-02T12:11:03.708Z [gateway] signal SIGTERM received
+2026-03-02T12:11:03.709Z [gateway] received SIGTERM; shutting down
+2026-03-02T12:11:03.711Z [gateway] signal SIGTERM received
+2026-03-02T12:11:03.712Z [gateway] received SIGTERM during shutdown; ignoring
+2026-03-02T12:11:03.733Z [gmail-watcher] gmail watcher stopped
+2026-03-02T12:11:03.736Z [telegram] setMyCommands failed: Call to 'setMyCommands' failed! (400: Bad Request: BOT_COMMANDS_TOO_MUCH)
+2026-03-02T12:11:03.736Z [telegram] rejected 80 commands (BOT_COMMANDS_TOO_MUCH); retrying with 64.
+│
+◇  Doctor warnings ───────────────────────────────────────╮
+│                                                         │
+│  - State dir migration skipped: target already exists   │
+│    (/Users/hazar/.openclaw). Remove or merge manually.  │
+│                                                         │
+├─────────────────────────────────────────────────────────╯
+│
+◇  Doctor warnings ────────────────────────────────────────────────────────╮
+│                                                                          │
+│  - channels.telegram.groupPolicy is "allowlist" but groupAllowFrom (and  │
+│    allowFrom) is empty — all group messages will be silently dropped.    │
+│    Add sender IDs to channels.telegram.groupAllowFrom or                 │
+│    channels.telegram.allowFrom, or set groupPolicy to "open".            │
+│                                                                          │
+├──────────────────────────────────────────────────────────────────────────╯
+2026-03-02T12:12:07.059Z [canvas] host mounted at http://127.0.0.1:18789/__openclaw__/canvas/ (root /Users/hazar/.openclaw/canvas)
+2026-03-02T12:12:07.276Z [heartbeat] started
+2026-03-02T12:12:07.279Z [health-monitor] started (interval: 300s, grace: 60s)
+2026-03-02T12:12:07.281Z [gateway] agent model: anthropic/claude-sonnet-4-6
+2026-03-02T12:12:07.281Z [gateway] listening on ws://127.0.0.1:18789, ws://[::1]:18789 (PID 26265)
+2026-03-02T12:12:07.283Z [gateway] log file: /tmp/openclaw/openclaw-2026-03-02.log
+2026-03-02T12:12:07.299Z [browser/server] Chrome extension relay init failed for profile "chrome": Error: extension relay requires gateway auth token (set gateway.auth.token or OPENCLAW_GATEWAY_TOKEN)
+2026-03-02T12:12:07.300Z [browser/server] Browser control listening on http://127.0.0.1:18791/ (auth=password)
+2026-03-02T12:12:07.497Z [hooks:loader] Registered hook: boot-md -> gateway:startup
+2026-03-02T12:12:07.506Z [hooks:loader] Registered hook: bootstrap-extra-files -> agent:bootstrap
+2026-03-02T12:12:07.512Z [hooks:loader] Registered hook: command-logger -> command
+2026-03-02T12:12:07.517Z [hooks:loader] Registered hook: session-memory -> command:new, command:reset
+2026-03-02T12:12:07.518Z [hooks] loaded 4 internal hook handlers
+2026-03-02T12:12:08.050Z [telegram] [default] starting provider (@hazarclawbot)
+2026-03-02T12:12:08.059Z [telegram] autoSelectFamily=true (default-node22)
+2026-03-02T12:12:08.062Z [telegram] dnsResultOrder=ipv4first (default-node22)
+2026-03-02T12:12:08.316Z [telegram] limits bots to 100 commands. 117 configured; registering first 100. Use channels.telegram.commands.native: false to disable, or reduce plugin/skill/custom commands.
+2026-03-02T12:12:08.613Z [telegram] setMyCommands failed: Call to 'setMyCommands' failed! (400: Bad Request: BOT_COMMANDS_TOO_MUCH)
+2026-03-02T12:12:08.616Z [telegram] rejected 100 commands (BOT_COMMANDS_TOO_MUCH); retrying with 80.
+2026-03-02T12:12:08.880Z [telegram] setMyCommands failed: Call to 'setMyCommands' failed! (400: Bad Request: BOT_COMMANDS_TOO_MUCH)
+2026-03-02T12:12:08.883Z [telegram] rejected 80 commands (BOT_COMMANDS_TOO_MUCH); retrying with 64.
+2026-03-02T12:12:08.998Z [gateway] signal SIGTERM received
+2026-03-02T12:12:09.000Z [gateway] received SIGTERM; shutting down
+2026-03-02T12:12:09.002Z [gateway] signal SIGTERM received
+2026-03-02T12:12:09.003Z [gateway] received SIGTERM during shutdown; ignoring
+2026-03-02T12:12:09.028Z [gmail-watcher] gmail watcher stopped
+│
+◇  Doctor warnings ───────────────────────────────────────╮
+│                                                         │
+│  - State dir migration skipped: target already exists   │
+│    (/Users/hazar/.openclaw). Remove or merge manually.  │
+│                                                         │
+├─────────────────────────────────────────────────────────╯
+│
+◇  Doctor warnings ────────────────────────────────────────────────────────╮
+│                                                                          │
+│  - channels.telegram.groupPolicy is "allowlist" but groupAllowFrom (and  │
+│    allowFrom) is empty — all group messages will be silently dropped.    │
+│    Add sender IDs to channels.telegram.groupAllowFrom or                 │
+│    channels.telegram.allowFrom, or set groupPolicy to "open".            │
+│                                                                          │
+├──────────────────────────────────────────────────────────────────────────╯
+2026-03-02T12:13:12.508Z [canvas] host mounted at http://127.0.0.1:18789/__openclaw__/canvas/ (root /Users/hazar/.openclaw/canvas)
+2026-03-02T12:13:12.731Z [heartbeat] started
+2026-03-02T12:13:12.734Z [health-monitor] started (interval: 300s, grace: 60s)
+2026-03-02T12:13:12.736Z [gateway] agent model: anthropic/claude-sonnet-4-6
+2026-03-02T12:13:12.736Z [gateway] listening on ws://127.0.0.1:18789, ws://[::1]:18789 (PID 26384)
+2026-03-02T12:13:12.737Z [gateway] log file: /tmp/openclaw/openclaw-2026-03-02.log
+2026-03-02T12:13:12.755Z [browser/server] Chrome extension relay init failed for profile "chrome": Error: extension relay requires gateway auth token (set gateway.auth.token or OPENCLAW_GATEWAY_TOKEN)
+2026-03-02T12:13:12.755Z [browser/server] Browser control listening on http://127.0.0.1:18791/ (auth=password)
+2026-03-02T12:13:12.975Z [hooks:loader] Registered hook: boot-md -> gateway:startup
+2026-03-02T12:13:12.992Z [hooks:loader] Registered hook: bootstrap-extra-files -> agent:bootstrap
+2026-03-02T12:13:12.997Z [hooks:loader] Registered hook: command-logger -> command
+2026-03-02T12:13:13.005Z [hooks:loader] Registered hook: session-memory -> command:new, command:reset
+2026-03-02T12:13:13.006Z [hooks] loaded 4 internal hook handlers
+2026-03-02T12:13:13.635Z [telegram] [default] starting provider (@hazarclawbot)
+2026-03-02T12:13:13.646Z [telegram] autoSelectFamily=true (default-node22)
+2026-03-02T12:13:13.649Z [telegram] dnsResultOrder=ipv4first (default-node22)
+2026-03-02T12:13:13.896Z [telegram] limits bots to 100 commands. 117 configured; registering first 100. Use channels.telegram.commands.native: false to disable, or reduce plugin/skill/custom commands.
+2026-03-02T12:13:14.152Z [gateway] signal SIGTERM received
+2026-03-02T12:13:14.153Z [gateway] received SIGTERM; shutting down
+2026-03-02T12:13:14.155Z [gateway] signal SIGTERM received
+2026-03-02T12:13:14.156Z [gateway] received SIGTERM during shutdown; ignoring
+2026-03-02T12:13:14.178Z [gmail-watcher] gmail watcher stopped
+│
+◇  Doctor warnings ───────────────────────────────────────╮
+│                                                         │
+│  - State dir migration skipped: target already exists   │
+│    (/Users/hazar/.openclaw). Remove or merge manually.  │
+│                                                         │
+├─────────────────────────────────────────────────────────╯
+│
+◇  Doctor warnings ────────────────────────────────────────────────────────╮
+│                                                                          │
+│  - channels.telegram.groupPolicy is "allowlist" but groupAllowFrom (and  │
+│    allowFrom) is empty — all group messages will be silently dropped.    │
+│    Add sender IDs to channels.telegram.groupAllowFrom or                 │
+│    channels.telegram.allowFrom, or set groupPolicy to "open".            │
+│                                                                          │
+├──────────────────────────────────────────────────────────────────────────╯
+2026-03-02T12:14:17.790Z [canvas] host mounted at http://127.0.0.1:18789/__openclaw__/canvas/ (root /Users/hazar/.openclaw/canvas)
+2026-03-02T12:14:18.044Z [heartbeat] started
+2026-03-02T12:14:18.047Z [health-monitor] started (interval: 300s, grace: 60s)
+2026-03-02T12:14:18.049Z [gateway] agent model: anthropic/claude-sonnet-4-6
+2026-03-02T12:14:18.049Z [gateway] listening on ws://127.0.0.1:18789, ws://[::1]:18789 (PID 26474)
+2026-03-02T12:14:18.050Z [gateway] log file: /tmp/openclaw/openclaw-2026-03-02.log
+2026-03-02T12:14:18.065Z [browser/server] Chrome extension relay init failed for profile "chrome": Error: extension relay requires gateway auth token (set gateway.auth.token or OPENCLAW_GATEWAY_TOKEN)
+2026-03-02T12:14:18.066Z [browser/server] Browser control listening on http://127.0.0.1:18791/ (auth=password)
+2026-03-02T12:14:18.264Z [hooks:loader] Registered hook: boot-md -> gateway:startup
+2026-03-02T12:14:18.278Z [hooks:loader] Registered hook: bootstrap-extra-files -> agent:bootstrap
+2026-03-02T12:14:18.280Z [hooks:loader] Registered hook: command-logger -> command
+2026-03-02T12:14:18.284Z [hooks:loader] Registered hook: session-memory -> command:new, command:reset
+2026-03-02T12:14:18.285Z [hooks] loaded 4 internal hook handlers
+2026-03-02T12:14:18.814Z [telegram] [default] starting provider (@hazarclawbot)
+2026-03-02T12:14:18.821Z [telegram] autoSelectFamily=true (default-node22)
+2026-03-02T12:14:18.822Z [telegram] dnsResultOrder=ipv4first (default-node22)
+2026-03-02T12:14:19.052Z [telegram] limits bots to 100 commands. 117 configured; registering first 100. Use channels.telegram.commands.native: false to disable, or reduce plugin/skill/custom commands.
+2026-03-02T12:14:19.314Z [gateway] signal SIGTERM received
+2026-03-02T12:14:19.315Z [gateway] received SIGTERM; shutting down
+2026-03-02T12:14:19.317Z [gateway] signal SIGTERM received
+2026-03-02T12:14:19.318Z [gateway] received SIGTERM during shutdown; ignoring
+2026-03-02T12:14:19.341Z [telegram] setMyCommands failed: Call to 'setMyCommands' failed! (400: Bad Request: BOT_COMMANDS_TOO_MUCH)
+2026-03-02T12:14:19.342Z [telegram] rejected 100 commands (BOT_COMMANDS_TOO_MUCH); retrying with 80.
+2026-03-02T12:14:19.503Z [telegram] setMyCommands failed: Call to 'setMyCommands' failed! (400: Bad Request: BOT_COMMANDS_TOO_MUCH)
+2026-03-02T12:14:19.506Z [telegram] rejected 80 commands (BOT_COMMANDS_TOO_MUCH); retrying with 64.
+2026-03-02T12:14:19.636Z [gmail-watcher] gmail watcher stopped
+│
+◇  Doctor warnings ───────────────────────────────────────╮
+│                                                         │
+│  - State dir migration skipped: target already exists   │
+│    (/Users/hazar/.openclaw). Remove or merge manually.  │
+│                                                         │
+├─────────────────────────────────────────────────────────╯
+│
+◇  Doctor warnings ────────────────────────────────────────────────────────╮
+│                                                                          │
+│  - channels.telegram.groupPolicy is "allowlist" but groupAllowFrom (and  │
+│    allowFrom) is empty — all group messages will be silently dropped.    │
+│    Add sender IDs to channels.telegram.groupAllowFrom or                 │
+│    channels.telegram.allowFrom, or set groupPolicy to "open".            │
+│                                                                          │
+├──────────────────────────────────────────────────────────────────────────╯
+2026-03-02T12:15:22.824Z [canvas] host mounted at http://127.0.0.1:18789/__openclaw__/canvas/ (root /Users/hazar/.openclaw/canvas)
+2026-03-02T12:15:23.102Z [heartbeat] started
+2026-03-02T12:15:23.109Z [health-monitor] started (interval: 300s, grace: 60s)
+2026-03-02T12:15:23.111Z [gateway] agent model: anthropic/claude-sonnet-4-6
+2026-03-02T12:15:23.112Z [gateway] listening on ws://127.0.0.1:18789, ws://[::1]:18789 (PID 26566)
+2026-03-02T12:15:23.113Z [gateway] log file: /tmp/openclaw/openclaw-2026-03-02.log
+2026-03-02T12:15:23.128Z [browser/server] Chrome extension relay init failed for profile "chrome": Error: extension relay requires gateway auth token (set gateway.auth.token or OPENCLAW_GATEWAY_TOKEN)
+2026-03-02T12:15:23.129Z [browser/server] Browser control listening on http://127.0.0.1:18791/ (auth=password)
+2026-03-02T12:15:23.343Z [hooks:loader] Registered hook: boot-md -> gateway:startup
+2026-03-02T12:15:23.350Z [hooks:loader] Registered hook: bootstrap-extra-files -> agent:bootstrap
+2026-03-02T12:15:23.356Z [hooks:loader] Registered hook: command-logger -> command
+2026-03-02T12:15:23.361Z [hooks:loader] Registered hook: session-memory -> command:new, command:reset
+2026-03-02T12:15:23.361Z [hooks] loaded 4 internal hook handlers
+2026-03-02T12:15:23.886Z [telegram] [default] starting provider (@hazarclawbot)
+2026-03-02T12:15:23.897Z [telegram] autoSelectFamily=true (default-node22)
+2026-03-02T12:15:23.899Z [telegram] dnsResultOrder=ipv4first (default-node22)
+2026-03-02T12:15:24.143Z [telegram] limits bots to 100 commands. 117 configured; registering first 100. Use channels.telegram.commands.native: false to disable, or reduce plugin/skill/custom commands.
+2026-03-02T12:15:24.431Z [gateway] signal SIGTERM received
+2026-03-02T12:15:24.431Z [gateway] received SIGTERM; shutting down
+2026-03-02T12:15:24.434Z [gateway] signal SIGTERM received
+2026-03-02T12:15:24.434Z [gateway] received SIGTERM during shutdown; ignoring
+2026-03-02T12:15:24.448Z [gmail-watcher] gmail watcher stopped
+│
+◇  Doctor warnings ───────────────────────────────────────╮
+│                                                         │
+│  - State dir migration skipped: target already exists   │
+│    (/Users/hazar/.openclaw). Remove or merge manually.  │
+│                                                         │
+├─────────────────────────────────────────────────────────╯
+│
+◇  Doctor warnings ────────────────────────────────────────────────────────╮
+│                                                                          │
+│  - channels.telegram.groupPolicy is "allowlist" but groupAllowFrom (and  │
+│    allowFrom) is empty — all group messages will be silently dropped.    │
+│    Add sender IDs to channels.telegram.groupAllowFrom or                 │
+│    channels.telegram.allowFrom, or set groupPolicy to "open".            │
+│                                                                          │
+├──────────────────────────────────────────────────────────────────────────╯
+2026-03-02T12:16:27.900Z [canvas] host mounted at http://127.0.0.1:18789/__openclaw__/canvas/ (root /Users/hazar/.openclaw/canvas)
+2026-03-02T12:16:28.139Z [heartbeat] started
+2026-03-02T12:16:28.141Z [health-monitor] started (interval: 300s, grace: 60s)
+2026-03-02T12:16:28.145Z [gateway] agent model: anthropic/claude-sonnet-4-6
+2026-03-02T12:16:28.146Z [gateway] listening on ws://127.0.0.1:18789, ws://[::1]:18789 (PID 26655)
+2026-03-02T12:16:28.147Z [gateway] log file: /tmp/openclaw/openclaw-2026-03-02.log
+2026-03-02T12:16:28.162Z [browser/server] Chrome extension relay init failed for profile "chrome": Error: extension relay requires gateway auth token (set gateway.auth.token or OPENCLAW_GATEWAY_TOKEN)
+2026-03-02T12:16:28.163Z [browser/server] Browser control listening on http://127.0.0.1:18791/ (auth=password)
+2026-03-02T12:16:28.360Z [hooks:loader] Registered hook: boot-md -> gateway:startup
+2026-03-02T12:16:28.373Z [hooks:loader] Registered hook: bootstrap-extra-files -> agent:bootstrap
+2026-03-02T12:16:28.375Z [hooks:loader] Registered hook: command-logger -> command
+2026-03-02T12:16:28.379Z [hooks:loader] Registered hook: session-memory -> command:new, command:reset
+2026-03-02T12:16:28.380Z [hooks] loaded 4 internal hook handlers
+2026-03-02T12:16:29.032Z [telegram] [default] starting provider (@hazarclawbot)
+2026-03-02T12:16:29.038Z [telegram] autoSelectFamily=true (default-node22)
+2026-03-02T12:16:29.039Z [telegram] dnsResultOrder=ipv4first (default-node22)
+2026-03-02T12:16:29.238Z [telegram] limits bots to 100 commands. 117 configured; registering first 100. Use channels.telegram.commands.native: false to disable, or reduce plugin/skill/custom commands.
+2026-03-02T12:16:29.609Z [gateway] signal SIGTERM received
+2026-03-02T12:16:29.609Z [gateway] received SIGTERM; shutting down
+2026-03-02T12:16:29.611Z [gateway] signal SIGTERM received
+2026-03-02T12:16:29.611Z [gateway] received SIGTERM during shutdown; ignoring
+2026-03-02T12:16:29.627Z [gmail-watcher] gmail watcher stopped
+│
+◇  Doctor warnings ───────────────────────────────────────╮
+│                                                         │
+│  - State dir migration skipped: target already exists   │
+│    (/Users/hazar/.openclaw). Remove or merge manually.  │
+│                                                         │
+├─────────────────────────────────────────────────────────╯
+│
+◇  Doctor warnings ────────────────────────────────────────────────────────╮
+│                                                                          │
+│  - channels.telegram.groupPolicy is "allowlist" but groupAllowFrom (and  │
+│    allowFrom) is empty — all group messages will be silently dropped.    │
+│    Add sender IDs to channels.telegram.groupAllowFrom or                 │
+│    channels.telegram.allowFrom, or set groupPolicy to "open".            │
+│                                                                          │
+├──────────────────────────────────────────────────────────────────────────╯
+2026-03-02T12:17:32.784Z [canvas] host mounted at http://127.0.0.1:18789/__openclaw__/canvas/ (root /Users/hazar/.openclaw/canvas)
+2026-03-02T12:17:33.019Z [heartbeat] started
+2026-03-02T12:17:33.026Z [health-monitor] started (interval: 300s, grace: 60s)
+2026-03-02T12:17:33.028Z [gateway] agent model: anthropic/claude-sonnet-4-6
+2026-03-02T12:17:33.029Z [gateway] listening on ws://127.0.0.1:18789, ws://[::1]:18789 (PID 26757)
+2026-03-02T12:17:33.030Z [gateway] log file: /tmp/openclaw/openclaw-2026-03-02.log
+2026-03-02T12:17:33.040Z [browser/server] Chrome extension relay init failed for profile "chrome": Error: extension relay requires gateway auth token (set gateway.auth.token or OPENCLAW_GATEWAY_TOKEN)
+2026-03-02T12:17:33.041Z [browser/server] Browser control listening on http://127.0.0.1:18791/ (auth=password)
+2026-03-02T12:17:33.244Z [hooks:loader] Registered hook: boot-md -> gateway:startup
+2026-03-02T12:17:33.255Z [hooks:loader] Registered hook: bootstrap-extra-files -> agent:bootstrap
+2026-03-02T12:17:33.256Z [hooks:loader] Registered hook: command-logger -> command
+2026-03-02T12:17:33.260Z [hooks:loader] Registered hook: session-memory -> command:new, command:reset
+2026-03-02T12:17:33.261Z [hooks] loaded 4 internal hook handlers
+2026-03-02T12:17:33.777Z [telegram] [default] starting provider (@hazarclawbot)
+2026-03-02T12:17:33.787Z [telegram] autoSelectFamily=true (default-node22)
+2026-03-02T12:17:33.789Z [telegram] dnsResultOrder=ipv4first (default-node22)
+2026-03-02T12:17:34.009Z [telegram] limits bots to 100 commands. 117 configured; registering first 100. Use channels.telegram.commands.native: false to disable, or reduce plugin/skill/custom commands.
+2026-03-02T12:17:34.308Z [telegram] setMyCommands failed: Call to 'setMyCommands' failed! (400: Bad Request: BOT_COMMANDS_TOO_MUCH)
+2026-03-02T12:17:34.310Z [telegram] rejected 100 commands (BOT_COMMANDS_TOO_MUCH); retrying with 80.
+2026-03-02T12:17:34.720Z [telegram] setMyCommands failed: Call to 'setMyCommands' failed! (400: Bad Request: BOT_COMMANDS_TOO_MUCH)
+2026-03-02T12:17:34.724Z [telegram] rejected 80 commands (BOT_COMMANDS_TOO_MUCH); retrying with 64.
+2026-03-02T12:17:34.798Z [gateway] signal SIGTERM received
+2026-03-02T12:17:34.799Z [gateway] received SIGTERM; shutting down
+2026-03-02T12:17:34.817Z [gmail-watcher] gmail watcher stopped
+2026-03-02T12:17:34.819Z [gateway] signal SIGTERM received
+2026-03-02T12:17:34.819Z [gateway] received SIGTERM during shutdown; ignoring
+│
+◇  Doctor warnings ───────────────────────────────────────╮
+│                                                         │
+│  - State dir migration skipped: target already exists   │
+│    (/Users/hazar/.openclaw). Remove or merge manually.  │
+│                                                         │
+├─────────────────────────────────────────────────────────╯
+│
+◇  Doctor warnings ────────────────────────────────────────────────────────╮
+│                                                                          │
+│  - channels.telegram.groupPolicy is "allowlist" but groupAllowFrom (and  │
+│    allowFrom) is empty — all group messages will be silently dropped.    │
+│    Add sender IDs to channels.telegram.groupAllowFrom or                 │
+│    channels.telegram.allowFrom, or set groupPolicy to "open".            │
+│                                                                          │
+├──────────────────────────────────────────────────────────────────────────╯
+2026-03-02T12:18:38.491Z [canvas] host mounted at http://127.0.0.1:18789/__openclaw__/canvas/ (root /Users/hazar/.openclaw/canvas)
+2026-03-02T12:18:38.700Z [heartbeat] started
+2026-03-02T12:18:38.703Z [health-monitor] started (interval: 300s, grace: 60s)
+2026-03-02T12:18:38.704Z [gateway] agent model: anthropic/claude-sonnet-4-6
+2026-03-02T12:18:38.705Z [gateway] listening on ws://127.0.0.1:18789, ws://[::1]:18789 (PID 26869)
+2026-03-02T12:18:38.706Z [gateway] log file: /tmp/openclaw/openclaw-2026-03-02.log
+2026-03-02T12:18:38.717Z [browser/server] Chrome extension relay init failed for profile "chrome": Error: extension relay requires gateway auth token (set gateway.auth.token or OPENCLAW_GATEWAY_TOKEN)
+2026-03-02T12:18:38.718Z [browser/server] Browser control listening on http://127.0.0.1:18791/ (auth=password)
+2026-03-02T12:18:38.914Z [hooks:loader] Registered hook: boot-md -> gateway:startup
+2026-03-02T12:18:38.928Z [hooks:loader] Registered hook: bootstrap-extra-files -> agent:bootstrap
+2026-03-02T12:18:38.933Z [hooks:loader] Registered hook: command-logger -> command
+2026-03-02T12:18:38.939Z [hooks:loader] Registered hook: session-memory -> command:new, command:reset
+2026-03-02T12:18:38.940Z [hooks] loaded 4 internal hook handlers
+2026-03-02T12:18:39.490Z [telegram] [default] starting provider (@hazarclawbot)
+2026-03-02T12:18:39.499Z [telegram] autoSelectFamily=true (default-node22)
+2026-03-02T12:18:39.501Z [telegram] dnsResultOrder=ipv4first (default-node22)
+2026-03-02T12:18:39.757Z [telegram] limits bots to 100 commands. 117 configured; registering first 100. Use channels.telegram.commands.native: false to disable, or reduce plugin/skill/custom commands.
+2026-03-02T12:18:39.935Z [gateway] signal SIGTERM received
+2026-03-02T12:18:39.936Z [gateway] received SIGTERM; shutting down
+2026-03-02T12:18:39.938Z [gateway] signal SIGTERM received
+2026-03-02T12:18:39.938Z [gateway] received SIGTERM during shutdown; ignoring
+2026-03-02T12:18:40.023Z [gmail-watcher] gmail watcher stopped
+│
+◇  Doctor warnings ───────────────────────────────────────╮
+│                                                         │
+│  - State dir migration skipped: target already exists   │
+│    (/Users/hazar/.openclaw). Remove or merge manually.  │
+│                                                         │
+├─────────────────────────────────────────────────────────╯
+│
+◇  Doctor warnings ────────────────────────────────────────────────────────╮
+│                                                                          │
+│  - channels.telegram.groupPolicy is "allowlist" but groupAllowFrom (and  │
+│    allowFrom) is empty — all group messages will be silently dropped.    │
+│    Add sender IDs to channels.telegram.groupAllowFrom or                 │
+│    channels.telegram.allowFrom, or set groupPolicy to "open".            │
+│                                                                          │
+├──────────────────────────────────────────────────────────────────────────╯
+2026-03-02T12:19:43.520Z [canvas] host mounted at http://127.0.0.1:18789/__openclaw__/canvas/ (root /Users/hazar/.openclaw/canvas)
+2026-03-02T12:19:43.748Z [heartbeat] started
+2026-03-02T12:19:43.751Z [health-monitor] started (interval: 300s, grace: 60s)
+2026-03-02T12:19:43.754Z [gateway] agent model: anthropic/claude-sonnet-4-6
+2026-03-02T12:19:43.755Z [gateway] listening on ws://127.0.0.1:18789, ws://[::1]:18789 (PID 26972)
+2026-03-02T12:19:43.756Z [gateway] log file: /tmp/openclaw/openclaw-2026-03-02.log
+2026-03-02T12:19:43.770Z [browser/server] Chrome extension relay init failed for profile "chrome": Error: extension relay requires gateway auth token (set gateway.auth.token or OPENCLAW_GATEWAY_TOKEN)
+2026-03-02T12:19:43.770Z [browser/server] Browser control listening on http://127.0.0.1:18791/ (auth=password)
+2026-03-02T12:19:43.980Z [hooks:loader] Registered hook: boot-md -> gateway:startup
+2026-03-02T12:19:43.989Z [hooks:loader] Registered hook: bootstrap-extra-files -> agent:bootstrap
+2026-03-02T12:19:43.991Z [hooks:loader] Registered hook: command-logger -> command
+2026-03-02T12:19:43.997Z [hooks:loader] Registered hook: session-memory -> command:new, command:reset
+2026-03-02T12:19:43.998Z [hooks] loaded 4 internal hook handlers
+2026-03-02T12:19:44.524Z [telegram] [default] starting provider (@hazarclawbot)
+2026-03-02T12:19:44.535Z [telegram] autoSelectFamily=true (default-node22)
+2026-03-02T12:19:44.536Z [telegram] dnsResultOrder=ipv4first (default-node22)
+2026-03-02T12:19:44.783Z [telegram] limits bots to 100 commands. 117 configured; registering first 100. Use channels.telegram.commands.native: false to disable, or reduce plugin/skill/custom commands.
+2026-03-02T12:19:45.178Z [telegram] setMyCommands failed: Call to 'setMyCommands' failed! (400: Bad Request: BOT_COMMANDS_TOO_MUCH)
+2026-03-02T12:19:45.181Z [telegram] rejected 100 commands (BOT_COMMANDS_TOO_MUCH); retrying with 80.
+2026-03-02T12:19:45.219Z [gateway] signal SIGTERM received
+2026-03-02T12:19:45.221Z [gateway] received SIGTERM; shutting down
+2026-03-02T12:19:45.222Z [gateway] signal SIGTERM received
+2026-03-02T12:19:45.223Z [gateway] received SIGTERM during shutdown; ignoring
+2026-03-02T12:19:45.245Z [gmail-watcher] gmail watcher stopped
+│
+◇  Doctor warnings ───────────────────────────────────────╮
+│                                                         │
+│  - State dir migration skipped: target already exists   │
+│    (/Users/hazar/.openclaw). Remove or merge manually.  │
+│                                                         │
+├─────────────────────────────────────────────────────────╯
+│
+◇  Doctor warnings ────────────────────────────────────────────────────────╮
+│                                                                          │
+│  - channels.telegram.groupPolicy is "allowlist" but groupAllowFrom (and  │
+│    allowFrom) is empty — all group messages will be silently dropped.    │
+│    Add sender IDs to channels.telegram.groupAllowFrom or                 │
+│    channels.telegram.allowFrom, or set groupPolicy to "open".            │
+│                                                                          │
+├──────────────────────────────────────────────────────────────────────────╯
+2026-03-02T12:20:48.553Z [canvas] host mounted at http://127.0.0.1:18789/__openclaw__/canvas/ (root /Users/hazar/.openclaw/canvas)
+2026-03-02T12:20:48.769Z [heartbeat] started
+2026-03-02T12:20:48.771Z [health-monitor] started (interval: 300s, grace: 60s)
+2026-03-02T12:20:48.773Z [gateway] agent model: anthropic/claude-sonnet-4-6
+2026-03-02T12:20:48.774Z [gateway] listening on ws://127.0.0.1:18789, ws://[::1]:18789 (PID 27059)
+2026-03-02T12:20:48.775Z [gateway] log file: /tmp/openclaw/openclaw-2026-03-02.log
+2026-03-02T12:20:48.794Z [browser/server] Chrome extension relay init failed for profile "chrome": Error: extension relay requires gateway auth token (set gateway.auth.token or OPENCLAW_GATEWAY_TOKEN)
+2026-03-02T12:20:48.795Z [browser/server] Browser control listening on http://127.0.0.1:18791/ (auth=password)
+2026-03-02T12:20:48.990Z [hooks:loader] Registered hook: boot-md -> gateway:startup
+2026-03-02T12:20:48.998Z [hooks:loader] Registered hook: bootstrap-extra-files -> agent:bootstrap
+2026-03-02T12:20:49.005Z [hooks:loader] Registered hook: command-logger -> command
+2026-03-02T12:20:49.009Z [hooks:loader] Registered hook: session-memory -> command:new, command:reset
+2026-03-02T12:20:49.010Z [hooks] loaded 4 internal hook handlers
+2026-03-02T12:20:49.592Z [telegram] [default] starting provider (@hazarclawbot)
+2026-03-02T12:20:49.605Z [telegram] autoSelectFamily=true (default-node22)
+2026-03-02T12:20:49.607Z [telegram] dnsResultOrder=ipv4first (default-node22)
+2026-03-02T12:20:49.864Z [telegram] limits bots to 100 commands. 117 configured; registering first 100. Use channels.telegram.commands.native: false to disable, or reduce plugin/skill/custom commands.
+2026-03-02T12:20:50.178Z [telegram] setMyCommands failed: Call to 'setMyCommands' failed! (400: Bad Request: BOT_COMMANDS_TOO_MUCH)
+2026-03-02T12:20:50.181Z [telegram] rejected 100 commands (BOT_COMMANDS_TOO_MUCH); retrying with 80.
+2026-03-02T12:20:50.324Z [telegram] setMyCommands failed: Call to 'setMyCommands' failed! (400: Bad Request: BOT_COMMANDS_TOO_MUCH)
+2026-03-02T12:20:50.327Z [telegram] rejected 80 commands (BOT_COMMANDS_TOO_MUCH); retrying with 64.
+2026-03-02T12:20:50.359Z [gateway] signal SIGTERM received
+2026-03-02T12:20:50.360Z [gateway] received SIGTERM; shutting down
+2026-03-02T12:20:50.362Z [gateway] signal SIGTERM received
+2026-03-02T12:20:50.364Z [gateway] received SIGTERM during shutdown; ignoring
+2026-03-02T12:20:50.389Z [gmail-watcher] gmail watcher stopped
+│
+◇  Doctor warnings ───────────────────────────────────────╮
+│                                                         │
+│  - State dir migration skipped: target already exists   │
+│    (/Users/hazar/.openclaw). Remove or merge manually.  │
+│                                                         │
+├─────────────────────────────────────────────────────────╯
+│
+◇  Doctor warnings ────────────────────────────────────────────────────────╮
+│                                                                          │
+│  - channels.telegram.groupPolicy is "allowlist" but groupAllowFrom (and  │
+│    allowFrom) is empty — all group messages will be silently dropped.    │
+│    Add sender IDs to channels.telegram.groupAllowFrom or                 │
+│    channels.telegram.allowFrom, or set groupPolicy to "open".            │
+│                                                                          │
+├──────────────────────────────────────────────────────────────────────────╯
+2026-03-02T12:21:53.776Z [canvas] host mounted at http://127.0.0.1:18789/__openclaw__/canvas/ (root /Users/hazar/.openclaw/canvas)
+2026-03-02T12:21:54.015Z [heartbeat] started
+2026-03-02T12:21:54.020Z [health-monitor] started (interval: 300s, grace: 60s)
+2026-03-02T12:21:54.021Z [gateway] agent model: anthropic/claude-sonnet-4-6
+2026-03-02T12:21:54.022Z [gateway] listening on ws://127.0.0.1:18789, ws://[::1]:18789 (PID 27148)
+2026-03-02T12:21:54.023Z [gateway] log file: /tmp/openclaw/openclaw-2026-03-02.log
+2026-03-02T12:21:54.038Z [browser/server] Chrome extension relay init failed for profile "chrome": Error: extension relay requires gateway auth token (set gateway.auth.token or OPENCLAW_GATEWAY_TOKEN)
+2026-03-02T12:21:54.039Z [browser/server] Browser control listening on http://127.0.0.1:18791/ (auth=password)
+2026-03-02T12:21:54.248Z [hooks:loader] Registered hook: boot-md -> gateway:startup
+2026-03-02T12:21:54.260Z [hooks:loader] Registered hook: bootstrap-extra-files -> agent:bootstrap
+2026-03-02T12:21:54.263Z [hooks:loader] Registered hook: command-logger -> command
+2026-03-02T12:21:54.267Z [hooks:loader] Registered hook: session-memory -> command:new, command:reset
+2026-03-02T12:21:54.268Z [hooks] loaded 4 internal hook handlers
+2026-03-02T12:21:54.834Z [telegram] [default] starting provider (@hazarclawbot)
+2026-03-02T12:21:54.940Z [telegram] autoSelectFamily=true (default-node22)
+2026-03-02T12:21:54.941Z [telegram] dnsResultOrder=ipv4first (default-node22)
+2026-03-02T12:21:55.155Z [telegram] limits bots to 100 commands. 117 configured; registering first 100. Use channels.telegram.commands.native: false to disable, or reduce plugin/skill/custom commands.
+2026-03-02T12:21:55.600Z [gateway] signal SIGTERM received
+2026-03-02T12:21:55.601Z [gateway] received SIGTERM; shutting down
+2026-03-02T12:21:55.602Z [gateway] signal SIGTERM received
+2026-03-02T12:21:55.603Z [gateway] received SIGTERM during shutdown; ignoring
+2026-03-02T12:21:55.623Z [gmail-watcher] gmail watcher stopped
+│
+◇  Doctor warnings ───────────────────────────────────────╮
+│                                                         │
+│  - State dir migration skipped: target already exists   │
+│    (/Users/hazar/.openclaw). Remove or merge manually.  │
+│                                                         │
+├─────────────────────────────────────────────────────────╯
+│
+◇  Doctor warnings ────────────────────────────────────────────────────────╮
+│                                                                          │
+│  - channels.telegram.groupPolicy is "allowlist" but groupAllowFrom (and  │
+│    allowFrom) is empty — all group messages will be silently dropped.    │
+│    Add sender IDs to channels.telegram.groupAllowFrom or                 │
+│    channels.telegram.allowFrom, or set groupPolicy to "open".            │
+│                                                                          │
+├──────────────────────────────────────────────────────────────────────────╯
+2026-03-02T12:22:57.796Z [canvas] host mounted at http://127.0.0.1:18789/__openclaw__/canvas/ (root /Users/hazar/.openclaw/canvas)
+2026-03-02T12:22:58.021Z [heartbeat] started
+2026-03-02T12:22:58.026Z [health-monitor] started (interval: 300s, grace: 60s)
+2026-03-02T12:22:58.028Z [gateway] agent model: anthropic/claude-sonnet-4-6
+2026-03-02T12:22:58.029Z [gateway] listening on ws://127.0.0.1:18789, ws://[::1]:18789 (PID 27262)
+2026-03-02T12:22:58.030Z [gateway] log file: /tmp/openclaw/openclaw-2026-03-02.log
+2026-03-02T12:22:58.040Z [browser/server] Chrome extension relay init failed for profile "chrome": Error: extension relay requires gateway auth token (set gateway.auth.token or OPENCLAW_GATEWAY_TOKEN)
+2026-03-02T12:22:58.041Z [browser/server] Browser control listening on http://127.0.0.1:18791/ (auth=password)
+2026-03-02T12:22:58.237Z [hooks:loader] Registered hook: boot-md -> gateway:startup
+2026-03-02T12:22:58.245Z [hooks:loader] Registered hook: bootstrap-extra-files -> agent:bootstrap
+2026-03-02T12:22:58.251Z [hooks:loader] Registered hook: command-logger -> command
+2026-03-02T12:22:58.255Z [hooks:loader] Registered hook: session-memory -> command:new, command:reset
+2026-03-02T12:22:58.256Z [hooks] loaded 4 internal hook handlers
+2026-03-02T12:22:58.841Z [telegram] [default] starting provider (@hazarclawbot)
+2026-03-02T12:22:58.851Z [telegram] autoSelectFamily=true (default-node22)
+2026-03-02T12:22:58.853Z [telegram] dnsResultOrder=ipv4first (default-node22)
+2026-03-02T12:22:59.065Z [telegram] limits bots to 100 commands. 117 configured; registering first 100. Use channels.telegram.commands.native: false to disable, or reduce plugin/skill/custom commands.
+2026-03-02T12:22:59.615Z [telegram] setMyCommands failed: Call to 'setMyCommands' failed! (400: Bad Request: BOT_COMMANDS_TOO_MUCH)
+2026-03-02T12:22:59.617Z [telegram] rejected 100 commands (BOT_COMMANDS_TOO_MUCH); retrying with 80.
+2026-03-02T12:22:59.989Z [telegram] setMyCommands failed: Call to 'setMyCommands' failed! (400: Bad Request: BOT_COMMANDS_TOO_MUCH)
+2026-03-02T12:22:59.992Z [telegram] rejected 80 commands (BOT_COMMANDS_TOO_MUCH); retrying with 64.
+2026-03-02T12:23:00.879Z [gateway] signal SIGTERM received
+2026-03-02T12:23:00.880Z [gateway] received SIGTERM; shutting down
+2026-03-02T12:23:00.883Z [gateway] signal SIGTERM received
+2026-03-02T12:23:00.884Z [gateway] received SIGTERM during shutdown; ignoring
+2026-03-02T12:23:00.911Z [gmail-watcher] gmail watcher stopped
+│
+◇  Doctor warnings ───────────────────────────────────────╮
+│                                                         │
+│  - State dir migration skipped: target already exists   │
+│    (/Users/hazar/.openclaw). Remove or merge manually.  │
+│                                                         │
+├─────────────────────────────────────────────────────────╯
+│
+◇  Doctor warnings ────────────────────────────────────────────────────────╮
+│                                                                          │
+│  - channels.telegram.groupPolicy is "allowlist" but groupAllowFrom (and  │
+│    allowFrom) is empty — all group messages will be silently dropped.    │
+│    Add sender IDs to channels.telegram.groupAllowFrom or                 │
+│    channels.telegram.allowFrom, or set groupPolicy to "open".            │
+│                                                                          │
+├──────────────────────────────────────────────────────────────────────────╯
+2026-03-02T12:24:04.453Z [canvas] host mounted at http://127.0.0.1:18789/__openclaw__/canvas/ (root /Users/hazar/.openclaw/canvas)
+2026-03-02T12:24:04.710Z [heartbeat] started
+2026-03-02T12:24:04.714Z [health-monitor] started (interval: 300s, grace: 60s)
+2026-03-02T12:24:04.716Z [gateway] agent model: anthropic/claude-sonnet-4-6
+2026-03-02T12:24:04.717Z [gateway] listening on ws://127.0.0.1:18789, ws://[::1]:18789 (PID 27353)
+2026-03-02T12:24:04.717Z [gateway] log file: /tmp/openclaw/openclaw-2026-03-02.log
+2026-03-02T12:24:04.734Z [browser/server] Chrome extension relay init failed for profile "chrome": Error: extension relay requires gateway auth token (set gateway.auth.token or OPENCLAW_GATEWAY_TOKEN)
+2026-03-02T12:24:04.735Z [browser/server] Browser control listening on http://127.0.0.1:18791/ (auth=password)
+2026-03-02T12:24:04.934Z [hooks:loader] Registered hook: boot-md -> gateway:startup
+2026-03-02T12:24:04.940Z [hooks:loader] Registered hook: bootstrap-extra-files -> agent:bootstrap
+2026-03-02T12:24:04.948Z [hooks:loader] Registered hook: command-logger -> command
+2026-03-02T12:24:04.953Z [hooks:loader] Registered hook: session-memory -> command:new, command:reset
+2026-03-02T12:24:04.954Z [hooks] loaded 4 internal hook handlers
+2026-03-02T12:24:05.507Z [telegram] [default] starting provider (@hazarclawbot)
+2026-03-02T12:24:05.516Z [telegram] autoSelectFamily=true (default-node22)
+2026-03-02T12:24:05.518Z [telegram] dnsResultOrder=ipv4first (default-node22)
+2026-03-02T12:24:05.762Z [telegram] limits bots to 100 commands. 117 configured; registering first 100. Use channels.telegram.commands.native: false to disable, or reduce plugin/skill/custom commands.
+2026-03-02T12:24:06.017Z [gateway] signal SIGTERM received
+2026-03-02T12:24:06.018Z [gateway] received SIGTERM; shutting down
+2026-03-02T12:24:06.041Z [gmail-watcher] gmail watcher stopped
+2026-03-02T12:24:06.042Z [gateway] signal SIGTERM received
+2026-03-02T12:24:06.043Z [gateway] received SIGTERM during shutdown; ignoring
+│
+◇  Doctor warnings ───────────────────────────────────────╮
+│                                                         │
+│  - State dir migration skipped: target already exists   │
+│    (/Users/hazar/.openclaw). Remove or merge manually.  │
+│                                                         │
+├─────────────────────────────────────────────────────────╯
+│
+◇  Doctor warnings ────────────────────────────────────────────────────────╮
+│                                                                          │
+│  - channels.telegram.groupPolicy is "allowlist" but groupAllowFrom (and  │
+│    allowFrom) is empty — all group messages will be silently dropped.    │
+│    Add sender IDs to channels.telegram.groupAllowFrom or                 │
+│    channels.telegram.allowFrom, or set groupPolicy to "open".            │
+│                                                                          │
+├──────────────────────────────────────────────────────────────────────────╯
+2026-03-02T12:25:09.558Z [canvas] host mounted at http://127.0.0.1:18789/__openclaw__/canvas/ (root /Users/hazar/.openclaw/canvas)
+2026-03-02T12:25:09.803Z [heartbeat] started
+2026-03-02T12:25:09.805Z [health-monitor] started (interval: 300s, grace: 60s)
+2026-03-02T12:25:09.809Z [gateway] agent model: anthropic/claude-sonnet-4-6
+2026-03-02T12:25:09.810Z [gateway] listening on ws://127.0.0.1:18789, ws://[::1]:18789 (PID 27456)
+2026-03-02T12:25:09.810Z [gateway] log file: /tmp/openclaw/openclaw-2026-03-02.log
+2026-03-02T12:25:09.827Z [browser/server] Chrome extension relay init failed for profile "chrome": Error: extension relay requires gateway auth token (set gateway.auth.token or OPENCLAW_GATEWAY_TOKEN)
+2026-03-02T12:25:09.828Z [browser/server] Browser control listening on http://127.0.0.1:18791/ (auth=password)
+2026-03-02T12:25:10.023Z [hooks:loader] Registered hook: boot-md -> gateway:startup
+2026-03-02T12:25:10.031Z [hooks:loader] Registered hook: bootstrap-extra-files -> agent:bootstrap
+2026-03-02T12:25:10.040Z [hooks:loader] Registered hook: command-logger -> command
+2026-03-02T12:25:10.047Z [hooks:loader] Registered hook: session-memory -> command:new, command:reset
+2026-03-02T12:25:10.048Z [hooks] loaded 4 internal hook handlers
+2026-03-02T12:25:10.611Z [telegram] [default] starting provider (@hazarclawbot)
+2026-03-02T12:25:10.622Z [telegram] autoSelectFamily=true (default-node22)
+2026-03-02T12:25:10.624Z [telegram] dnsResultOrder=ipv4first (default-node22)
+2026-03-02T12:25:10.873Z [telegram] limits bots to 100 commands. 117 configured; registering first 100. Use channels.telegram.commands.native: false to disable, or reduce plugin/skill/custom commands.
+2026-03-02T12:25:11.139Z [gateway] signal SIGTERM received
+2026-03-02T12:25:11.140Z [gateway] received SIGTERM; shutting down
+2026-03-02T12:25:11.147Z [gateway] signal SIGTERM received
+2026-03-02T12:25:11.148Z [gateway] received SIGTERM during shutdown; ignoring
+2026-03-02T12:25:11.169Z [gmail-watcher] gmail watcher stopped
+│
+◇  Doctor warnings ───────────────────────────────────────╮
+│                                                         │
+│  - State dir migration skipped: target already exists   │
+│    (/Users/hazar/.openclaw). Remove or merge manually.  │
+│                                                         │
+├─────────────────────────────────────────────────────────╯
+│
+◇  Doctor warnings ────────────────────────────────────────────────────────╮
+│                                                                          │
+│  - channels.telegram.groupPolicy is "allowlist" but groupAllowFrom (and  │
+│    allowFrom) is empty — all group messages will be silently dropped.    │
+│    Add sender IDs to channels.telegram.groupAllowFrom or                 │
+│    channels.telegram.allowFrom, or set groupPolicy to "open".            │
+│                                                                          │
+├──────────────────────────────────────────────────────────────────────────╯
+2026-03-02T12:26:14.538Z [canvas] host mounted at http://127.0.0.1:18789/__openclaw__/canvas/ (root /Users/hazar/.openclaw/canvas)
+2026-03-02T12:26:14.790Z [heartbeat] started
+2026-03-02T12:26:14.795Z [health-monitor] started (interval: 300s, grace: 60s)
+2026-03-02T12:26:14.797Z [gateway] agent model: anthropic/claude-sonnet-4-6
+2026-03-02T12:26:14.798Z [gateway] listening on ws://127.0.0.1:18789, ws://[::1]:18789 (PID 27569)
+2026-03-02T12:26:14.799Z [gateway] log file: /tmp/openclaw/openclaw-2026-03-02.log
+2026-03-02T12:26:14.809Z [browser/server] Chrome extension relay init failed for profile "chrome": Error: extension relay requires gateway auth token (set gateway.auth.token or OPENCLAW_GATEWAY_TOKEN)
+2026-03-02T12:26:14.809Z [browser/server] Browser control listening on http://127.0.0.1:18791/ (auth=password)
+2026-03-02T12:26:15.011Z [hooks:loader] Registered hook: boot-md -> gateway:startup
+2026-03-02T12:26:15.023Z [hooks:loader] Registered hook: bootstrap-extra-files -> agent:bootstrap
+2026-03-02T12:26:15.025Z [hooks:loader] Registered hook: command-logger -> command
+2026-03-02T12:26:15.030Z [hooks:loader] Registered hook: session-memory -> command:new, command:reset
+2026-03-02T12:26:15.030Z [hooks] loaded 4 internal hook handlers
+2026-03-02T12:26:15.670Z [telegram] [default] starting provider (@hazarclawbot)
+2026-03-02T12:26:15.674Z [telegram] autoSelectFamily=true (default-node22)
+2026-03-02T12:26:15.675Z [telegram] dnsResultOrder=ipv4first (default-node22)
+2026-03-02T12:26:15.884Z [telegram] limits bots to 100 commands. 117 configured; registering first 100. Use channels.telegram.commands.native: false to disable, or reduce plugin/skill/custom commands.
+2026-03-02T12:26:16.423Z [diagnostic] lane task error: lane=cron durationMs=280 error="FailoverError: Unknown model: anthropic/claude-sonnet-4-5-20250514"
+2026-03-02T12:26:16.424Z [diagnostic] lane task error: lane=session:agent:main:cron:80296f7e-414a-436e-9e9d-79103870db75 durationMs=283 error="FailoverError: Unknown model: anthropic/claude-sonnet-4-5-20250514"
+2026-03-02T12:26:16.436Z [gateway] signal SIGTERM received
+2026-03-02T12:26:16.437Z [gateway] received SIGTERM; shutting down
+2026-03-02T12:26:16.439Z [gateway] signal SIGTERM received
+2026-03-02T12:26:16.440Z [gateway] received SIGTERM during shutdown; ignoring
+2026-03-02T12:26:16.459Z [gmail-watcher] gmail watcher stopped
+│
+◇  Doctor warnings ───────────────────────────────────────╮
+│                                                         │
+│  - State dir migration skipped: target already exists   │
+│    (/Users/hazar/.openclaw). Remove or merge manually.  │
+│                                                         │
+├─────────────────────────────────────────────────────────╯
+│
+◇  Doctor warnings ────────────────────────────────────────────────────────╮
+│                                                                          │
+│  - channels.telegram.groupPolicy is "allowlist" but groupAllowFrom (and  │
+│    allowFrom) is empty — all group messages will be silently dropped.    │
+│    Add sender IDs to channels.telegram.groupAllowFrom or                 │
+│    channels.telegram.allowFrom, or set groupPolicy to "open".            │
+│                                                                          │
+├──────────────────────────────────────────────────────────────────────────╯
+2026-03-02T12:27:19.653Z [canvas] host mounted at http://127.0.0.1:18789/__openclaw__/canvas/ (root /Users/hazar/.openclaw/canvas)
+2026-03-02T12:27:19.868Z [heartbeat] started
+2026-03-02T12:27:19.871Z [health-monitor] started (interval: 300s, grace: 60s)
+2026-03-02T12:27:19.873Z [gateway] agent model: anthropic/claude-sonnet-4-6
+2026-03-02T12:27:19.873Z [gateway] listening on ws://127.0.0.1:18789, ws://[::1]:18789 (PID 27661)
+2026-03-02T12:27:19.874Z [gateway] log file: /tmp/openclaw/openclaw-2026-03-02.log
+2026-03-02T12:27:19.889Z [browser/server] Chrome extension relay init failed for profile "chrome": Error: extension relay requires gateway auth token (set gateway.auth.token or OPENCLAW_GATEWAY_TOKEN)
+2026-03-02T12:27:19.889Z [browser/server] Browser control listening on http://127.0.0.1:18791/ (auth=password)
+2026-03-02T12:27:20.123Z [hooks:loader] Registered hook: boot-md -> gateway:startup
+2026-03-02T12:27:20.135Z [hooks:loader] Registered hook: bootstrap-extra-files -> agent:bootstrap
+2026-03-02T12:27:20.139Z [hooks:loader] Registered hook: command-logger -> command
+2026-03-02T12:27:20.144Z [hooks:loader] Registered hook: session-memory -> command:new, command:reset
+2026-03-02T12:27:20.145Z [hooks] loaded 4 internal hook handlers
+2026-03-02T12:27:20.706Z [telegram] [default] starting provider (@hazarclawbot)
+2026-03-02T12:27:20.716Z [telegram] autoSelectFamily=true (default-node22)
+2026-03-02T12:27:20.718Z [telegram] dnsResultOrder=ipv4first (default-node22)
+2026-03-02T12:27:20.966Z [telegram] limits bots to 100 commands. 117 configured; registering first 100. Use channels.telegram.commands.native: false to disable, or reduce plugin/skill/custom commands.
+2026-03-02T12:27:21.257Z [telegram] setMyCommands failed: Call to 'setMyCommands' failed! (400: Bad Request: BOT_COMMANDS_TOO_MUCH)
+2026-03-02T12:27:21.259Z [telegram] rejected 100 commands (BOT_COMMANDS_TOO_MUCH); retrying with 80.
+2026-03-02T12:27:21.404Z [telegram] setMyCommands failed: Call to 'setMyCommands' failed! (400: Bad Request: BOT_COMMANDS_TOO_MUCH)
+2026-03-02T12:27:21.407Z [telegram] rejected 80 commands (BOT_COMMANDS_TOO_MUCH); retrying with 64.
+2026-03-02T12:27:21.713Z [gateway] signal SIGTERM received
+2026-03-02T12:27:21.714Z [gateway] received SIGTERM; shutting down
+2026-03-02T12:27:21.716Z [gateway] signal SIGTERM received
+2026-03-02T12:27:21.717Z [gateway] received SIGTERM during shutdown; ignoring
+2026-03-02T12:27:21.740Z [gmail-watcher] gmail watcher stopped
+│
+◇  Doctor warnings ───────────────────────────────────────╮
+│                                                         │
+│  - State dir migration skipped: target already exists   │
+│    (/Users/hazar/.openclaw). Remove or merge manually.  │
+│                                                         │
+├─────────────────────────────────────────────────────────╯
+│
+◇  Doctor warnings ────────────────────────────────────────────────────────╮
+│                                                                          │
+│  - channels.telegram.groupPolicy is "allowlist" but groupAllowFrom (and  │
+│    allowFrom) is empty — all group messages will be silently dropped.    │
+│    Add sender IDs to channels.telegram.groupAllowFrom or                 │
+│    channels.telegram.allowFrom, or set groupPolicy to "open".            │
+│                                                                          │
+├──────────────────────────────────────────────────────────────────────────╯
+2026-03-02T12:30:25.322Z [canvas] host mounted at http://127.0.0.1:18789/__openclaw__/canvas/ (root /Users/hazar/.openclaw/canvas)
+2026-03-02T12:30:25.549Z [heartbeat] started
+2026-03-02T12:30:25.551Z [health-monitor] started (interval: 300s, grace: 60s)
+2026-03-02T12:30:25.553Z [gateway] agent model: anthropic/claude-sonnet-4-6
+2026-03-02T12:30:25.554Z [gateway] listening on ws://127.0.0.1:18789, ws://[::1]:18789 (PID 28045)
+2026-03-02T12:30:25.557Z [gateway] log file: /tmp/openclaw/openclaw-2026-03-02.log
+2026-03-02T12:30:25.566Z [gateway] removed stale session lock: /Users/hazar/.openclaw/agents/main/sessions/c53bd2d5-6307-42aa-bf77-41af30cb6660.jsonl.lock (dead-pid)
+2026-03-02T12:30:25.573Z [browser/server] Chrome extension relay init failed for profile "chrome": Error: extension relay requires gateway auth token (set gateway.auth.token or OPENCLAW_GATEWAY_TOKEN)
+2026-03-02T12:30:25.574Z [browser/server] Browser control listening on http://127.0.0.1:18791/ (auth=password)
+2026-03-02T12:30:25.790Z [hooks:loader] Registered hook: boot-md -> gateway:startup
+2026-03-02T12:30:25.796Z [hooks:loader] Registered hook: bootstrap-extra-files -> agent:bootstrap
+2026-03-02T12:30:25.803Z [hooks:loader] Registered hook: command-logger -> command
+2026-03-02T12:30:25.808Z [hooks:loader] Registered hook: session-memory -> command:new, command:reset
+2026-03-02T12:30:25.809Z [hooks] loaded 4 internal hook handlers
+2026-03-02T12:30:26.346Z [telegram] [default] starting provider (@hazarclawbot)
+2026-03-02T12:30:26.357Z [telegram] autoSelectFamily=true (default-node22)
+2026-03-02T12:30:26.358Z [telegram] dnsResultOrder=ipv4first (default-node22)
+2026-03-02T12:30:26.562Z [telegram] limits bots to 100 commands. 117 configured; registering first 100. Use channels.telegram.commands.native: false to disable, or reduce plugin/skill/custom commands.
+2026-03-02T12:30:27.103Z [telegram] setMyCommands failed: Call to 'setMyCommands' failed! (400: Bad Request: BOT_COMMANDS_TOO_MUCH)
+2026-03-02T12:30:27.103Z [telegram] rejected 100 commands (BOT_COMMANDS_TOO_MUCH); retrying with 80.
+2026-03-02T12:30:27.105Z [gateway] signal SIGTERM received
+2026-03-02T12:30:27.105Z [gateway] received SIGTERM; shutting down
+2026-03-02T12:30:27.106Z [gateway] signal SIGTERM received
+2026-03-02T12:30:27.106Z [gateway] received SIGTERM during shutdown; ignoring
+2026-03-02T12:30:27.120Z [gmail-watcher] gmail watcher stopped

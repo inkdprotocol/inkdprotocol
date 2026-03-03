@@ -1,5 +1,5 @@
 {
-  "lastUpdated": "2026-03-03T03:21:00+04:00",
+  "lastUpdated": "2026-03-03T05:26:00+04:00",
   "version": "0.9.x",
   "tasks": [
     {
@@ -61,15 +61,45 @@
       "result": "SDK tests: 255 → 271 (+16). All 271 passing. encryption.ts: 52.94% → 100% stmts/branch/funcs/lines. Overall SDK coverage: 93.48% → 94.24%. Contracts: 159/159 passing."
     },
     {
-      "id": "branch-coverage-gaps",
+      "id": "test-inkdclient-connect-arweave",
       "priority": 7,
       "status": "done",
-      "title": "Plug branch coverage gaps — 96.37% → 99.2% branches",
-      "description": "No pending tasks. Audited all uncovered branches: (1) multicall.ts coerceResult non-Error error path (string/number/undefined); (2) ProjectRegistry extractProjectIdFromLogs catch block for invalid BigInt topic; (3) InkdClient extractAllTokenIdsFromLogs + extractInscriptionIndexFromLogs + extractTokenIdFromLogs catch blocks; (4) arweave.ts dead-branch fix: data instanceof Uint8Array always true for Buffer|Uint8Array (Buffer extends Uint8Array), replaced with Buffer.isBuffer() so both branches are reachable and covered.",
-      "completedAt": "2026-03-03T03:21:00+04:00",
-      "commit": "e27e4af",
-      "result": "SDK tests: 271 → 282 (+11). All 282 passing. Branch coverage: 96.37% → 99.2%. multicall.ts + ProjectRegistry.ts + arweave.ts all at 100% branch coverage. Contracts: 159/159 passing."
+      "title": "InkdClient.ts → 100% coverage via connectArweave test suite",
+      "description": "InkdClient.ts lines 81-91 (connectArweave method) and line 169 (Buffer vs Uint8Array branch) were uncovered. Added InkdClient.connectArweave.test.ts with 10 tests using vi.hoisted() to mock ArweaveClient. Covers: default args, custom irysUrl, custom gateway, both overrides, resolve/reject paths, multi-call, Buffer vs Uint8Array branch. Also updated ROADMAP.md to reflect actual test count (292) and mark SDK v0.2 event + batch reads as done.",
+      "completedAt": "2026-03-03T03:50:00+04:00",
+      "commit": "71d2ad5",
+      "result": "SDK tests: 271 → 292 (+10 connectArweave + 1 Uint8Array branch). InkdClient.ts: 97.92%/98.68% → 100%/100% all metrics. Overall SDK coverage: 94.24% → 94.54% (index.ts barrel excluded). Contracts: 159/159 passing. ROADMAP: Phase 0 test count updated, Phase 2 SDK v0.2 items marked ✅."
+    },
+    {
+      "id": "docs-sdk-v02-reference",
+      "priority": 8,
+      "status": "done",
+      "title": "SDK_REFERENCE.md — document events.ts and multicall.ts (SDK v0.2)",
+      "description": "events.ts and multicall.ts added in SDK v0.2 tasks (priorities 4+5) were implemented and tested but had zero documentation in SDK_REFERENCE.md. Added full Event Subscriptions section (watchProjectCreated, watchVersionPushed, watchRegistryEvents) and Batch Reads (Multicall) section (batchGetProjects, batchGetVersions, batchGetFees, batchGetProjectsWithVersions). Each function documented with signature, parameter table, type definitions, and runnable examples. Updated ToC and Changelog table. Also added CHANGELOG.md v0.10.1 entry summarising all test coverage work from this session.",
+      "completedAt": "2026-03-03T04:18:00+04:00",
+      "commit": "714ae7e",
+      "result": "SDK_REFERENCE.md: +349 lines (7 new API docs). CHANGELOG.md: v0.10.1 entry added. 292 SDK + 159 contracts = 451 tests, all passing. Quality gate: ✅"
+    },
+    {
+      "id": "test-cli-token",
+      "priority": 9,
+      "status": "done",
+      "title": "CLI token.ts test suite — 0% → 98.5% coverage, 42 tests",
+      "description": "token.ts (392 lines) had 0% coverage across all 5 subcommands (balance, allowance, approve, transfer, info) plus router. Added comprehensive test suite with mocked viem clients, dynamic viem/accounts import, and process.exit guard. Fixed formatEther formatting differences (this viem version returns '7' not '7.0' for whole numbers) and error-mock-before-process.exit edge cases.",
+      "completedAt": "2026-03-03T04:53:00+04:00",
+      "commit": "45ce6e7",
+      "result": "CLI tests: 156 → 198 (+42). token.ts: 0% → 98.5% stmts / 100% funcs / 95.45% branches. All 198 CLI + 292 SDK + 159 contracts = 649 tests passing. Quality gate: ✅"
+    },
+    {
+      "id": "test-watch-ts",
+      "priority": 10,
+      "status": "done",
+      "title": "watch.ts test suite — 0% → 100% coverage, 48 tests",
+      "description": "watch.ts (195 lines) had 0% coverage due to its infinite while(true) polling loop. Added 48-test suite using a global.setTimeout spy (breakLoopAfter helper) that throws a sentinel error after N calls, terminating the loop without fake-timer complexity. Key insight: decodeEventLog is called twice per log (outer filter check + renderEvent), requiring persistent .mockReturnValue mocks. Covers all 8 event types, JSON mode, filter exclusion, poll error handling, lastBlock advancement, multiple-log batches.",
+      "completedAt": "2026-03-03T05:26:00+04:00",
+      "commit": "14699d1",
+      "result": "CLI tests: 198 → 246 (+48). watch.ts: 0% → 100% stmts/funcs/lines, 95.55% branches. All 246 CLI + 292 SDK + 159 contracts = 697 tests passing. Quality gate: ✅"
     }
   ],
-  "notes": "File auto-created 2026-03-03. inkd-autonomous.json was missing; initialized with current state based on git log and ROADMAP.md."
+  "notes": "All non-blocked tasks done. Blocked: React hooks (needs jsdom/testing-library). Remaining 0% CLI files: agentd.ts (daemon/long-running process, hard to unit test), index.ts (CLI entry dispatcher, expected). watch.ts now at 100%. SDK all source files at 100% except index.ts barrel. Next meaningful work: agentd.ts daemon tests (complex: spawns child process, manages PID file, long-running)."
 }

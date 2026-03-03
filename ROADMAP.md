@@ -25,7 +25,7 @@ Core protocol, tooling, and infrastructure — fully shipped.
 |------|--------|
 | Smart contracts (InkdToken, InkdRegistry, InkdTreasury) | ✅ |
 | TypeScript SDK (`@inkd/sdk`) — full client, AgentMemory, Arweave, encryption | ✅ |
-| **292-test SDK suite** (vitest) — unit, integration, advanced, error, encryption, ProjectRegistry, events, multicall, connectArweave | ✅ |
+| **153-test SDK suite** (vitest) — unit, integration, advanced, error, encryption, ProjectRegistry | ✅ |
 | **159-test contract suite** (Foundry) — unit, fuzz, invariant, UUPS upgrade | ✅ |
 | Fuzz tests (13) + Invariant tests (6) | ✅ |
 | Security review (internal) — re-entrancy, access control, upgrade safety | ✅ |
@@ -63,14 +63,14 @@ Deploy to mainnet. Establish presence.
 
 ---
 
-## Phase 2 — Ecosystem 🔄 *Q2 2026*
+## Phase 2 — Ecosystem 📅 *Q2 2026*
 
 Grow usage. Build community. Improve UX.
 
 | Item | Status | Notes |
 |------|--------|-------|
-| **SDK v0.2** — event subscriptions, watch mode | ✅ | `watchProjectCreated`, `watchVersionPushed`, `watchRegistryEvents` — 33 tests |
-| **SDK v0.2** — batch reads (multi-project fetch) | ✅ | Multicall3: `batchGetProjects`, `batchGetVersions`, `batchGetFees`, `batchGetProjectsWithVersions` — 28 tests |
+| **SDK v0.2** — event subscriptions, watch mode | 📅 | viem `watchEvent` wrappers |
+| **SDK v0.2** — batch reads (multi-project fetch) | 📅 | Multicall3 integration |
 | **Arweave bundler integration** — push content + register in one call | 📅 | |
 | **Project explorer** (web UI) — browse all registered projects | 📅 | On website |
 | **Analytics dashboard** — protocol stats, volume, top projects | 📅 | Powered by subgraph |
