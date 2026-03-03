@@ -675,3 +675,50 @@ describe("cmdProjectGet — optional fields", () => {
     expect(logged).toMatch(/Agent endpoint/i);
   });
 });
+
+// ─── Branch-coverage gap: cmdProjectGet description/visibility (project.ts:130-135) ──
+
+describe("cmdProjectGet — description and visibility branches", () => {
+  let consoleLog: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    consoleLog = vi.spyOn(console, "log").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(process, "exit").mockImplementation(
+      (_code?: number | string | null | undefined) => {
+        throw new Error("process.exit");
+      }
+    );
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("shows 'none' placeholder when project description is empty (|| right branch)", async () => {
+    mockReadContract = vi
+      .fn()
+      .mockResolvedValueOnce(makeProject({ description: "" }))
+      .mockResolvedValueOnce([]); // collaborators
+
+    const { cmdProjectGet } = await import("../commands/project.js");
+    await cmdProjectGet(["1"]);
+
+    const logged = consoleLog.mock.calls.map((c: unknown[]) => c.join(" ")).join("\n");
+    expect(logged).toMatch(/none/i);
+  });
+
+  it("shows 'private' when project is not public (isPublic ternary false branch)", async () => {
+    mockReadContract = vi
+      .fn()
+      .mockResolvedValueOnce(makeProject({ isPublic: false }))
+      .mockResolvedValueOnce([]); // collaborators
+
+    const { cmdProjectGet } = await import("../commands/project.js");
+    await cmdProjectGet(["1"]);
+
+    const logged = consoleLog.mock.calls.map((c: unknown[]) => c.join(" ")).join("\n");
+    expect(logged).toMatch(/private/i);
+  });
+});

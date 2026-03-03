@@ -288,3 +288,42 @@ describe("cmdSearch", () => {
     (ADDRESSES as Record<string, Record<string, string>>).testnet.registry = orig;
   });
 });
+
+// ─── Branch-coverage gap: non-JSON agentEndpoint display (search.ts:161) ─────
+
+describe("cmdSearch — non-JSON display with agentEndpoint", () => {
+  let consoleLog: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    consoleLog = vi.spyOn(console, "log").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(process, "exit").mockImplementation(
+      (_code?: number | string | null | undefined) => {
+        throw new Error("process.exit");
+      }
+    );
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("renders agentEndpoint inline when project has one (plain/non-JSON mode)", async () => {
+    const project = makeProject({
+      name: "endpoint-agent",
+      isAgent: true,
+      agentEndpoint: "https://my-agent.example.io/rpc",
+    });
+    mockReadContract
+      .mockResolvedValueOnce(1n)           // totalProjects
+      .mockResolvedValueOnce(project);     // getProject(1)
+
+    const { cmdSearch } = await import("../commands/search.js");
+    // No --json flag → plain display path
+    await cmdSearch(["endpoint-agent"]);
+
+    const logged = consoleLog.mock.calls.flat().join(" ");
+    expect(logged).toContain("https://my-agent.example.io/rpc");
+  });
+});

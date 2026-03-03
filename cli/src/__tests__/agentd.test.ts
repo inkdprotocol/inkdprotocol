@@ -696,3 +696,93 @@ describe("cmdAgentd — default subcommand (no args = start)", () => {
     processOnSpy.mockRestore();
   });
 });
+
+// ─── Branch-coverage gap tests ───────────────────────────────────────────────
+
+describe("cmdAgentd — loadState() catch branch (corrupt JSON)", () => {
+  beforeEach(() => {
+    setupConsoleMocks();
+    vi.clearAllMocks();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    delete process.env["INKD_AGENT_NAME"];
+  });
+
+  it("returns null (falls back to fresh state) when state file contains corrupt JSON", async () => {
+    const { cmdAgentd } = await import("../commands/agentd.js");
+
+    // existsSync → true but readFileSync returns invalid JSON → catch → null → fresh state
+    mockExistsSync.mockReturnValue(true);
+    mockReadFileSync.mockReturnValue("{not-valid-json:::");
+    mockReadContract.mockResolvedValue([makeOnChainAgent()]);
+    mockGetBalance.mockResolvedValue(BigInt("1000000000000000000"));
+    process.env["INKD_AGENT_NAME"] = "test-agent";
+
+    vi.spyOn(global, "setInterval").mockImplementation(() => 42 as unknown as ReturnType<typeof setInterval>);
+    vi.spyOn(global, "clearInterval").mockImplementation(() => {});
+    vi.spyOn(process, "on").mockImplementation((_e: string) => process);
+
+    // Should NOT throw — corrupt file is silently ignored, daemon starts fresh
+    await expect(cmdAgentd(["start", "--once", "--dry-run"])).resolves.toBeUndefined();
+    // writeFileSync called once to save state (proves we reached the end of the cycle)
+    expect(mockWriteFileSync).toHaveBeenCalled();
+  });
+
+  it("shows 'no state found' warning when state file contains corrupt JSON (status command)", async () => {
+    const { cmdAgentd } = await import("../commands/agentd.js");
+
+    mockExistsSync.mockReturnValue(true);
+    mockReadFileSync.mockReturnValue("{bad json");
+    const warnMock = vi.fn();
+    const { warn } = await import("../config.js");
+    (warn as Mock).mockImplementation(warnMock);
+
+    await cmdAgentd(["status"]);
+
+    // loadState() returns null → status prints "no state" warning
+    expect(warnMock).toHaveBeenCalled();
+  });
+});
+
+describe("cmdAgentd — setInterval callback body (lines 387-389)", () => {
+  beforeEach(() => {
+    setupConsoleMocks();
+    vi.clearAllMocks();
+    process.env["INKD_AGENT_NAME"] = "test-agent";
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    delete process.env["INKD_AGENT_NAME"];
+  });
+
+  it("executes the setInterval callback (cycle + info log) in plain mode", async () => {
+    const { cmdAgentd } = await import("../commands/agentd.js");
+
+    let capturedCallback: (() => Promise<void>) | null = null;
+    vi.spyOn(global, "setInterval").mockImplementation((fn) => {
+      capturedCallback = fn as () => Promise<void>;
+      return 42 as unknown as ReturnType<typeof setInterval>;
+    });
+    vi.spyOn(global, "clearInterval").mockImplementation(() => {});
+    vi.spyOn(process, "on").mockImplementation((_e: string) => process);
+
+    mockExistsSync.mockReturnValue(false);
+    // Two resolved values: one for the initial cycle, one for the callback invocation
+    mockReadContract
+      .mockResolvedValueOnce([makeOnChainAgent()])  // initial cycle
+      .mockResolvedValueOnce([makeOnChainAgent()]); // timer callback cycle
+    mockGetBalance.mockResolvedValue(BigInt("1000000000000000000"));
+
+    // Run in plain mode (no --json, no --quiet) so lines 387-389 are exercised
+    await cmdAgentd(["start", "--dry-run"]);
+
+    expect(capturedCallback).not.toBeNull();
+    // Invoke the timer callback — covers lines 387-389
+    await capturedCallback!();
+
+    const { info } = await import("../config.js");
+    // info() should have been called for the "Next sync in …s" message
+    expect(info as Mock).toHaveBeenCalled();
+  });
+});
