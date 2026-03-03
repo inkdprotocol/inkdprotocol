@@ -164,6 +164,45 @@ Tweets staged for posting. Score threshold: >7/10. Format: one tweet per entry.
 
 ## Queue
 
+<!-- CYCLE: 2026-03-04 00:01 GST — Learning Loop #2 -->
+
+### Tweet 4
+**Score: 8.5/10**
+**Source:** arxiv.org/abs/2601.04583 — "Autonomous Agents on Blockchains" (Jan 8, 2026) — research roadmap gap: verifiable policy enforcement
+
+> 2026 research gap on autonomous agents + blockchains: "verifiable policy enforcement."
+>
+> what that means in practice: anyone can claim an agent was authorized to act. almost nobody can prove it.
+>
+> authorization without proof is a claim, not a record. the proof layer is what's missing.
+
+---
+
+### Tweet 5
+**Score: 8/10**
+**Source:** arxiv.org/abs/2601.04583 — agent-mediated interaction requires L2; L2 "not a peripheral detail"
+
+> the autonomous agents survey makes a point most people miss: l2 scaling is critical infrastructure for agent-mediated interaction — not an optimization.
+>
+> agents need sub-second finality. they can't block on l1 settlement mid-task.
+>
+> execution needs speed. ownership records need permanence. those are different layers for a reason.
+
+---
+
+### Tweet 6
+**Score: 8/10**
+**Source:** arxiv.org/abs/2601.04583 — tokenization primitives: programmable custody, transfer constraints, fungible/non-fungible ownership models
+
+> tokenization is usually about assets. the next problem is authorship.
+>
+> same primitives: on-chain registration, transfer constraints, programmable custody.
+> different subject: the code an agent writes, not the token it holds.
+>
+> the infrastructure exists. the registry doesn't.
+
+---
+
 <!-- CYCLE: 2026-03-03 12:21 AST — Learning Loop #1 -->
 
 ### Tweet 1
