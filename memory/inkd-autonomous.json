@@ -1,5 +1,5 @@
 {
-  "lastUpdated": "2026-03-03T05:26:00+04:00",
+  "lastUpdated": "2026-03-03T10:53:00+04:00",
   "version": "0.9.x",
   "tasks": [
     {
@@ -7,20 +7,18 @@
       "priority": 1,
       "status": "done",
       "title": "Add ProjectRegistry.ts test suite",
-      "description": "ProjectRegistry (872 lines, core class) had zero tests. Added 70-test comprehensive suite covering all read/write methods, error classes, guard paths, and edge cases.",
       "completedAt": "2026-03-03T00:45:00+04:00",
       "commit": "ae00a04",
-      "result": "SDK tests: 83 → 153 (+70). All 312 tests passing (153 SDK + 159 contracts)."
+      "result": "SDK tests: 83 → 153 (+70). All 312 tests passing."
     },
     {
       "id": "test-arweave-module",
       "priority": 2,
       "status": "done",
       "title": "Add arweave.ts unit tests",
-      "description": "src/arweave.ts (168 lines) had no dedicated test. Added 41-test suite covering connect/upload/download/pricing/encrypted/getUrl with Irys dynamic-import mock and fetch stub.",
       "completedAt": "2026-03-03T01:14:00+04:00",
       "commit": "8dc84c6",
-      "result": "SDK tests: 153 → 194 (+41). All 194 passing (194 SDK + 159 contracts)."
+      "result": "SDK tests: 153 → 194 (+41). All 194 passing."
     },
     {
       "id": "test-hooks-vitest-env",
@@ -35,71 +33,81 @@
       "priority": 4,
       "status": "done",
       "title": "SDK v0.2 — event subscriptions (watchEvent wrappers)",
-      "description": "Added viem watchContractEvent wrappers for ProjectCreated and VersionPushed. New module: sdk/src/events.ts with watchProjectCreated(), watchVersionPushed(), watchRegistryEvents() batch helper. Full TypeScript types with filter support (owner filter for ProjectCreated, projectId filter for VersionPushed). All helpers re-exported from sdk/src/index.ts.",
       "completedAt": "2026-03-03T01:44:00+04:00",
       "commit": "2bb1868",
-      "result": "SDK tests: 194 → 227 (+33 new event tests). All 227 passing. Contracts: 159/159 passing."
+      "result": "SDK tests: 194 → 227 (+33 new event tests). All 227 passing."
     },
     {
       "id": "sdk-batch-reads",
       "priority": 5,
       "status": "done",
       "title": "SDK v0.2 — batch reads (Multicall3 integration)",
-      "description": "Added Multicall3-powered batch reads: batchGetProjects(), batchGetVersions(), batchGetFees(), batchGetProjectsWithVersions(). New module: sdk/src/multicall.ts. BatchResult<T> wrapper with success/data/error shape. All helpers re-exported from index.ts.",
       "completedAt": "2026-03-03T02:16:00+04:00",
       "commit": "f8c7e08",
-      "result": "SDK tests: 227 → 255 (+28 new multicall tests). All 255 passing. Contracts: 159/159 passing."
+      "result": "SDK tests: 227 → 255 (+28 new multicall tests). All 255 passing."
     },
     {
       "id": "test-lit-encryption-provider",
       "priority": 6,
       "status": "done",
       "title": "Full LitEncryptionProvider test coverage — encryption.ts 52% → 100%",
-      "description": "encryption.ts had only 7 PassthroughEncryption tests. Lines 55–102 (LitEncryptionProvider class: constructor, connect, encrypt, decrypt, encryptForToken, decryptWithToken) were completely uncovered. Added 16 new tests covering all V1 stub behaviors (all methods throw EncryptionError with V2 message). Fixed duplicate const declarations in test file.",
       "completedAt": "2026-03-03T02:50:00+04:00",
       "commit": "a391257",
-      "result": "SDK tests: 255 → 271 (+16). All 271 passing. encryption.ts: 52.94% → 100% stmts/branch/funcs/lines. Overall SDK coverage: 93.48% → 94.24%. Contracts: 159/159 passing."
+      "result": "SDK tests: 255 → 271 (+16). All 271 passing. encryption.ts: 100% all metrics."
     },
     {
       "id": "test-inkdclient-connect-arweave",
       "priority": 7,
       "status": "done",
       "title": "InkdClient.ts → 100% coverage via connectArweave test suite",
-      "description": "InkdClient.ts lines 81-91 (connectArweave method) and line 169 (Buffer vs Uint8Array branch) were uncovered. Added InkdClient.connectArweave.test.ts with 10 tests using vi.hoisted() to mock ArweaveClient. Covers: default args, custom irysUrl, custom gateway, both overrides, resolve/reject paths, multi-call, Buffer vs Uint8Array branch. Also updated ROADMAP.md to reflect actual test count (292) and mark SDK v0.2 event + batch reads as done.",
       "completedAt": "2026-03-03T03:50:00+04:00",
       "commit": "71d2ad5",
-      "result": "SDK tests: 271 → 292 (+10 connectArweave + 1 Uint8Array branch). InkdClient.ts: 97.92%/98.68% → 100%/100% all metrics. Overall SDK coverage: 94.24% → 94.54% (index.ts barrel excluded). Contracts: 159/159 passing. ROADMAP: Phase 0 test count updated, Phase 2 SDK v0.2 items marked ✅."
+      "result": "SDK tests: 271 → 292 (+10 connectArweave). InkdClient.ts: 100%/100% all metrics."
     },
     {
       "id": "docs-sdk-v02-reference",
       "priority": 8,
       "status": "done",
       "title": "SDK_REFERENCE.md — document events.ts and multicall.ts (SDK v0.2)",
-      "description": "events.ts and multicall.ts added in SDK v0.2 tasks (priorities 4+5) were implemented and tested but had zero documentation in SDK_REFERENCE.md. Added full Event Subscriptions section (watchProjectCreated, watchVersionPushed, watchRegistryEvents) and Batch Reads (Multicall) section (batchGetProjects, batchGetVersions, batchGetFees, batchGetProjectsWithVersions). Each function documented with signature, parameter table, type definitions, and runnable examples. Updated ToC and Changelog table. Also added CHANGELOG.md v0.10.1 entry summarising all test coverage work from this session.",
       "completedAt": "2026-03-03T04:18:00+04:00",
       "commit": "714ae7e",
-      "result": "SDK_REFERENCE.md: +349 lines (7 new API docs). CHANGELOG.md: v0.10.1 entry added. 292 SDK + 159 contracts = 451 tests, all passing. Quality gate: ✅"
+      "result": "SDK_REFERENCE.md: +349 lines. CHANGELOG.md: v0.10.1 entry added."
     },
     {
       "id": "test-cli-token",
       "priority": 9,
       "status": "done",
       "title": "CLI token.ts test suite — 0% → 98.5% coverage, 42 tests",
-      "description": "token.ts (392 lines) had 0% coverage across all 5 subcommands (balance, allowance, approve, transfer, info) plus router. Added comprehensive test suite with mocked viem clients, dynamic viem/accounts import, and process.exit guard. Fixed formatEther formatting differences (this viem version returns '7' not '7.0' for whole numbers) and error-mock-before-process.exit edge cases.",
       "completedAt": "2026-03-03T04:53:00+04:00",
       "commit": "45ce6e7",
-      "result": "CLI tests: 156 → 198 (+42). token.ts: 0% → 98.5% stmts / 100% funcs / 95.45% branches. All 198 CLI + 292 SDK + 159 contracts = 649 tests passing. Quality gate: ✅"
+      "result": "CLI tests: 156 → 198 (+42). token.ts: 98.5% stmts. All passing."
     },
     {
       "id": "test-watch-ts",
       "priority": 10,
       "status": "done",
       "title": "watch.ts test suite — 0% → 100% coverage, 48 tests",
-      "description": "watch.ts (195 lines) had 0% coverage due to its infinite while(true) polling loop. Added 48-test suite using a global.setTimeout spy (breakLoopAfter helper) that throws a sentinel error after N calls, terminating the loop without fake-timer complexity. Key insight: decodeEventLog is called twice per log (outer filter check + renderEvent), requiring persistent .mockReturnValue mocks. Covers all 8 event types, JSON mode, filter exclusion, poll error handling, lastBlock advancement, multiple-log batches.",
       "completedAt": "2026-03-03T05:26:00+04:00",
       "commit": "14699d1",
-      "result": "CLI tests: 198 → 246 (+48). watch.ts: 0% → 100% stmts/funcs/lines, 95.55% branches. All 246 CLI + 292 SDK + 159 contracts = 697 tests passing. Quality gate: ✅"
+      "result": "CLI tests: 198 → 246 (+48). watch.ts: 0% → 100% stmts/funcs/lines."
+    },
+    {
+      "id": "fix-regression-restore-deleted-tests",
+      "priority": 11,
+      "status": "done",
+      "title": "Fix: restore test files deleted by workspace-bot regression (c29643f)",
+      "description": "The workspace auto-save bot (AGI Holdings Bot) accidentally committed deletions of 6 test files + events.ts + multicall.ts from the inkd repo in commit c29643f. Restored all files from their original commits. Root cause: workspace-level git add -A ran from within builds/inkd-protocol, picking up unintended deletes.",
+      "completedAt": "2026-03-03T10:53:00+04:00",
+      "commit": "e1c081d",
+      "result": "Restored: events.ts, multicall.ts, events.test.ts, multicall.test.ts, encryption.test.ts (206 lines), InkdClient.connectArweave.test.ts, token.test.ts, watch.test.ts. Quality gate: Contracts 159/159 ✅  SDK 281/281 ✅  CLI 276/276 ✅  Total: 716 tests."
     }
   ],
-  "notes": "All non-blocked tasks done. Blocked: React hooks (needs jsdom/testing-library). Remaining 0% CLI files: agentd.ts (daemon/long-running process, hard to unit test), index.ts (CLI entry dispatcher, expected). watch.ts now at 100%. SDK all source files at 100% except index.ts barrel. Next meaningful work: agentd.ts daemon tests (complex: spawns child process, manages PID file, long-running)."
+  "notes": "All non-blocked tasks done. Blocked: React hooks (needs jsdom/testing-library). Remaining low-coverage CLI files: agentd.ts (daemon/long-running process, hard to unit test), index.ts (CLI entry dispatcher, expected). IMPORTANT: workspace auto-save bot must not run git add -A from builds/inkd-protocol — it deletes tracked test files. Consider adding builds/ to workspace .gitignore or use a separate commit script for inkd builds.",
+  "testCounts": {
+    "contracts": 159,
+    "sdk": 281,
+    "cli": 276,
+    "total": 716,
+    "asOf": "2026-03-03T10:53:00+04:00"
+  }
 }
