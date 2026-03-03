@@ -262,3 +262,53 @@ describe("cmdAgentLookup", () => {
     expect(mockReadContract).toHaveBeenCalledTimes(4); // 1 count + 3 getProject
   });
 });
+
+// ─── Branch-coverage gap-fills ────────────────────────────────────────────────
+
+describe("cmdAgentList — description truncation (branch coverage)", () => {
+  it("truncates description longer than 70 chars with ellipsis", async () => {
+    const longDesc = "A".repeat(80); // 80 > 70
+    const project = {
+      id: 1n, name: "verbose-agent", description: longDesc,
+      owner: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      agentEndpoint: "", license: "MIT", readmeHash: "",
+      isPublic: true, isAgent: true, createdAt: 1000n,
+      versionCount: 1n, exists: true,
+    };
+    mockReadContract.mockResolvedValueOnce([project]);
+
+    const consoleLog = vi.spyOn(console, "log");
+    const { cmdAgentList } = await import("../commands/agent.js");
+    await cmdAgentList([]);
+
+    const logged = consoleLog.mock.calls.flat().join(" ");
+    expect(logged).toContain("…"); // truncation ellipsis present
+  });
+});
+
+describe("cmdAgentLookup — no endpoint / no description (branch coverage)", () => {
+  it("shows 'none' when agentEndpoint is empty and skips description when absent", async () => {
+    const project = {
+      id: 1n, name: "bare-agent", description: "",
+      owner: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      agentEndpoint: "", license: "MIT", readmeHash: "",
+      isPublic: true, isAgent: true, createdAt: 1000n,
+      versionCount: 2n, exists: true,
+    };
+    mockReadContract
+      .mockResolvedValueOnce(1n)       // projectCount
+      .mockResolvedValueOnce(project); // getProject(1)
+
+    const { info } = await import("../config.js");
+    // Clear accumulated calls from previous tests before asserting
+    (info as Mock).mockClear();
+
+    const { cmdAgentLookup } = await import("../commands/agent.js");
+    await cmdAgentLookup(["bare-agent"]);
+
+    const infoCalls = (info as Mock).mock.calls.flat().join(" ");
+    expect(infoCalls).toContain("none"); // false branch of agentEndpoint || 'none'
+    // description branch (false): info should NOT contain "Desc:" line in THIS call
+    expect(infoCalls).not.toContain("Desc:");
+  });
+});

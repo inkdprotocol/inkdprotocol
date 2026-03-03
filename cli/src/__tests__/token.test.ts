@@ -544,3 +544,30 @@ describe("cmdToken router", () => {
     await expect(cmdToken([])).rejects.toThrow("process.exit");
   });
 });
+
+// ─── Branch-coverage gap-fills (router break statements) ─────────────────────
+
+describe("cmdToken router — approve/transfer break coverage", () => {
+  beforeEach(() => {
+    mockWriteContract.mockResolvedValue(MOCK_TX_HASH);
+    mockWaitForReceipt.mockResolvedValue({ status: "success", blockNumber: 100n });
+  });
+
+  it("routes 'approve' to successful completion (covers break on line 408)", async () => {
+    const { cmdToken } = await import("../commands/token.js");
+    // Successful approve reaches the break after cmdTokenApprove resolves
+    await expect(cmdToken(["approve", "10"])).resolves.toBeUndefined();
+    expect(mockWriteContract).toHaveBeenCalledWith(
+      expect.objectContaining({ functionName: "approve" })
+    );
+  });
+
+  it("routes 'transfer' to successful completion (covers break on line 411)", async () => {
+    const { cmdToken } = await import("../commands/token.js");
+    // Successful transfer reaches the break after cmdTokenTransfer resolves
+    await expect(cmdToken(["transfer", MOCK_RECIPIENT, "1"])).resolves.toBeUndefined();
+    expect(mockWriteContract).toHaveBeenCalledWith(
+      expect.objectContaining({ functionName: "transfer" })
+    );
+  });
+});

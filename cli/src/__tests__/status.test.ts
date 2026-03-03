@@ -214,3 +214,27 @@ describe("cmdStatus", () => {
     expect(infoCalls).toContain("0");
   });
 });
+
+// ─── Branch-coverage gap-fill ─────────────────────────────────────────────────
+
+describe("cmdStatus — treasury empty branch (branch coverage)", () => {
+  it("shows 'not deployed yet' for treasury when treasury address is empty", async () => {
+    const { ADDRESSES } = await import("../config.js");
+    const origTreasury = (ADDRESSES as Record<string, Record<string, string>>).testnet.treasury;
+    (ADDRESSES as Record<string, Record<string, string>>).testnet.treasury = "";
+
+    mockReadContract
+      .mockResolvedValueOnce(0n) // versionFee
+      .mockResolvedValueOnce(0n) // transferFee
+      .mockResolvedValueOnce(0n); // projectCount
+
+    const { cmdStatus } = await import("../commands/status.js");
+    await cmdStatus();
+
+    const { info } = await import("../config.js");
+    const infoCalls = (info as Mock).mock.calls.flat().join(" ");
+    expect(infoCalls).toContain("not deployed yet"); // treasury || 'not deployed yet'
+
+    (ADDRESSES as Record<string, Record<string, string>>).testnet.treasury = origTreasury;
+  });
+});

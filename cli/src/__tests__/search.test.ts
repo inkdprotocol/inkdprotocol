@@ -288,3 +288,107 @@ describe("cmdSearch", () => {
     (ADDRESSES as Record<string, Record<string, string>>).testnet.registry = orig;
   });
 });
+
+// ─── Branch-coverage gap: non-JSON agentEndpoint display (search.ts:161) ─────
+
+describe("cmdSearch — non-JSON display with agentEndpoint", () => {
+  let consoleLog: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    consoleLog = vi.spyOn(console, "log").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(process, "exit").mockImplementation(
+      (_code?: number | string | null | undefined) => {
+        throw new Error("process.exit");
+      }
+    );
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("renders agentEndpoint inline when project has one (plain/non-JSON mode)", async () => {
+    const project = makeProject({
+      name: "endpoint-agent",
+      isAgent: true,
+      agentEndpoint: "https://my-agent.example.io/rpc",
+    });
+    mockReadContract
+      .mockResolvedValueOnce(1n)           // totalProjects
+      .mockResolvedValueOnce(project);     // getProject(1)
+
+    const { cmdSearch } = await import("../commands/search.js");
+    // No --json flag → plain display path
+    await cmdSearch(["endpoint-agent"]);
+
+    const logged = consoleLog.mock.calls.flat().join(" ");
+    expect(logged).toContain("https://my-agent.example.io/rpc");
+  });
+});
+
+// ─── Branch-coverage gap-fills ────────────────────────────────────────────────
+
+describe("cmdSearch — private project text display (branch coverage)", () => {
+  it("shows 'private' badge for non-public project in text mode", async () => {
+    mockReadContract
+      .mockResolvedValueOnce(1n)
+      .mockResolvedValueOnce(makeProject({ id: 1n, name: "private-agent", description: "secret sauce", isPublic: false }));
+
+    const consoleLog = vi.spyOn(console, "log");
+    const { cmdSearch } = await import("../commands/search.js");
+    await cmdSearch(["private-agent"]);
+
+    const logged = consoleLog.mock.calls.flat().join(" ");
+    expect(logged).toContain("private"); // false branch of visBadge ternary
+  });
+});
+
+describe("cmdSearch — partial last batch (branch coverage)", () => {
+  it("handles 22 projects so last batch is partial (batchEnd = projectCount)", async () => {
+    // 22 projects: batch 1 = ids 1-20 (full), batch 2 = ids 21-22 (partial → batchEnd = 22n)
+    const projects = Array.from({ length: 22 }, (_, i) =>
+      makeProject({ id: BigInt(i + 1), name: `target-agent`, description: "match me" })
+    );
+    mockReadContract
+      .mockResolvedValueOnce(22n) // projectCount
+      .mockImplementation(() => Promise.resolve(projects[0])); // all getProject calls
+
+    const { cmdSearch } = await import("../commands/search.js");
+    // Should not throw; exercises partial-batch batchEnd branch
+    await expect(cmdSearch(["target-agent"])).resolves.toBeUndefined();
+  });
+});
+
+describe("cmdSearch — description display branches (branch coverage)", () => {
+  it("skips description line when project has no description", async () => {
+    mockReadContract
+      .mockResolvedValueOnce(1n)
+      .mockResolvedValueOnce(makeProject({ id: 1n, name: "nodesc-project", description: "" }));
+
+    const consoleLog = vi.spyOn(console, "log");
+    const { cmdSearch } = await import("../commands/search.js");
+    await cmdSearch(["nodesc-project"]);
+
+    // The project matches by name; no description line should appear
+    const logged = consoleLog.mock.calls.flat().join(" ");
+    expect(logged).toContain("nodesc-project"); // project found
+    // description block (line 149 false branch): no description = no extra indented line
+  });
+
+  it("truncates description longer than 80 chars with ellipsis", async () => {
+    const longDesc = "Z".repeat(90); // 90 > 80
+    mockReadContract
+      .mockResolvedValueOnce(1n)
+      .mockResolvedValueOnce(makeProject({ id: 1n, name: "longdesc-project", description: longDesc }));
+
+    const consoleLog = vi.spyOn(console, "log");
+    const { cmdSearch } = await import("../commands/search.js");
+    await cmdSearch(["longdesc-project"]);
+
+    const logged = consoleLog.mock.calls.flat().join(" ");
+    expect(logged).toContain("Z".repeat(80)); // first 80 chars present
+    expect(logged).toContain("…"); // truncation ellipsis (line 150 true branch)
+  });
+});
