@@ -480,3 +480,198 @@ describe("cmdProjectCollab", () => {
     ).rejects.toThrow("process.exit");
   });
 });
+
+// ─── Registry-not-configured error paths ─────────────────────────────────────
+
+describe("registry not configured error paths (mainnet)", () => {
+  function setupMocks() {
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(process, "exit").mockImplementation(
+      (_code?: number | string | null | undefined) => {
+        throw new Error("process.exit");
+      }
+    );
+  }
+
+  function mockMainnet() {
+    return {
+      network: "mainnet" as const,
+      privateKey:
+        "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80" as `0x${string}`,
+      rpcUrl: undefined,
+    };
+  }
+
+  beforeEach(() => {
+    setupMocks();
+    mockReadContract = vi.fn();
+    mockWriteContract = vi.fn();
+    mockWaitForReceipt = vi.fn();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("cmdProjectCreate exits when registry not configured", async () => {
+    const { loadConfig } = await import("../config.js");
+    vi.mocked(loadConfig).mockReturnValueOnce(mockMainnet());
+
+    const { cmdProjectCreate } = await import("../commands/project.js");
+    await expect(
+      cmdProjectCreate(["--name", "fail-project"])
+    ).rejects.toThrow("process.exit");
+    expect(mockWriteContract).not.toHaveBeenCalled();
+  });
+
+  it("cmdProjectGet exits when registry not configured", async () => {
+    const { loadConfig } = await import("../config.js");
+    vi.mocked(loadConfig).mockReturnValueOnce(mockMainnet());
+
+    const { cmdProjectGet } = await import("../commands/project.js");
+    await expect(cmdProjectGet(["1"])).rejects.toThrow("process.exit");
+    expect(mockReadContract).not.toHaveBeenCalled();
+  });
+
+  it("cmdProjectList exits when registry not configured", async () => {
+    const { loadConfig } = await import("../config.js");
+    vi.mocked(loadConfig).mockReturnValueOnce(mockMainnet());
+
+    const { cmdProjectList } = await import("../commands/project.js");
+    await expect(cmdProjectList([MOCK_OWNER])).rejects.toThrow("process.exit");
+    expect(mockReadContract).not.toHaveBeenCalled();
+  });
+
+  it("cmdProjectTransfer exits when registry not configured", async () => {
+    const { loadConfig } = await import("../config.js");
+    vi.mocked(loadConfig).mockReturnValueOnce(mockMainnet());
+
+    const { cmdProjectTransfer } = await import("../commands/project.js");
+    await expect(
+      cmdProjectTransfer(["--id", "1", "--to", MOCK_TO])
+    ).rejects.toThrow("process.exit");
+    expect(mockWriteContract).not.toHaveBeenCalled();
+  });
+
+  it("cmdProjectCollab exits when registry not configured", async () => {
+    const { loadConfig } = await import("../config.js");
+    vi.mocked(loadConfig).mockReturnValueOnce(mockMainnet());
+
+    const { cmdProjectCollab } = await import("../commands/project.js");
+    await expect(
+      cmdProjectCollab(["add", "--id", "1", "--address", MOCK_TO])
+    ).rejects.toThrow("process.exit");
+    expect(mockWriteContract).not.toHaveBeenCalled();
+  });
+});
+
+// ─── cmdProjectList — badge coverage ─────────────────────────────────────────
+
+describe("cmdProjectList — badge display", () => {
+  let consoleLog: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    consoleLog = vi.spyOn(console, "log").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(process, "exit").mockImplementation(
+      (_code?: number | string | null | undefined) => {
+        throw new Error("process.exit");
+      }
+    );
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("shows 'agent' badge for agent projects in list", async () => {
+    mockReadContract = vi
+      .fn()
+      .mockResolvedValueOnce([1n]) // getOwnerProjects
+      .mockResolvedValueOnce(makeProject({ isAgent: true, isPublic: true }));
+
+    const { cmdProjectList } = await import("../commands/project.js");
+    await cmdProjectList([MOCK_OWNER]);
+
+    const logged = consoleLog.mock.calls.map((c: unknown[]) => c.join(" ")).join("\n");
+    expect(logged).toMatch(/agent/i);
+  });
+
+  it("shows 'private' badge for private projects in list", async () => {
+    mockReadContract = vi
+      .fn()
+      .mockResolvedValueOnce([1n]) // getOwnerProjects
+      .mockResolvedValueOnce(makeProject({ isAgent: false, isPublic: false }));
+
+    const { cmdProjectList } = await import("../commands/project.js");
+    await cmdProjectList([MOCK_OWNER]);
+
+    const logged = consoleLog.mock.calls.map((c: unknown[]) => c.join(" ")).join("\n");
+    expect(logged).toMatch(/private/i);
+  });
+
+  it("shows both 'agent' and 'private' badges when applicable", async () => {
+    mockReadContract = vi
+      .fn()
+      .mockResolvedValueOnce([1n])
+      .mockResolvedValueOnce(makeProject({ isAgent: true, isPublic: false }));
+
+    const { cmdProjectList } = await import("../commands/project.js");
+    await cmdProjectList([MOCK_OWNER]);
+
+    const logged = consoleLog.mock.calls.map((c: unknown[]) => c.join(" ")).join("\n");
+    expect(logged).toMatch(/agent/i);
+    expect(logged).toMatch(/private/i);
+  });
+});
+
+// ─── cmdProjectGet — optional field display ───────────────────────────────────
+
+describe("cmdProjectGet — optional fields", () => {
+  let consoleLog: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    consoleLog = vi.spyOn(console, "log").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(process, "exit").mockImplementation(
+      (_code?: number | string | null | undefined) => {
+        throw new Error("process.exit");
+      }
+    );
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("shows README hash when project has one", async () => {
+    mockReadContract = vi
+      .fn()
+      .mockResolvedValueOnce(makeProject({ readmeHash: "ar://readmehash123" }))
+      .mockResolvedValueOnce([]);
+
+    const { cmdProjectGet } = await import("../commands/project.js");
+    await cmdProjectGet(["1"]);
+
+    const logged = consoleLog.mock.calls.map((c: unknown[]) => c.join(" ")).join("\n");
+    expect(logged).toMatch(/ar:\/\/readmehash123/);
+    expect(logged).toMatch(/README hash/i);
+  });
+
+  it("shows agent endpoint when project has one", async () => {
+    mockReadContract = vi
+      .fn()
+      .mockResolvedValueOnce(
+        makeProject({ isAgent: true, agentEndpoint: "https://my-agent.xyz/rpc" })
+      )
+      .mockResolvedValueOnce([]);
+
+    const { cmdProjectGet } = await import("../commands/project.js");
+    await cmdProjectGet(["1"]);
+
+    const logged = consoleLog.mock.calls.map((c: unknown[]) => c.join(" ")).join("\n");
+    expect(logged).toMatch(/https:\/\/my-agent\.xyz\/rpc/);
+    expect(logged).toMatch(/Agent endpoint/i);
+  });
+});
