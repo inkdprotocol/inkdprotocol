@@ -1,0 +1,46 @@
+{
+  "name": "@inkd/agentkit",
+  "version": "0.1.0",
+  "description": "Coinbase AgentKit action provider for inkd Protocol — register code on-chain from any AI agent",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "module": "./dist/index.mjs",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "test": "vitest run",
+    "lint": "eslint src"
+  },
+  "keywords": [
+    "inkd",
+    "agentkit",
+    "coinbase",
+    "ai-agents",
+    "on-chain",
+    "registry",
+    "x402",
+    "base"
+  ],
+  "author": "inkd Protocol",
+  "license": "MIT",
+  "peerDependencies": {
+    "@coinbase/agentkit": ">=0.1.0"
+  },
+  "dependencies": {
+    "viem": "^2.0.0",
+    "zod": "^3.0.0"
+  },
+  "devDependencies": {
+    "@coinbase/agentkit": "latest",
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^2.0.0"
+  }
+}
