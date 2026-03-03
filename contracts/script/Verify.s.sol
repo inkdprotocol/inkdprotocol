@@ -36,11 +36,12 @@ import {Script, console} from "forge-std/Script.sol";
 
 contract Verify is Script {
     function run() external view {
-        address token    = vm.envAddress("INKD_TOKEN_ADDRESS");
-        address tImpl    = vm.envAddress("INKD_TREASURY_IMPL");
-        address tProxy   = vm.envAddress("INKD_TREASURY_PROXY");
-        address rImpl    = vm.envAddress("INKD_REGISTRY_IMPL");
-        address rProxy   = vm.envAddress("INKD_REGISTRY_PROXY");
+        address token     = vm.envAddress("INKD_TOKEN_ADDRESS");
+        address tImpl     = vm.envAddress("INKD_TREASURY_IMPL");
+        address tProxy    = vm.envAddress("INKD_TREASURY_PROXY");
+        address rImpl     = vm.envAddress("INKD_REGISTRY_IMPL");
+        address rProxy    = vm.envAddress("INKD_REGISTRY_PROXY");
+        address timelock  = vm.envAddress("INKD_TIMELOCK_ADDRESS");
         string memory apiKey = vm.envString("BASESCAN_API_KEY");
 
         console.log("========================================");
@@ -76,6 +77,15 @@ contract Verify is Script {
             " --watch"
         ));
         console.log("");
+        console.log("# 4. InkdTimelock");
+        console.log(string.concat(
+            "forge verify-contract ", vm.toString(timelock),
+            " src/InkdTimelock.sol:InkdTimelock",
+            " --chain base",
+            " --etherscan-api-key ", apiKey,
+            " --watch"
+        ));
+        console.log("");
         console.log("Proxy addresses (for Basescan UI only):");
         console.log("  InkdTreasury Proxy:", tProxy);
         console.log("  InkdRegistry Proxy:", rProxy);
@@ -84,5 +94,6 @@ contract Verify is Script {
         console.log("  https://basescan.org/address/", vm.toString(token), "#code");
         console.log("  https://basescan.org/address/", vm.toString(tProxy), "#code");
         console.log("  https://basescan.org/address/", vm.toString(rProxy), "#code");
+        console.log("  https://basescan.org/address/", vm.toString(timelock), "#code");
     }
 }
