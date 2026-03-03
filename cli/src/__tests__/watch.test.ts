@@ -638,3 +638,41 @@ describe('getLogs address', () => {
     )
   })
 })
+
+// ─── Branch-coverage gap-fills ────────────────────────────────────────────────
+
+describe('cmdWatch — fromBlock = 0n when latest <= 1000n (branch coverage)', () => {
+  it('sets fromBlock to 0n when latest block is <= 1000n and no --from supplied', async () => {
+    // latest = 500n <= 1000n → fromBlock = 0n (false branch of `latest > 1000n`)
+    // Loop: currentBlock = 600n > 0n → getLogs(fromBlock=1n, toBlock=600n)
+    mockGetBlockNumber
+      .mockResolvedValueOnce(500n)  // initial call (no --from)
+      .mockResolvedValueOnce(600n)  // first loop iteration
+    mockGetLogs.mockResolvedValueOnce([])
+    breakLoopAfter(2)
+    await runWatch([])
+    expect(mockGetLogs).toHaveBeenCalledWith(
+      expect.objectContaining({ fromBlock: 1n, toBlock: 600n })
+    )
+  })
+})
+
+describe('renderEvent — non-JSON catch branch (branch coverage)', () => {
+  it('emits nothing (no raw line) when inner decode fails in non-JSON mode', async () => {
+    // Outer decode succeeds (filter passes), inner decode throws → catch; !jsonMode → no output
+    mockGetBlockNumber.mockResolvedValueOnce(3000n)
+    mockGetLogs.mockResolvedValueOnce([makeLog()])
+    mockDecodeEventLog
+      .mockReturnValueOnce({ eventName: 'ProjectCreated', args: { projectId: 1n, owner: '0xA', name: 'x', isAgent: false } })
+      .mockImplementationOnce(() => { throw new Error('render decode failed') })
+    breakLoopAfter(2)
+    await runWatch(['--from', '2999'])  // non-JSON mode (no --json)
+
+    // No raw/JSON line should have been emitted for the failed decode
+    const logged = (console.log as Mock).mock.calls
+      .map(c => c.map(String).join(''))
+      .join('\n')
+    expect(logged).not.toContain('"raw"')
+    expect(logged).not.toContain('render decode failed')
+  })
+})

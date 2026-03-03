@@ -332,3 +332,144 @@ describe("cmdVersionShow", () => {
     expect(logged).not.toMatch(/Changelog/i);
   });
 });
+
+// ─── Registry-not-configured error paths ─────────────────────────────────────
+
+describe("registry not configured error paths", () => {
+  beforeEach(() => {
+    setupProcessMocks();
+    mockReadContract = vi.fn();
+    mockWriteContract = vi.fn();
+    mockWaitForReceipt = vi.fn();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("cmdVersionPush exits when registry address is not configured (mainnet)", async () => {
+    const { loadConfig } = await import("../config.js");
+    vi.mocked(loadConfig).mockReturnValueOnce({
+      network: "mainnet",
+      privateKey: "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
+      rpcUrl: undefined,
+    } as ReturnType<typeof loadConfig>);
+
+    const { cmdVersionPush } = await import("../commands/version.js");
+    await expect(
+      cmdVersionPush(["--id", "1", "--hash", "abc", "--tag", "v0.1.0"])
+    ).rejects.toThrow("process.exit");
+
+    expect(mockWriteContract).not.toHaveBeenCalled();
+  });
+
+  it("cmdVersionList exits when registry address is not configured (mainnet)", async () => {
+    const { loadConfig } = await import("../config.js");
+    vi.mocked(loadConfig).mockReturnValueOnce({
+      network: "mainnet",
+      privateKey: "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
+      rpcUrl: undefined,
+    } as ReturnType<typeof loadConfig>);
+
+    const { cmdVersionList } = await import("../commands/version.js");
+    await expect(cmdVersionList(["1"])).rejects.toThrow("process.exit");
+
+    expect(mockReadContract).not.toHaveBeenCalled();
+  });
+
+  it("cmdVersionList exits when called with no args (requireFlag fallback)", async () => {
+    mockReadContract = vi.fn().mockResolvedValue(0n);
+    const { cmdVersionList } = await import("../commands/version.js");
+    await expect(cmdVersionList([])).rejects.toThrow("process.exit");
+  });
+
+  it("cmdVersionShow exits when registry address is not configured (mainnet)", async () => {
+    const { loadConfig } = await import("../config.js");
+    vi.mocked(loadConfig).mockReturnValueOnce({
+      network: "mainnet",
+      privateKey: "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
+      rpcUrl: undefined,
+    } as ReturnType<typeof loadConfig>);
+
+    const { cmdVersionShow } = await import("../commands/version.js");
+    await expect(
+      cmdVersionShow(["--id", "1", "--index", "0"])
+    ).rejects.toThrow("process.exit");
+
+    expect(mockReadContract).not.toHaveBeenCalled();
+  });
+});
+
+// ─── Long changelog truncation ────────────────────────────────────────────────
+
+describe("cmdVersionList — long changelog truncation", () => {
+  beforeEach(() => {
+    setupProcessMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("truncates changelog longer than 72 chars with ellipsis", async () => {
+    const longChangelog = "A".repeat(80); // 80 chars > 72 limit
+    mockReadContract = vi
+      .fn()
+      .mockResolvedValueOnce(1n) // getVersionCount
+      .mockResolvedValueOnce(makeVersion({ changelog: longChangelog }));
+
+    const consoleLog = vi.spyOn(console, "log");
+    const { cmdVersionList } = await import("../commands/version.js");
+    await cmdVersionList(["1"]);
+
+    const logged = consoleLog.mock.calls.map((c: unknown[]) => c.join(" ")).join("\n");
+    // Should contain the truncated portion (first 72 chars) and the ellipsis
+    expect(logged).toMatch(/A{72}/);
+    expect(logged).toMatch(/…/);
+  });
+
+  it("does not truncate changelog of exactly 72 chars (all chars present)", async () => {
+    const exactChangelog = "B".repeat(72);
+    mockReadContract = vi
+      .fn()
+      .mockResolvedValueOnce(1n)
+      .mockResolvedValueOnce(makeVersion({ changelog: exactChangelog }));
+
+    const consoleLog = vi.spyOn(console, "log");
+    const { cmdVersionList } = await import("../commands/version.js");
+    await cmdVersionList(["1"]);
+
+    const logged = consoleLog.mock.calls.map((c: unknown[]) => c.join(" ")).join("\n");
+    // All 72 B's should be present (no truncation)
+    expect(logged).toMatch(/B{72}/);
+    // The changelog line itself should not end with an ellipsis after the B's
+    expect(logged).not.toMatch(/B{72}…/);
+  });
+});
+
+// ─── cmdVersionList — empty changelog branch (branch coverage) ────────────────
+
+describe("cmdVersionList — empty changelog (branch coverage)", () => {
+  beforeEach(() => {
+    setupProcessMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("does not print changelog line when changelog is empty in list view", async () => {
+    mockReadContract = vi
+      .fn()
+      .mockResolvedValueOnce(1n) // getVersionCount
+      .mockResolvedValueOnce(makeVersion({ changelog: "" }));
+
+    const consoleLog = vi.spyOn(console, "log");
+    const { cmdVersionList } = await import("../commands/version.js");
+    await cmdVersionList(["1"]);
+
+    const logged = consoleLog.mock.calls.map((c: unknown[]) => c.join(" ")).join("\n");
+    // changelog line (indented with spaces) should NOT appear
+    expect(logged).not.toMatch(/^\s{7}/m);
+  });
+});
