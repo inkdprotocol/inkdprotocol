@@ -159,6 +159,18 @@ describe("loadConfig()", () => {
     const cfg = loadConfig();
     expect(cfg.privateKey).toBe(key);
   });
+
+  it("calls error() when inkd.config.json contains invalid JSON (catch branch)", () => {
+    // Write a malformed JSON file to trigger the catch block on line 31
+    writeFileSync(path.join(tmpDir, "inkd.config.json"), "{ not valid json }", "utf-8");
+    const mockExit = vi.spyOn(process, "exit").mockImplementation(() => {
+      throw new Error("process.exit called");
+    });
+    const mockConsoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    expect(() => loadConfig()).toThrow();
+    mockExit.mockRestore();
+    mockConsoleError.mockRestore();
+  });
 });
 
 // ─── writeConfig ──────────────────────────────────────────────────────────────
