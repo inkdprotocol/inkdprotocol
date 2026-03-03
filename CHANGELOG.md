@@ -6,6 +6,62 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v0.10.2] — 2026-03-03
+
+### Added
+- **`InkdTimelock.sol`** — 48-hour admin timelock for protocol governance
+  - `queueTransaction` / `cancelTransaction` / `executeTransaction` lifecycle
+  - 14-day grace period after `eta`; stale transactions automatically fail
+  - Two-step admin handover (`setPendingAdmin` + `acceptAdmin`)
+  - `receive()` so timelock can forward ETH for fee-paying calls
+  - Replay protection: executed tx hash set to `false`
+  - Recommended ownership target for InkdRegistry and InkdTreasury post-deploy
+- **`InkdTimelock.t.sol`** — 41-test full suite covering all branches
+  - Constructor, receive, setPendingAdmin (4), acceptAdmin (5)
+  - queueTransaction (8): eta boundary, hash return, replay guard
+  - cancelTransaction (4): queued/unqueued, idempotent
+  - executeTransaction (11): too early, stale, success, failure, ETH forward
+  - 3 integration flows: full queue→execute cycle, cancel prevents execution, admin handover
+- **`InkdTestToken.t.sol`** — 27-test suite bringing `InkdTestToken.sol` from 0%→100% coverage
+  - Metadata, supply constants, ERC-20 transfer/approve/transferFrom
+  - ERC-20Burnable (burn, burnFrom), ERC-2612 Permit (domain separator, nonces, gasless approval, replay reverts)
+  - 2 fuzz tests: transfer roundtrip, burn supply
+
+### Documentation
+- **`docs/CONTRACT_REFERENCE.md`** — Full InkdTimelock documentation added
+  - Constants, state variables, constructor, admin handover, transaction lifecycle
+  - Function reference with revert messages, code examples, security property table
+  - InkdTimelock events and errors added to reference tables
+  - Deployment addresses table and constants table updated
+
+### Test Totals (as of 2026-03-03)
+- Contracts: 238 tests (all passing)
+- SDK: 323 tests — 100% stmts/branches/funcs/lines across all 11 files
+- CLI: 351 tests
+- **Total: 912 tests**
+
+---
+
+## [v0.10.1] — 2026-03-03
+
+### Added
+- **SDK v0.2 event subscriptions** (`events.ts`) — `watchProjectCreated`, `watchVersionPushed`, `watchAgentRegistered`, `watchProjectTransferred`, `watchCollaboratorAdded/Removed`, `watchVisibilityChanged`, `watchFeeUpdated` (+33 tests)
+- **SDK v0.2 batch reads** (`multicall.ts`) — Multicall3 integration for parallel on-chain reads: `multicall()`, `getProjectsBatch()`, `getVersionsBatch()`, `coerceResult()` (+28 tests)
+- **`InkdClient.ts`** full coverage via `connectArweave` test suite — 100% all metrics (+10 tests)
+- **`sdk/src/index.ts` InkdClient** — 35 new tests bringing index.ts from 0%→100% coverage
+
+### Improved
+- **CLI branch coverage** — `version.ts` 78%→96%, `project.ts` 84%→98.57%, `agentd.ts` 97.71%→100% stmts, `token.ts` 95.45%→98.48% branch
+- **SDK branch coverage** — `arweave.ts` + `multicall.ts` edge paths: 98.89%→100% (SDK perfect coverage achieved)
+- **CLI `index.ts` router** — 0%→92% coverage (+31 tests)
+- **CLI `watch.ts`** — 0%→100% coverage (+48 tests)
+- **CLI `token.ts`** — 0%→98.5% coverage (+42 tests)
+
+### Documentation
+- **`docs/SDK_REFERENCE.md`** — events.ts and multicall.ts documented (+349 lines)
+
+---
+
 ## [v0.10.0] — 2026-03-02
 
 ### Added

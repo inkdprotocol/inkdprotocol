@@ -5,8 +5,10 @@ Complete reference for all Inkd Protocol smart contracts.
 - **InkdToken** — ERC-20 $INKD token
 - **InkdRegistry** — Project registry
 - **InkdTreasury** — Fee treasury
+- **InkdTimelock** — 48-hour admin timelock
 
-All contracts are deployed as UUPS upgradeable proxies on Base.
+> **Proxy note:** InkdRegistry and InkdTreasury are deployed as UUPS upgradeable proxies.
+> InkdToken and InkdTimelock are non-upgradeable.
 
 ---
 
@@ -15,6 +17,7 @@ All contracts are deployed as UUPS upgradeable proxies on Base.
 - [InkdToken](#inkdtoken)
 - [InkdRegistry](#inkdregistry)
 - [InkdTreasury](#inkdtreasury)
+- [InkdTimelock](#inkdtimelock)
 - [Events](#events)
 - [Errors](#errors)
 - [Constants](#constants)
@@ -441,6 +444,160 @@ Fallback to accept direct ETH transfers (e.g. donations, manual transfers).
 
 ---
 
+## InkdTimelock
+
+**File:** `contracts/src/InkdTimelock.sol`
+**Upgradeable:** No — plain contract
+
+A 48-hour timelock that enforces a mandatory delay on sensitive admin actions (fee changes, ownership transfers, upgrades). Inspired by Compound's Timelock, simplified for Inkd's governance needs.
+
+In production, ownership of `InkdRegistry` and `InkdTreasury` should be transferred to this contract (or a Safe multisig) so that all protocol-level changes go through the queue → wait → execute flow.
+
+### Constants
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `DELAY` | `48 hours` | Minimum wait between queue and execution |
+| `GRACE_PERIOD` | `14 days` | Window after `eta` during which a queued tx may execute; stale after this |
+
+### State Variables
+
+| Variable | Type | Description |
+|----------|------|-------------|
+| `admin` | `address` | Current admin; only address that can queue/cancel/execute |
+| `pendingAdmin` | `address` | Proposed next admin (must call `acceptAdmin()` to confirm) |
+| `queuedTransactions` | `mapping(bytes32 => bool)` | Tracks which tx hashes are queued |
+
+### Constructor
+
+```solidity
+constructor(address admin_)
+```
+
+Sets the initial `admin`. No initialization proxy — deploy directly.
+
+### Admin Handover
+
+Admin handover is a two-step process to prevent fat-finger mistakes:
+
+1. Current admin calls `setPendingAdmin(newAdmin)` — emits `NewPendingAdmin`
+2. `newAdmin` calls `acceptAdmin()` — emits `NewAdmin` and clears `pendingAdmin`
+
+#### `setPendingAdmin(address pendingAdmin_)`
+
+Proposes a new admin. Does not take effect until `acceptAdmin()` is called.
+**Only callable by:** `admin`
+
+```solidity
+timelock.setPendingAdmin(multisigAddress);
+```
+
+#### `acceptAdmin()`
+
+Completes the admin handover. Sets `admin = pendingAdmin`, clears `pendingAdmin`.
+**Only callable by:** `pendingAdmin`
+
+```solidity
+// Call from multisigAddress
+timelock.acceptAdmin();
+```
+
+### Transaction Lifecycle
+
+A "transaction" is any arbitrary call: `(target, value, data, eta)`. The full lifecycle is:
+
+```
+queueTransaction → [wait ≥ DELAY] → executeTransaction
+                ↘ cancelTransaction (any time before execution)
+```
+
+The `txHash` is `keccak256(abi.encode(target, value, data, eta))`.
+
+#### `queueTransaction(address target, uint256 value, bytes data, uint256 eta) → bytes32`
+
+Queues a transaction for future execution.
+
+- `eta` must be at least `block.timestamp + DELAY` (48 hours from now)
+- Returns the `txHash`; store this to later execute or cancel
+
+**Only callable by:** `admin`
+
+**Reverts:** `"InkdTimelock: eta too early"` if `eta < block.timestamp + DELAY`
+
+```solidity
+uint256 eta = block.timestamp + 48 hours + 1 minutes; // safe buffer
+bytes memory callData = abi.encodeWithSignature("setVersionFee(uint256)", 0.002 ether);
+bytes32 txHash = timelock.queueTransaction(address(registry), 0, callData, eta);
+```
+
+#### `cancelTransaction(address target, uint256 value, bytes data, uint256 eta)`
+
+Cancels a queued transaction (sets its hash to `false`). Safe to call even after execution (idempotent).
+
+**Only callable by:** `admin`
+
+```solidity
+timelock.cancelTransaction(address(registry), 0, callData, eta);
+```
+
+#### `executeTransaction(address target, uint256 value, bytes data, uint256 eta) → bytes`
+
+Executes a previously queued transaction.
+
+- `block.timestamp >= eta` (delay has passed)
+- `block.timestamp <= eta + GRACE_PERIOD` (not stale; 14-day window)
+- The tx hash must still be `true` in `queuedTransactions`
+
+**Only callable by:** `admin` (payable — forward ETH via `msg.value`)
+
+**Reverts:**
+- `"InkdTimelock: tx not queued"` — hash not in queue
+- `"InkdTimelock: too early"` — delay not elapsed
+- `"InkdTimelock: tx stale"` — past grace period (14 days after `eta`)
+- `"InkdTimelock: execution failed"` — target call reverted
+
+```solidity
+timelock.executeTransaction{value: 0}(address(registry), 0, callData, eta);
+```
+
+#### `receive() payable`
+
+Accepts ETH so the timelock can fund calls that forward value.
+
+### Example: Changing a Registry Fee
+
+```solidity
+// 1. Encode the call
+bytes memory callData = abi.encodeWithSignature(
+    "setVersionFee(uint256)",
+    0.002 ether
+);
+
+// 2. Queue (must wait 48h)
+uint256 eta = block.timestamp + 2 days + 5 minutes;
+bytes32 txHash = timelock.queueTransaction(
+    address(registry), // target
+    0,                 // value
+    callData,          // data
+    eta                // earliest execution time
+);
+
+// 3. Wait 48 hours, then execute
+timelock.executeTransaction(address(registry), 0, callData, eta);
+```
+
+### Security Properties
+
+| Property | Detail |
+|----------|--------|
+| **No self-upgrade** | Non-upgradeable; admin cannot silently change contract logic |
+| **Replay protection** | Executed txs set hash → false; cannot replay |
+| **Grace period** | Stale txs (>14 days past eta) automatically fail — prevents indefinitely-delayed bombs |
+| **Two-step admin** | `setPendingAdmin` + `acceptAdmin` prevents accidental admin loss |
+| **ETH forwarding** | `receive()` allows the timelock to hold and forward ETH for fee-paying calls |
+
+---
+
 ## Events
 
 ### InkdRegistry Events
@@ -466,6 +623,16 @@ Fallback to accept direct ETH transfers (e.g. donations, manual transfers).
 | `Withdrawn` | `to, amount` | Funds withdrawn by owner |
 | `RegistrySet` | `registry` | Registry address updated |
 | `Received` | `sender, amount` | Direct ETH received |
+
+### InkdTimelock Events
+
+| Event | Parameters | When |
+|-------|------------|------|
+| `NewPendingAdmin` | `newPendingAdmin` | `setPendingAdmin()` called |
+| `NewAdmin` | `newAdmin` | `acceptAdmin()` called — handover complete |
+| `QueueTransaction` | `txHash, target, value, data, eta` | Transaction queued |
+| `CancelTransaction` | `txHash, target, value, data, eta` | Transaction cancelled |
+| `ExecuteTransaction` | `txHash, target, value, data, eta` | Transaction executed |
 
 ---
 
@@ -494,6 +661,20 @@ Fallback to accept direct ETH transfers (e.g. donations, manual transfers).
 | `OnlyRegistry` | `deposit()` called by non-registry address |
 | `TransferFailed` | ETH withdrawal failed |
 
+### InkdTimelock Errors
+
+InkdTimelock uses `require` with string messages (no custom error types):
+
+| Revert Message | Function | Description |
+|----------------|----------|-------------|
+| `"InkdTimelock: caller is not admin"` | all write functions | `msg.sender != admin` |
+| `"InkdTimelock: not pending admin"` | `acceptAdmin` | `msg.sender != pendingAdmin` |
+| `"InkdTimelock: eta too early"` | `queueTransaction` | `eta < block.timestamp + DELAY` |
+| `"InkdTimelock: tx not queued"` | `executeTransaction` | hash not in `queuedTransactions` |
+| `"InkdTimelock: too early"` | `executeTransaction` | `block.timestamp < eta` |
+| `"InkdTimelock: tx stale"` | `executeTransaction` | `block.timestamp > eta + GRACE_PERIOD` |
+| `"InkdTimelock: execution failed"` | `executeTransaction` | target call reverted |
+
 ---
 
 ## Constants
@@ -506,6 +687,8 @@ Fallback to accept direct ETH transfers (e.g. donations, manual transfers).
 | `TOTAL_SUPPLY` | InkdToken | 1,000,000,000 $INKD |
 | Default `versionFee` | InkdRegistry | 0.001 ETH |
 | Default `transferFee` | InkdRegistry | 0.005 ETH |
+| `DELAY` | InkdTimelock | 48 hours |
+| `GRACE_PERIOD` | InkdTimelock | 14 days |
 
 ---
 
@@ -518,6 +701,7 @@ Fallback to accept direct ETH transfers (e.g. donations, manual transfers).
 | InkdToken | TBD | TBD |
 | InkdRegistry Proxy | TBD | TBD |
 | InkdTreasury Proxy | TBD | TBD |
+| InkdTimelock | TBD | TBD |
 
 See [POST_DEPLOY.md](../POST_DEPLOY.md) for the post-deployment verification checklist and Basescan verification steps.
 
@@ -535,7 +719,8 @@ All contracts have been manually reviewed. See [SECURITY_REVIEW.md](../SECURITY_
 - CEI pattern enforced throughout
 - ReentrancyGuard on all ETH-transfer functions
 - UUPS with `onlyOwner` upgrade gate
+- InkdTimelock: 48-hour mandatory delay on all admin actions (non-upgradeable, two-step admin handover)
 
 ---
 
-*Last updated: March 2026*
+*Last updated: March 3, 2026*
