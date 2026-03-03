@@ -1,0 +1,26 @@
+{
+  "name": "@inkd/mcp",
+  "version": "0.1.0",
+  "description": "Model Context Protocol (MCP) server for inkd Protocol — register code on-chain from Claude, Cursor, or any MCP client",
+  "bin": {
+    "inkd-mcp": "./dist/server.js"
+  },
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/server.ts",
+    "start": "node dist/server.js"
+  },
+  "keywords": ["inkd", "mcp", "model-context-protocol", "ai-agents", "base", "x402"],
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "@x402/fetch": "^0.2.0",
+    "viem": "^2.0.0",
+    "zod": "^3.0.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  }
+}
