@@ -8,33 +8,41 @@ How Inkd Protocol is designed, why each component exists, and how they interact.
 
 Inkd Protocol is an **ownership layer** — a permanent, trustless registry where projects and their version history live forever on-chain and on Arweave.
 
-Three contracts on Base. One truth layer on Arweave.
+Four contracts on Base. One truth layer on Arweave.
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                     INKD PROTOCOL                        │
-│                                                           │
-│  ┌──────────────┐    locks      ┌───────────────────┐    │
-│  │  InkdToken   │◄──────────────│   InkdRegistry    │    │
-│  │  (ERC-20)    │  1 $INKD      │  (UUPS Proxy)     │    │
-│  │  1B supply   │               │                   │    │
-│  └──────────────┘               │  createProject()  │    │
-│                                 │  pushVersion()    │────┼──► Arweave
-│                                 │  addCollaborator()│    │    (permanent
-│                                 │  transferProject()│    │     storage)
-│                                 └─────────┬─────────┘    │
-│                                           │              │
-│                                     0.001 ETH            │
-│                                     per version          │
-│                                           │              │
-│                                 ┌─────────▼─────────┐    │
-│                                 │  InkdTreasury     │    │
-│                                 │  (UUPS Proxy)     │    │
-│                                 │                   │    │
-│                                 │  deposit()        │    │
-│                                 │  withdraw()       │    │
-│                                 └───────────────────┘    │
-└─────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│                         INKD PROTOCOL                             │
+│                                                                    │
+│  ┌─────────────────────────────────────────────────────────────┐  │
+│  │                  InkdTimelock (Governance)                   │  │
+│  │  admin (multisig) ──► queueTransaction() ──► executeTransaction() │
+│  │  48h delay + 14-day grace; controls Registry & Treasury      │  │
+│  └───────────────────────────┬─────────────────────────────────┘  │
+│                              │ owns / upgrades                      │
+│            ┌─────────────────┴──────────────┐                      │
+│            ▼                                ▼                       │
+│  ┌──────────────────┐              ┌──────────────────┐            │
+│  │   InkdRegistry   │              │   InkdTreasury   │            │
+│  │   (UUPS Proxy)   │ ─0.001 ETH─► │   (UUPS Proxy)   │            │
+│  │                  │              │                  │            │
+│  │ createProject()  │──────────────┼──► deposit()     │            │
+│  │ pushVersion()    │──Arweave────►│    withdraw()    │            │
+│  │ addCollaborator()│    hash       │                  │            │
+│  │ transferProject()│              └──────────────────┘            │
+│  └────────┬─────────┘                                              │
+│           │ locks 1 $INKD                                           │
+│           ▼                                                         │
+│  ┌──────────────────┐                                              │
+│  │   InkdToken      │                                              │
+│  │   (ERC-20)       │                                              │
+│  │   1B supply      │                                              │
+│  └──────────────────┘                                              │
+└──────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼ pushVersion() content
+                              Arweave Network
+                          (permanent, immutable storage)
 ```
 
 ---
@@ -68,6 +76,27 @@ Simple ETH vault. Upgradeable for future fee distribution models.
 - **Restricted deposit** — only `InkdRegistry` can call `deposit()`; prevents fee bypassing
 - **Owner withdrawal** — ETH sent to a multisig or DAO for protocol operations
 - **Direct receive** — accepts ETH sent directly (for grants, donations)
+
+### InkdTimelock
+
+The governance safety layer. All admin actions on InkdRegistry and InkdTreasury must be routed through this contract after mainnet deploy.
+
+- **48-hour mandatory delay** — every admin transaction must be queued and wait `DELAY` before execution; community has time to react to any proposal
+- **14-day grace period** — a queued transaction that isn't executed within `eta + GRACE_PERIOD` becomes stale and permanently invalid; prevents indefinite queued threats
+- **Two-step admin handover** — `setPendingAdmin` + `acceptAdmin` pattern prevents ownership being accidentally transferred to the wrong address
+- **Replay protection** — every executed transaction hash is permanently set to `false`; identical calls cannot be re-executed without re-queuing
+- **ETH forwarding** — `receive()` allows the timelock to hold and forward ETH for fee-paying calls on InkdRegistry
+- **Inspired by Compound's Timelock** — battle-tested pattern, simplified for Inkd's needs
+
+**Recommended post-deploy ownership transfer:**
+
+```
+InkdRegistry.owner  ──► InkdTimelock
+InkdTreasury.owner  ──► InkdTimelock
+InkdTimelock.admin  ──► Multisig (Safe)
+```
+
+This creates a trust hierarchy: Multisig → Timelock → Protocol, with 48h community review window on all changes.
 
 ---
 
@@ -142,6 +171,35 @@ Current Owner
 ```
 
 **Key property:** The locked $INKD does NOT transfer. It stays locked in InkdRegistry. The project can be sold for any price off-chain (or via a future marketplace contract) while the $INKD lock remains.
+
+---
+
+### Flow 5: Timelock-Controlled Admin Action (e.g. upgrade)
+
+```
+Multisig (InkdTimelock admin)
+    │
+    ├──[1] timelock.queueTransaction(target=registryProxy, value=0, data=upgradeCalldata, eta=now+48h+buffer)
+    │         InkdTimelock:
+    │           ├── Validate eta >= block.timestamp + 48h
+    │           ├── txHash = keccak256(abi.encode(target, value, data, eta))
+    │           ├── queuedTransactions[txHash] = true
+    │           └── emit QueueTransaction(txHash, target, value, data, eta)
+    │
+    │         ⏳  Community has 48h to review the queued calldata
+    │
+    └──[2] (after eta) timelock.executeTransaction(target, value, data, eta)
+              InkdTimelock:
+                ├── Validate queuedTransactions[txHash] == true
+                ├── Validate block.timestamp >= eta
+                ├── Validate block.timestamp <= eta + 14 days (grace period)
+                ├── queuedTransactions[txHash] = false  (replay protection)
+                ├── (bool success,) = target.call{value: value}(data)
+                ├── require(success, "execution failed")
+                └── emit ExecuteTransaction(txHash, target, value, data, eta)
+```
+
+**Key property:** Even if the multisig is compromised, the 48-hour delay gives the community time to detect and react to malicious queued transactions. The stale-tx grace period means old queued calls can't be executed as a delayed surprise attack.
 
 ---
 
@@ -236,7 +294,7 @@ User ──► Proxy (permanent address)
 - More gas efficient per call
 - Implementation can revert upgrades if needed
 
-**Who can upgrade?** Only the `owner` (set in `initialize()`). For production, this should be a multisig or timelock.
+**Who can upgrade?** Only the `owner` (set in `initialize()`). For production, the recommended owner is `InkdTimelock`, which itself is controlled by a multisig. This means every upgrade must be queued through InkdTimelock, giving the community 48 hours to review before any logic change takes effect.
 
 **What stays permanent?**
 - The proxy contract addresses (users always interact with the same address)
@@ -257,8 +315,9 @@ User ──► Proxy (permanent address)
 | Component | Trust Level | Notes |
 |-----------|-------------|-------|
 | InkdToken | Trustless | Immutable, no admin keys |
-| InkdRegistry proxy | Protocol owner | Upgradeable by owner multisig |
-| InkdTreasury proxy | Protocol owner | Upgradeable by owner multisig |
+| InkdRegistry proxy | Protocol owner (via timelock) | Upgradeable by InkdTimelock → multisig; 48h delay on all changes |
+| InkdTreasury proxy | Protocol owner (via timelock) | Upgradeable by InkdTimelock → multisig; 48h delay on all changes |
+| InkdTimelock | Multisig-controlled | Admin is a Safe multisig; two-step handover required |
 | Arweave content | Trustless | Content-addressed, immutable |
 | Project owners | Self-sovereign | Owners control their own projects |
 
@@ -273,6 +332,10 @@ User ──► Proxy (permanent address)
 4. **Collaborators can only push** — collaborators cannot add other collaborators, transfer ownership, or change visibility. Only owners can.
 
 5. **Caps on fees** — `MAX_VERSION_FEE` and `MAX_TRANSFER_FEE` are constants in the implementation. Even if the protocol owner upgrades the logic, they cannot raise fees beyond these caps without a new implementation deployment.
+
+6. **Admin actions are time-delayed** — `InkdTimelock` enforces a mandatory 48-hour queue before any queued transaction can execute. No admin change (fee update, upgrade, withdrawal) can happen faster than 48 hours after being publicly queued on-chain. The 14-day grace period prevents queued transactions from being executed months later as a surprise.
+
+7. **Admin handover requires two transactions** — The `setPendingAdmin` + `acceptAdmin` pattern means a transfer of InkdTimelock admin control always requires explicit acceptance from the new admin address. Typos or wrong addresses cannot silently steal control.
 
 ---
 
@@ -322,12 +385,13 @@ InkdTreasury storage:
 
 ## V2 Roadmap
 
-The following features are planned for future protocol versions:
-
-| Feature | Description |
-|---------|-------------|
-| **Lit Protocol encryption** | Token-gated encrypted inscriptions — only the InkdToken NFT owner can decrypt their data |
-| **On-chain marketplace** | Buy/sell project ownership directly through a registry extension |
-| **Agent discovery indexer** | Off-chain subgraph + API for querying agent projects by capability |
-| **Version attestations** | Third-party auditors can sign and attest to specific version hashes |
-| **DAO governance** | Protocol fee parameters moved to token-holder governance |
+| Feature | Status | Description |
+|---------|--------|-------------|
+| **InkdTimelock** | ✅ Shipped (v0.10.2) | 48h admin timelock for safe governance of InkdRegistry and InkdTreasury |
+| **Lit Protocol encryption** | ✅ Shipped (v0.9.x) | Token-gated encrypted inscriptions via `LitEncryptionProvider` in SDK |
+| **SDK v0.2 event subscriptions** | ✅ Shipped (v0.10.1) | `watchProjectCreated`, `watchVersionPushed`, etc. via `events.ts` |
+| **SDK v0.2 batch reads** | ✅ Shipped (v0.10.1) | Multicall3 integration — `getProjectsBatch()`, `getVersionsBatch()` |
+| **On-chain marketplace** | 🔜 Planned | Buy/sell project ownership directly through a registry extension |
+| **Agent discovery indexer** | 🔜 Planned | Off-chain subgraph + API for querying agent projects by capability |
+| **Version attestations** | 🔜 Planned | Third-party auditors can sign and attest to specific version hashes |
+| **DAO governance** | 🔜 Planned | Protocol fee parameters moved to token-holder governance via InkdTimelock |
