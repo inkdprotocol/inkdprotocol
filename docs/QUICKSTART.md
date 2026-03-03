@@ -1,236 +1,206 @@
-# Inkd Protocol -- Quickstart Guide
+# Inkd Protocol — 5-Minute Quickstart (CLI)
 
-Get up and running with Inkd Protocol in 5 minutes.
+> **The fastest path**: install the CLI, approve one token, register your project on-chain.  
+> SDK path → see [Getting Started](./getting-started.md)
 
 ---
 
 ## Prerequisites
 
-- Node.js >= 18
-- A Base Sepolia wallet with testnet ETH ([faucet](https://www.coinbase.com/faucets/base-ethereum-goerli-faucet))
-- For contract development: [Foundry](https://book.getfoundry.sh/getting-started/installation)
+| Requirement | Notes |
+|-------------|-------|
+| Node.js >= 18 | `node --version` |
+| An EVM wallet | with Base Sepolia ETH + $INKD testnet tokens |
+| Base Sepolia ETH | [Coinbase faucet](https://www.coinbase.com/faucets/base-ethereum-goerli-faucet) |
+| $INKD testnet tokens | Request in [Discord](https://discord.gg/inkd) — or deploy your own via the repo |
 
 ---
 
-## 1. Install the SDK
+## Step 1 — Install the CLI
 
 ```bash
-npm install @inkd/sdk viem
+npm install -g @inkd/cli
+inkd --version
 ```
 
-## 2. Set Up Your Client
+---
+
+## Step 2 — Configure
+
+Set your wallet key and network. **Never store your key in `inkd.config.json`** — use env vars.
+
+```bash
+export INKD_PRIVATE_KEY=0xYOUR_PRIVATE_KEY
+export INKD_NETWORK=testnet          # testnet | mainnet
+```
+
+Verify connectivity:
+
+```bash
+inkd status
+```
+
+Expected output:
+
+```
+  Inkd Protocol Status
+  ────────────────────────────────────────
+  Network:   testnet (Base Sepolia)
+  Registry:  0x...
+  Token:     0x...
+  Treasury:  0x...
+
+  Projects:      42
+  Version fee:   0.001 ETH
+  Transfer fee:  0.005 ETH
+```
+
+---
+
+## Step 3 — Check Your Balance
+
+```bash
+inkd token balance
+```
+
+You need at least **1 $INKD** to create a project. Get your address:
+
+```bash
+inkd token info
+```
+
+---
+
+## Step 4 — Approve the Registry
+
+Before creating a project, approve `InkdRegistry` to pull **1 $INKD** from your wallet.  
+This is a one-time approval (or repeat when creating more projects).
+
+```bash
+inkd token approve 1
+```
+
+Verify the allowance was set:
+
+```bash
+inkd token allowance
+```
+
+---
+
+## Step 5 — Create Your First Project
+
+Registering a project locks **1 $INKD** permanently on-chain. Names are globally unique and immutable — choose carefully.
+
+```bash
+inkd project create \
+  --name my-first-project \
+  --description "My first Inkd project" \
+  --license MIT \
+  --public
+```
+
+For AI agent tools, add `--agent` and optionally `--endpoint`:
+
+```bash
+inkd project create \
+  --name pr-summarizer-v1 \
+  --description "Summarizes GitHub PRs into 3 bullets" \
+  --license MIT \
+  --public \
+  --agent \
+  --endpoint https://api.myagent.xyz/v1/summarize
+```
+
+Verify it was created:
+
+```bash
+inkd project get 1
+```
+
+---
+
+## Step 6 — Push a Version
+
+Each version costs **0.001 ETH** and permanently records an Arweave transaction ID on-chain.  
+You can push from any wallet that is the project owner or a collaborator.
+
+```bash
+inkd version push \
+  --id 1 \
+  --arweave-hash AbcDefGhijklmnopqrstuvwxyz1234567890abc \
+  --tag 1.0.0 \
+  --changelog "Initial release."
+```
+
+> **Don't have an Arweave hash yet?**  
+> Upload your files via [Irys](https://irys.xyz) first, then use the returned transaction ID.
+
+List all versions:
+
+```bash
+inkd version list 1
+```
+
+---
+
+## Step 7 — Monitor Events (optional)
+
+Watch for new projects or version pushes in real time:
+
+```bash
+inkd watch                  # all protocol events
+inkd watch --project 1      # events for project #1 only
+```
+
+---
+
+## What's Locked On-Chain
+
+| Action | Cost | Permanent? |
+|--------|------|-----------|
+| `project create` | 1 $INKD (locked, not burned) | Name + ownership: forever |
+| `version push` | 0.001 ETH → Treasury | Arweave hash: forever |
+| `project transfer` | 0.005 ETH → Treasury | New owner: forever |
+
+The locked $INKD is held by the `InkdRegistry` contract. It is not burned; governance can later define unlock conditions.
+
+---
+
+## SDK Alternative
+
+If you prefer TypeScript over the CLI:
 
 ```typescript
 import { InkdClient } from "@inkd/sdk";
-import { createWalletClient, createPublicClient, http } from "viem";
+import { createWalletClient, http } from "viem";
 import { baseSepolia } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
 
-// Your agent's wallet
-const account = privateKeyToAccount("0xYOUR_PRIVATE_KEY");
-
-const walletClient = createWalletClient({
-  account,
-  chain: baseSepolia,
-  transport: http("https://sepolia.base.org"),
-});
-
-const publicClient = createPublicClient({
-  chain: baseSepolia,
-  transport: http("https://sepolia.base.org"),
-});
-
-// Initialize Inkd (3 contract addresses required)
 const inkd = new InkdClient({
-  tokenAddress: "0xYOUR_INKD_TOKEN",
-  vaultAddress: "0xYOUR_INKD_VAULT",
-  registryAddress: "0xYOUR_INKD_REGISTRY",
-  chainId: 84532, // Base Sepolia
+  walletClient: createWalletClient({
+    account: privateKeyToAccount("0xYOUR_PRIVATE_KEY"),
+    chain: baseSepolia,
+    transport: http(),
+  }),
+  network: "testnet",
 });
 
-inkd.connect(walletClient, publicClient);
+await inkd.approveToken();
+await inkd.createProject({ name: "my-project", description: "...", license: "MIT", isPublic: true });
 ```
 
-## 3. Mint Your InkdToken
-
-Every agent needs an InkdToken to use the protocol. It's your access pass and vessel.
-
-```typescript
-// Mint your InkdToken (pays mint price in ETH)
-const { tokenId, hash } = await inkd.mintToken();
-console.log(`Minted InkdToken #${tokenId}`);
-
-// Check if you hold one
-const isHolder = await inkd.hasInkdToken(account.address);
-console.log(`Is InkdToken holder: ${isHolder}`);
-```
-
-## 4. Inscribe Data
-
-Once you have an InkdToken, inscribe data onto it. Each inscription is stored permanently on Arweave.
-
-```typescript
-// Connect Arweave for file uploads
-await inkd.connectArweave("YOUR_IRYS_PRIVATE_KEY");
-
-// Inscribe a memory onto your token
-const result = await inkd.inscribe(
-  tokenId!,
-  Buffer.from(JSON.stringify({ memory: "I learned TypeScript today" })),
-  { contentType: "application/json", name: "first-memory" }
-);
-
-console.log(`Inscribed at index ${result.inscriptionIndex}`);
-console.log(`Arweave hash: ${result.upload.hash}`);
-```
-
-## 5. Read Your Inscriptions
-
-```typescript
-// Get all inscriptions on your token
-const inscriptions = await inkd.getInscriptions(tokenId!);
-console.log(`Token #${tokenId} has ${inscriptions.length} inscriptions`);
-
-for (const insc of inscriptions) {
-  console.log(`  ${insc.name} (${insc.contentType}) - ${insc.arweaveHash}`);
-}
-
-// Get your token data
-const token = await inkd.getToken(tokenId!);
-console.log(`Owner: ${token.owner}`);
-console.log(`Inscriptions: ${token.inscriptionCount}`);
-```
-
-## 6. Grant Temporary Access
-
-```typescript
-// Give another agent 24-hour access to read your inscriptions
-await inkd.grantAccess(
-  tokenId!,
-  "0xOtherAgentAddress" as `0x${string}`,
-  86400 // 24 hours in seconds
-);
-
-// Revoke access early
-await inkd.revokeAccess(
-  tokenId!,
-  "0xOtherAgentAddress" as `0x${string}`
-);
-```
-
-## 7. Use Agent Memory
-
-```typescript
-import { AgentMemory } from "@inkd/sdk";
-
-const memory = new AgentMemory("my-agent-001", {
-  client: inkd,
-  defaultTokenId: tokenId!,
-});
-
-// Save a memory (inscribed on your InkdToken)
-await memory.save(
-  "learned-typescript",
-  { language: "TypeScript", confidence: 0.85 },
-  { tags: ["programming", "skill"], category: "skill", importance: 80 }
-);
-
-// Search memories
-const skills = memory.search({ category: "skill", minImportance: 50 });
-
-// Checkpoint your brain before risky changes
-const cp = await memory.checkpoint("before-experiment");
-
-// Export your brain
-const brain = memory.exportBrain();
-console.log(`Brain has ${brain.memoryCount} memories`);
-
-// Restore if needed
-memory.restore(cp.id);
-```
-
-## 8. List on Marketplace
-
-```typescript
-// List your token for sale
-await inkd.listForSale(tokenId!, 100000000000000000n); // 0.1 ETH
-
-// Get protocol stats
-const stats = await inkd.getStats();
-console.log(`Total tokens: ${stats.totalTokens}`);
-console.log(`Total inscriptions: ${stats.totalInscriptions}`);
-```
-
----
-
-## React Integration
-
-```tsx
-import { useInkd, useToken, useInscriptions, useInkdHolder } from "@inkd/sdk";
-
-function AgentDashboard() {
-  const { client, connect, mintToken, inscribe } = useInkd({
-    tokenAddress: "0x...",
-    vaultAddress: "0x...",
-    registryAddress: "0x...",
-    chainId: 84532,
-  });
-
-  const { token, loading } = useToken(client, 0n);
-  const { inscriptions } = useInscriptions(client, 0n);
-  const { isHolder } = useInkdHolder(client, "0x...");
-
-  return (
-    <div>
-      {loading ? <p>Loading...</p> : <p>Token #{token?.tokenId.toString()}</p>}
-      <p>Inscriptions: {inscriptions?.length ?? 0}</p>
-      <p>Is holder: {isHolder ? "Yes" : "No"}</p>
-    </div>
-  );
-}
-```
-
----
-
-## Contract Development
-
-### Build & Test
-
-```bash
-cd contracts
-
-# Build
-forge build
-
-# Run all 63 tests
-forge test -vvv
-
-# Test coverage
-forge coverage
-```
-
-### Deploy to Base Sepolia
-
-```bash
-# Set environment variables
-export DEPLOYER_PRIVATE_KEY="0x..."
-export BASE_SEPOLIA_RPC="https://sepolia.base.org"
-export BASESCAN_API_KEY="your-api-key"
-
-# Deploy all 3 contracts with proxies
-forge script script/Deploy.s.sol:Deploy \
-  --rpc-url base_sepolia \
-  --broadcast \
-  --verify \
-  -vvvv
-```
-
-The deploy script outputs proxy addresses for InkdToken, InkdVault, and InkdRegistry.
+Full SDK guide → [Getting Started](./getting-started.md)
 
 ---
 
 ## Next Steps
 
-- Read the [Whitepaper](./WHITEPAPER.md) for the full vision
-- Read the [Architecture](./ARCHITECTURE.md) for technical deep-dive
-- Check out the [API Reference](./API.md) for all SDK methods
+| Resource | What you'll find |
+|----------|-----------------|
+| [CLI Reference](./CLI_REFERENCE.md) | All commands, flags, and JSON output schemas |
+| [SDK Reference](./SDK_REFERENCE.md) | Full `InkdClient` API, events, multicall, encryption |
+| [Contract Reference](./CONTRACT_REFERENCE.md) | Solidity interfaces, errors, events (5 contracts) |
+| [Architecture](./ARCHITECTURE.md) | How InkdRegistry ↔ InkdTreasury ↔ InkdToken interact |
+| [SUBGRAPH.md](../SUBGRAPH.md) | Query project history via The Graph |
+| [Whitepaper](./WHITEPAPER.md) | Full protocol vision and tokenomics |
