@@ -261,7 +261,9 @@ function cmdDaemonPeers(): void {
 // ─── Sub-command: start ───────────────────────────────────────────────────────
 
 export async function cmdAgentd(args: string[]): Promise<void> {
-  const sub = args[0] ?? 'start'
+  // If the first arg is a flag (starts with --) or absent, default to 'start'
+  const isDefaultStart = !args[0] || args[0].startsWith('--')
+  const sub = isDefaultStart ? 'start' : args[0]
 
   if (sub === 'status') { cmdDaemonStatus(); return }
   if (sub === 'peers')  { cmdDaemonPeers();  return }
@@ -270,7 +272,8 @@ export async function cmdAgentd(args: string[]): Promise<void> {
   }
 
   // ─── Parse flags ────────────────────────────────────────────────────────────
-  const remaining  = args.slice(1)
+  // When defaulting to 'start', all args are flags; otherwise skip the sub-command token
+  const remaining  = isDefaultStart ? args : args.slice(1)
   const getFlag    = (f: string): string | undefined => {
     const i = remaining.indexOf(f)
     return i !== -1 && remaining[i + 1] ? remaining[i + 1] : undefined

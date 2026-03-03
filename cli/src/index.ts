@@ -169,7 +169,7 @@ function showHelp(): void {
 
 // ─── Router ───────────────────────────────────────────────────────────────────
 
-async function main(): Promise<void> {
+export async function main(): Promise<void> {
   const [,, cmd, ...rest] = process.argv
 
   if (!cmd || cmd === 'help' || cmd === '--help' || cmd === '-h') {
