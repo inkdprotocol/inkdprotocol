@@ -6,7 +6,7 @@
  * global fetch is stubbed for getFile / downloadData paths.
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { ArweaveClient } from "../arweave";
 import { UploadError } from "../errors";
 

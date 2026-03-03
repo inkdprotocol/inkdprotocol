@@ -46,6 +46,7 @@ import type {
   Transport,
   Log,
 } from "viem";
+import { parseEventLogs } from "viem";
 
 // ─── ABIs ─────────────────────────────────────────────────────────────────────
 
@@ -718,7 +719,7 @@ export class ProjectRegistry {
       value: fee,
     });
 
-    await this.publicClient!.waitForTransactionReceipt({ hash });
+    const receipt = await this.publicClient!.waitForTransactionReceipt({ hash });
     const versionCount = await this.publicClient!.readContract({
       address: this.config.registryAddress,
       abi: INKD_REGISTRY_ABI,

@@ -3,36 +3,8 @@
  * Permanent on-chain project registry on Base
  */
 
-// ─── Event Subscriptions ─────────────────────────────────────────────────────
-export {
-  watchProjectCreated,
-  watchVersionPushed,
-  watchRegistryEvents,
-} from "./events.js";
-export type {
-  ProjectCreatedEvent,
-  VersionPushedEvent,
-  Unwatch,
-  ProjectCreatedFilter,
-  VersionPushedFilter,
-} from "./events.js";
-
-// ─── Batch Reads (Multicall3) ─────────────────────────────────────────────────
-export {
-  batchGetProjects,
-  batchGetVersions,
-  batchGetFees,
-  batchGetProjectsWithVersions,
-} from "./multicall.js";
-export type {
-  ProjectData,
-  VersionData,
-  RegistryFees,
-  BatchResult,
-} from "./multicall.js";
-
 import { 
-  createPublicClient, http, parseEther,
+  createPublicClient, createWalletClient, http, parseEther,
   type PublicClient, type WalletClient, type Address, type Hash
 } from 'viem'
 import { base, baseSepolia } from 'viem/chains'
