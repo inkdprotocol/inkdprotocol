@@ -13,6 +13,7 @@ import { z }      from 'zod'
 import type { Address } from 'viem'
 import { type ApiConfig, ADDRESSES } from '../config.js'
 import { buildPublicClient, buildWalletClient, normalizePrivateKey } from '../clients.js'
+import { getPayerAddress } from '../middleware/x402.js'
 import { REGISTRY_ABI } from '../abis.js'
 import { sendError, NotFoundError, BadRequestError, ServiceUnavailableError } from '../errors.js'
 
@@ -26,14 +27,14 @@ const CreateProjectBody = z.object({
   readmeHash:    z.string().max(128).default(''),
   isAgent:       z.boolean().default(false),
   agentEndpoint: z.string().url().or(z.literal('')).default(''),
-  privateKey:    z.string().min(1),   // wallet private key (NOT stored)
+  // privateKey removed — server wallet signs, payer address comes from x402 payment
 })
 
 const PushVersionBody = z.object({
   tag:          z.string().min(1).max(64),
   contentHash:  z.string().min(1).max(128),
   metadataHash: z.string().max(128).default(''),
-  privateKey:   z.string().min(1),
+  // privateKey removed — server wallet signs, payer address comes from x402 payment
 })
 
 const PaginationQuery = z.object({
@@ -179,11 +180,17 @@ export function projectsRouter(cfg: ApiConfig): Router {
 
       const {
         name, description, license, isPublic, readmeHash,
-        isAgent, agentEndpoint, privateKey,
+        isAgent, agentEndpoint,
       } = body.data
 
+      // Use server wallet to sign transactions (payer already paid via x402)
+      if (!cfg.serverWalletKey) throw new ServiceUnavailableError(
+        'SERVER_WALLET_KEY not configured. Cannot sign transactions.'
+      )
+
+      const payerAddress = getPayerAddress(req)
       const { client: walletClient, address: walletAddress } =
-        buildWalletClient(cfg, normalizePrivateKey(privateKey))
+        buildWalletClient(cfg, normalizePrivateKey(cfg.serverWalletKey))
 
       const hash = await walletClient.writeContract({
         address:      registryAddress,
@@ -192,11 +199,8 @@ export function projectsRouter(cfg: ApiConfig): Router {
         args:         [name, description, license, isPublic, readmeHash, isAgent, agentEndpoint],
       })
 
-      // Wait for receipt
       const receipt = await publicClient.waitForTransactionReceipt({ hash })
 
-      // Find the new project id from logs (ProjectCreated event)
-      // Fallback: read projectCount (the new project is always count)
       const total = await publicClient.readContract({
         address:      registryAddress,
         abi:          REGISTRY_ABI,
@@ -206,7 +210,8 @@ export function projectsRouter(cfg: ApiConfig): Router {
       res.status(201).json({
         txHash:    hash,
         projectId: total.toString(),
-        wallet:    walletAddress,
+        owner:     payerAddress ?? walletAddress,  // payer = owner via x402
+        signer:    walletAddress,
         status:    receipt.status,
         blockNumber: receipt.blockNumber.toString(),
       })
@@ -262,10 +267,15 @@ export function projectsRouter(cfg: ApiConfig): Router {
       const body = PushVersionBody.safeParse(req.body)
       if (!body.success) throw new BadRequestError(body.error.issues.map(i => i.message).join('; '))
 
-      const { tag, contentHash, metadataHash, privateKey } = body.data
+      const { tag, contentHash, metadataHash } = body.data
 
+      if (!cfg.serverWalletKey) throw new ServiceUnavailableError(
+        'SERVER_WALLET_KEY not configured. Cannot sign transactions.'
+      )
+
+      const payerAddress = getPayerAddress(req)
       const { client: walletClient, address: walletAddress } =
-        buildWalletClient(cfg, normalizePrivateKey(privateKey))
+        buildWalletClient(cfg, normalizePrivateKey(cfg.serverWalletKey))
 
       const hash = await walletClient.writeContract({
         address:      registryAddress,
@@ -281,7 +291,8 @@ export function projectsRouter(cfg: ApiConfig): Router {
         projectId: id.toString(),
         tag,
         contentHash,
-        pusher:    walletAddress,
+        pusher:    payerAddress ?? walletAddress,
+        signer:    walletAddress,
         status:    receipt.status,
         blockNumber: receipt.blockNumber.toString(),
       })

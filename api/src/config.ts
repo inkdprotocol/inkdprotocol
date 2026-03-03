@@ -40,6 +40,11 @@ export interface ApiConfig {
   corsOrigin: string
   rateLimitWindowMs: number
   rateLimitMax:      number
+  // x402 payment config
+  serverWalletKey:    string | null  // server signs on-chain txns
+  serverWalletAddress: Address | null // receives x402 payments
+  x402FacilitatorUrl: string
+  x402Enabled:        boolean
 }
 
 export function loadConfig(): ApiConfig {
@@ -52,6 +57,9 @@ export function loadConfig(): ApiConfig {
     ? 'https://mainnet.base.org'
     : 'https://sepolia.base.org'
 
+  const serverWalletKey = process.env['SERVER_WALLET_KEY'] ?? null
+  const serverWalletAddress = (process.env['SERVER_WALLET_ADDRESS'] ?? null) as Address | null
+
   return {
     port:    parseInt(process.env['PORT'] ?? '3000', 10),
     network,
@@ -60,6 +68,11 @@ export function loadConfig(): ApiConfig {
     corsOrigin: process.env['CORS_ORIGIN'] ?? '*',
     rateLimitWindowMs: parseInt(process.env['RATE_LIMIT_WINDOW_MS'] ?? '60000', 10),
     rateLimitMax:      parseInt(process.env['RATE_LIMIT_MAX']        ?? '60',    10),
+    // x402
+    serverWalletKey,
+    serverWalletAddress,
+    x402FacilitatorUrl: process.env['X402_FACILITATOR_URL'] ?? 'https://x402.org/facilitator',
+    x402Enabled: Boolean(serverWalletAddress) && process.env['X402_ENABLED'] !== 'false',
   }
 }
 

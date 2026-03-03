@@ -34,6 +34,7 @@ import cors    from 'cors'
 import { loadConfig } from './config.js'
 import { authMiddleware }      from './middleware/auth.js'
 import { rateLimitMiddleware } from './middleware/rateLimit.js'
+import { buildX402Middleware } from './middleware/x402.js'
 import { healthRouter }   from './routes/health.js'
 import { projectsRouter } from './routes/projects.js'
 import { agentsRouter }   from './routes/agents.js'
@@ -63,11 +64,30 @@ app.use(rateLimitMiddleware(cfg.rateLimitWindowMs, cfg.rateLimitMax))
 
 app.use('/v1', healthRouter(cfg))
 
-// ─── Authenticated API routes ─────────────────────────────────────────────────
+// ─── x402 Payment middleware (wallet = identity) ──────────────────────────────
+// Protects POST /v1/projects and POST /v1/projects/:id/versions
+// Falls back to API key auth if x402 is not configured (dev mode)
 
-const authGuard = authMiddleware(cfg.apiKey)
-app.use('/v1/projects', authGuard, projectsRouter(cfg))
-app.use('/v1/agents',   authGuard, agentsRouter(cfg))
+if (cfg.x402Enabled && cfg.serverWalletAddress) {
+  const x402 = buildX402Middleware({
+    payTo:          cfg.serverWalletAddress,
+    facilitatorUrl: cfg.x402FacilitatorUrl,
+    network:        cfg.network,
+  })
+  app.use('/v1', x402)
+  console.log(`  [x402] Payment middleware active → payTo: ${cfg.serverWalletAddress}`)
+} else {
+  // Dev mode — fall back to optional API key auth
+  const authGuard = authMiddleware(cfg.apiKey)
+  app.use('/v1/projects', authGuard)
+  app.use('/v1/agents',   authGuard)
+  console.log('  [x402] Disabled — using legacy auth (dev mode)')
+}
+
+// ─── API routes ───────────────────────────────────────────────────────────────
+
+app.use('/v1/projects', projectsRouter(cfg))
+app.use('/v1/agents',   agentsRouter(cfg))
 
 // ─── Root redirect ────────────────────────────────────────────────────────────
 

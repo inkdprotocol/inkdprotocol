@@ -16,6 +16,10 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@x402/core": "^2.5.0",
+    "@x402/evm": "^2.5.0",
+    "@x402/express": "^2.5.0",
+    "@x402/fetch": "^2.5.0",
     "cors": "^2.8.5",
     "express": "^4.19.2",
     "viem": "^2.21.0",

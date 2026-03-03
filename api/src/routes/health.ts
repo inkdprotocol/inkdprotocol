@@ -40,7 +40,7 @@ export function healthRouter(cfg: ApiConfig): Router {
   router.get('/status', async (_req, res) => {
     try {
       const contractsDeployed =
-        addrs.registry !== '' && addrs.token !== ''
+        Boolean(addrs.registry) && Boolean(addrs.token)
 
       let projectCount:  bigint | null = null
       let totalSupply:   bigint | null = null
