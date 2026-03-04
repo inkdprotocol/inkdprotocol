@@ -5,6 +5,7 @@ import {Test, console} from "forge-std/Test.sol";
 import {InkdToken}    from "../src/InkdToken.sol";
 import {InkdTreasury} from "../src/InkdTreasury.sol";
 import {InkdRegistry} from "../src/InkdRegistry.sol";
+import {MockUSDC} from "./helpers/MockUSDC.sol";
 import {ERC1967Proxy}         from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {UUPSUpgradeable}      from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {Initializable}        from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
@@ -47,12 +48,13 @@ contract InkdUpgradeTest is Test {
 
     function setUp() public {
         token = new InkdToken();
+        MockUSDC usdc = new MockUSDC();
 
         // Treasury (UUPS proxy)
         InkdTreasury treasuryImpl = new InkdTreasury();
         ERC1967Proxy treasuryProxy = new ERC1967Proxy(
             address(treasuryImpl),
-            abi.encodeCall(InkdTreasury.initialize, (owner))
+            abi.encodeCall(InkdTreasury.initialize, (owner, address(usdc), makeAddr("arweave"), makeAddr("buyback")))
         );
         treasury = InkdTreasury(payable(address(treasuryProxy)));
 
@@ -60,11 +62,13 @@ contract InkdUpgradeTest is Test {
         InkdRegistry registryImpl = new InkdRegistry();
         ERC1967Proxy registryProxy = new ERC1967Proxy(
             address(registryImpl),
-            abi.encodeCall(InkdRegistry.initialize, (owner, address(token), address(treasury)))
+            abi.encodeCall(InkdRegistry.initialize, (owner, address(usdc), address(treasury)))
         );
         registry = InkdRegistry(address(registryProxy));
 
         treasury.setRegistry(address(registry));
+        treasury.setArweaveFee(0);
+        treasury.setServiceFee(0);
 
         // Fund actors
         vm.deal(alice, 10 ether);
@@ -91,7 +95,7 @@ contract InkdUpgradeTest is Test {
     function test_registry_upgradePreservesState() public {
         // Create a project before upgrade
         vm.startPrank(alice);
-        token.approve(address(registry), LOCK_AMOUNT);
+        
         registry.createProject("pre-upgrade", "desc", "MIT", true, "ar://readme", false, "");
         vm.stopPrank();
 
@@ -113,12 +117,12 @@ contract InkdUpgradeTest is Test {
 
     /// @notice After upgrade, version fees and transfer fees are preserved.
     function test_registry_upgradePreservesFees() public {
-        uint256 feeBefore = registry.versionFee();
+        uint256 feeBefore = treasury.serviceFee();
 
         InkdRegistryV2 v2Impl = new InkdRegistryV2();
         registry.upgradeToAndCall(address(v2Impl), "");
 
-        assertEq(registry.versionFee(),  feeBefore, "versionFee preserved after upgrade");
+        assertEq(treasury.serviceFee(),  feeBefore, "versionFee preserved after upgrade");
     }
 
     /// @notice Non-owner cannot upgrade the registry.
@@ -137,7 +141,7 @@ contract InkdUpgradeTest is Test {
 
         // Operations post-upgrade
         vm.startPrank(alice);
-        token.approve(address(registry), LOCK_AMOUNT);
+        
         registry.createProject("post-upgrade", "desc", "MIT", false, "", false, "");
         vm.stopPrank();
 
@@ -213,7 +217,7 @@ contract InkdUpgradeTest is Test {
     /// @notice agentEndpoint can be cleared back to empty string.
     function test_clearAgentEndpoint() public {
         vm.startPrank(alice);
-        token.approve(address(registry), LOCK_AMOUNT);
+        
         registry.createProject("clear-ep-test", "desc", "MIT", true, "", true, "https://agent.io");
         uint256 id = 1;
 
@@ -229,7 +233,7 @@ contract InkdUpgradeTest is Test {
     /// @notice readmeHash can be updated back to a new value.
     function test_updateReadmeHash() public {
         vm.startPrank(alice);
-        token.approve(address(registry), LOCK_AMOUNT);
+        
         registry.createProject("readme-test", "desc", "MIT", true, "ar://readme-v1", false, "");
         uint256 id = 1;
 
@@ -246,7 +250,7 @@ contract InkdUpgradeTest is Test {
     /// @notice isAgent flag determines visibility in getAgentProjects (endpoint field is separate).
     function test_agentFlag_determinesAgentProjectVisibility() public {
         vm.startPrank(alice);
-        token.approve(address(registry), LOCK_AMOUNT * 2);
+        
         // Create a non-agent project
         registry.createProject("non-agent", "desc", "MIT", true, "", false, "");
         // Create an agent project
@@ -261,14 +265,14 @@ contract InkdUpgradeTest is Test {
     /// @notice getVersionCount returns correct count as versions accumulate.
     function test_versionCount_accumulates() public {
         vm.startPrank(alice);
-        token.approve(address(registry), LOCK_AMOUNT);
+        
         registry.createProject("version-count", "desc", "MIT", true, "", false, "");
         uint256 id = 1;
 
         assertEq(registry.getVersionCount(id), 0, "zero versions at creation");
 
         for (uint256 i = 0; i < 5; i++) {
-            registry.pushVersion{value: VERSION_FEE}(
+            registry.pushVersion(
                 id,
                 "ar://hash",
                 string(abi.encodePacked("0.", vm.toString(i), ".0")),
@@ -283,7 +287,7 @@ contract InkdUpgradeTest is Test {
     /// @notice Project name normalization: names with different case map to the same key.
     function test_nameNormalization_duplicateDetection() public {
         vm.startPrank(alice);
-        token.approve(address(registry), LOCK_AMOUNT * 2);
+        
         registry.createProject("My-Cool-Agent", "desc", "MIT", true, "", false, "");
 
         // Same name, different case — should revert as NameTaken
@@ -295,7 +299,7 @@ contract InkdUpgradeTest is Test {
     /// @notice getOwnerProjects updates correctly after project transfer.
     function test_ownerProjects_updatesOnTransfer() public {
         vm.startPrank(alice);
-        token.approve(address(registry), LOCK_AMOUNT);
+        
         registry.createProject("transfer-test", "desc", "MIT", true, "", false, "");
         vm.stopPrank();
 
@@ -304,7 +308,7 @@ contract InkdUpgradeTest is Test {
         assertEq(aliceProjects.length, 1, "alice has one project before transfer");
 
         vm.prank(alice);
-        registry.transferProject{value: TRANSFER_FEE}(id, bob);
+        registry.transferProject(id, bob);
 
         // Alice should have no projects
         uint256[] memory aliceAfter = registry.getOwnerProjects(alice);
