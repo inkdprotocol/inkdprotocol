@@ -130,10 +130,12 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
   })
 })
 
-// ─── Start ────────────────────────────────────────────────────────────────────
+// ─── Start (local only — Vercel uses export default app) ─────────────────────
 
-app.listen(cfg.port, () => {
-  console.log(`
+// Only listen when running directly (not as Vercel serverless function)
+if (process.env['VERCEL'] !== '1') {
+  app.listen(cfg.port, () => {
+    console.log(`
   ┌─────────────────────────────────────────────────┐
   │           @inkd/api  v0.1.0                     │
   ├─────────────────────────────────────────────────┤
@@ -149,6 +151,7 @@ app.listen(cfg.port, () => {
   GET  http://localhost:${cfg.port}/v1/projects
   GET  http://localhost:${cfg.port}/v1/agents
   `)
-})
+  })
+}
 
 export default app

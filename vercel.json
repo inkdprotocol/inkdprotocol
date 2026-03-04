@@ -1,19 +1,15 @@
 {
   "version": 2,
-  "rootDirectory": "api",
-  "buildCommand": "npm run build",
-  "installCommand": "npm install",
-  "outputDirectory": "dist",
-  "functions": {
-    "dist/index.js": {
-      "runtime": "nodejs22.x",
-      "maxDuration": 30
+  "builds": [
+    {
+      "src": "api/src/index.ts",
+      "use": "@vercel/node"
     }
-  },
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/dist/index.js" }
   ],
-  "env": {
-    "NODE_ENV": "production"
-  }
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "api/src/index.ts"
+    }
+  ]
 }
