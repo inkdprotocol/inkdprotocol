@@ -5,6 +5,11 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { AgentVault } from "../vault.js";
+import { secp256k1 } from "@noble/curves/secp256k1";
+import { gcm } from "@noble/ciphers/aes";
+import { hkdf } from "@noble/hashes/hkdf";
+import { sha256 } from "@noble/hashes/sha256";
+import { randomBytes } from "@noble/ciphers/webcrypto";
 
 // Anvil test key #0 — safe for tests, never use in prod
 const TEST_PRIVATE_KEY = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80" as const;
@@ -226,5 +231,99 @@ describe("AgentVault cross-key isolation", () => {
     // Neither can unseal the other's
     await expect(vaultB.unseal(encryptedByA)).rejects.toThrow();
     await expect(vaultA.unseal(encryptedByB)).rejects.toThrow();
+  });
+});
+
+// ─── Branch coverage: unseal JSON.parse catch (vault.ts L134-135) ────────────
+
+/**
+ * Helper: construct a valid ECIES blob whose *plaintext* is arbitrary bytes
+ * (not the JSON.stringify output that seal() always produces).
+ *
+ * Replicates vault.ts seal() but accepts a raw Uint8Array plaintext instead of
+ * a credentials object. This is the only way to reach the
+ * `JSON.parse(TextDecoder.decode(plaintext))` catch branch in unseal().
+ */
+async function sealRaw(plaintext: Uint8Array, recipientPrivKey: string): Promise<Uint8Array> {
+  // Derive recipient public key from private key
+  function hexToBytes(hex: string): Uint8Array {
+    const b = new Uint8Array(hex.length / 2);
+    for (let i = 0; i < hex.length; i += 2) b[i / 2] = parseInt(hex.slice(i, i + 2), 16);
+    return b;
+  }
+  const privBytes = hexToBytes(recipientPrivKey.startsWith("0x") ? recipientPrivKey.slice(2) : recipientPrivKey);
+  const recipientPubKey = secp256k1.getPublicKey(privBytes, true); // compressed
+
+  const ephemeralPrivKey = secp256k1.utils.randomPrivateKey();
+  const ephemeralPubKey = secp256k1.getPublicKey(ephemeralPrivKey, true);
+
+  const sharedPoint = secp256k1.getSharedSecret(ephemeralPrivKey, recipientPubKey);
+  const sharedSecret = sharedPoint.slice(1, 33); // x-coord only
+  const aesKey = hkdf(sha256, sharedSecret, undefined, undefined, 32);
+
+  const iv = randomBytes(12);
+  const cipher = gcm(aesKey, iv);
+  const cipherWithTag = cipher.encrypt(plaintext);
+
+  // Pack: [ephemeralPubKey(33)][iv(12)][ciphertext+tag]
+  const result = new Uint8Array(ephemeralPubKey.length + iv.length + cipherWithTag.length);
+  result.set(ephemeralPubKey, 0);
+  result.set(iv, ephemeralPubKey.length);
+  result.set(cipherWithTag, ephemeralPubKey.length + iv.length);
+  return result;
+}
+
+// ─── Branch coverage: constructor L55 + load L167 ────────────────────────────
+
+describe("AgentVault branch coverage — constructor + load ternaries", () => {
+  it("L55: accepts private key without 0x prefix (startsWith false branch)", () => {
+    // TypeScript type is `0x${string}` but at runtime the code strips '0x' only if present.
+    // Pass 64-hex-char key without the prefix to cover the else branch.
+    const rawHex = "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
+    // Cast to satisfy the type parameter; runtime behaviour under test is the ternary
+    const vault = new AgentVault(rawHex as `0x${string}`);
+    expect(vault).toBeInstanceOf(AgentVault);
+  });
+
+  it("L167: load handles ArrayBuffer returned by downloadData (instanceof false branch)", async () => {
+    const vault = new AgentVault(TEST_PRIVATE_KEY);
+    const credentials = { coverage: "arraybuffer-branch" };
+    const encrypted = await vault.seal(credentials);
+
+    // Return a plain ArrayBuffer, not a Uint8Array / Buffer
+    const ab = encrypted.buffer.slice(
+      encrypted.byteOffset,
+      encrypted.byteOffset + encrypted.byteLength
+    );
+    const arweave = {
+      uploadFile: vi.fn(),
+      downloadData: vi.fn().mockResolvedValue(ab),
+    };
+
+    const loaded = await vault.load("ar://QmAB", arweave as never);
+    expect(loaded).toEqual(credentials);
+  });
+});
+
+// ─── Branch coverage: unseal JSON.parse catch (vault.ts L134-135) ────────────
+
+describe("AgentVault unseal — JSON.parse catch branch (vault.ts L134-135)", () => {
+  it("throws EncryptionError('Decrypted data is not valid JSON') when plaintext is valid UTF-8 but not JSON", async () => {
+    // Craft a blob that decrypts successfully (right key, valid crypto) but
+    // whose plaintext is NOT valid JSON — triggers the second catch in unseal().
+    const vault = new AgentVault(TEST_PRIVATE_KEY);
+    const nonJsonPlaintext = new TextEncoder().encode("not valid json !!!");
+    const blob = await sealRaw(nonJsonPlaintext, TEST_PRIVATE_KEY);
+
+    await expect(vault.unseal(blob)).rejects.toThrow("Decrypted data is not valid JSON");
+  });
+
+  it("throws EncryptionError for binary plaintext that is not UTF-8 JSON", async () => {
+    // Random binary bytes — definitely not valid JSON
+    const vault = new AgentVault(TEST_PRIVATE_KEY);
+    const binaryPlaintext = new Uint8Array([0x80, 0x81, 0x82, 0xff, 0xfe, 0x00, 0x01]);
+    const blob = await sealRaw(binaryPlaintext, TEST_PRIVATE_KEY);
+
+    await expect(vault.unseal(blob)).rejects.toThrow("Decrypted data is not valid JSON");
   });
 });
