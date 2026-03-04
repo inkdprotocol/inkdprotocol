@@ -6,6 +6,52 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v0.10.9] — 2026-03-04
+
+### Added
+- **`InkdBuyback.sol`** — Automated $INKD buyback contract funded by USDC protocol revenue:
+  - `deposit(uint256 amount)` — called by InkdTreasury after revenue split; accumulates USDC
+  - `executeBuyback()` — permissionless trigger; swaps all USDC → $INKD via Uniswap V3 once threshold met
+  - Auto-trigger on `receive()`: direct ETH triggers buyback check (graceful no-op if below threshold)
+  - Default threshold: $50 USDC (50\_000\_000, 6 decimals); settable by owner
+  - Direct USDC → $INKD Uniswap V3 swap via `exactInputSingle`; no WETH wrapping needed
+  - SafeERC20 for all token transfers; owner-only emergency withdrawal of accumulated $INKD
+  - `inkdToken = address(0)` until Clanker launch — `executeBuyback()` reverts cleanly if token unset
+  - **18 tests** (`InkdBuyback.t.sol`): initialization, deposits, threshold logic, buyback execution,
+    access control (non-owner reverts), edge cases (zero amounts, partial threshold)
+
+### Changed
+- **`InkdTreasury.sol`** — Upgraded to full X402 USDC revenue splitter with on-chain buyback notification:
+  - New `settle(uint256 amount)` function — callable by `settler` (API server wallet) OR `InkdRegistry`
+  - New `settler` state variable — trusted server address set by owner; enables X402 agent-pay flow
+  - Payment split: $1 → `arweaveWallet`, $2 → `InkdBuyback.deposit()`, $2 → treasury (default $5 total)
+  - InkdBuyback notification via `deposit()` after USDC transfer; `extcodesize` guard for graceful EOA fallback
+  - `initialize()` 4th param renamed: `buybackWallet` → `buybackContract` (now calls `deposit()`)
+  - **+6 tests** in `InkdTreasury.t.sol`: `settle()` happy path, settler access control, split math,
+    graceful fallback when `buybackContract` is EOA
+- **`@inkd/api` x402 middleware** — Upgraded from ETH micro-payments to USDC agent-native pricing:
+  - Payment token: ETH → USDC (mainnet: `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913` /
+    testnet: `0x036CbD53842c5426634e7929541eC2318f3dCF7e`)
+  - Payment amount: `$0.001 ETH` → **`$5.00 USDC`** per write (create project or push version)
+  - `payTo`: random address → `cfg.treasuryAddress` (InkdTreasury contract receives USDC directly)
+  - New `getPaymentAmount(req)` helper — extracts verified USDC amount from x402 payment header
+  - After x402 verification, routes automatically call `treasury.settle(amount)` to trigger on-chain split
+- **`api/src/config.ts`** — new `TREASURY_ADDRESS` env var; `x402Enabled` now requires `TREASURY_ADDRESS`
+- **`api/src/abis.ts`** — added `settlementAbi` (InkdTreasury.settle ABI fragment)
+- **`contracts/script/Deploy.s.sol`** — deploys InkdBuyback; wires Treasury via `setBuybackContract()`
+
+### Tests
+- **vault.ts branch coverage: 85.71% → 100%** (+4 tests); all uncovered branches now closed:
+  - `sealRaw()` crafts ECIES blob with non-JSON plaintext to hit `JSON.parse` catch (L134–135)
+  - Constructor `startsWith` ternary (L55) and `load()` `ArrayBuffer` ternary (L167)
+  - SDK total: 344 → **348**
+
+### Quality Gates
+- Contracts: **255/255** ✅  SDK: **348/348** ✅  CLI: 352/352 ✅  AgentKit: 69/69 ✅  MCP: 33/33 ✅  API: **168/168** ✅
+- **Total: 1,225 tests** (+22 since v0.10.8)
+
+---
+
 ## [v0.10.8] — 2026-03-04
 
 ### Added

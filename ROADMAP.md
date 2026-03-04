@@ -27,8 +27,8 @@ Core protocol, tooling, and infrastructure — fully shipped.
 | **InkdTimelock.sol** — 48h admin timelock for governance transitions | ✅ |
 | **InkdTestToken.sol** — ERC-20 + ERC-2612 permit token for testing | ✅ |
 | TypeScript SDK (`@inkd/sdk`) — InkdClient, ArweaveClient, encryption | ✅ |
-| **323-test SDK suite** (vitest) — unit, integration, advanced, error, encryption, ProjectRegistry, multicall, events — **100% stmts/branches/funcs/lines** | ✅ |
-| **237-test contract suite** (Foundry) — unit, fuzz, invariant, UUPS upgrade, timelock, test token; USDC fee model | ✅ |
+| **348-test SDK suite** (vitest) — unit, integration, advanced, error, encryption, ProjectRegistry, multicall, events, vault — **100% stmts/branches/funcs/lines** | ✅ |
+| **255-test contract suite** (Foundry) — unit, fuzz, invariant, UUPS upgrade, timelock, test token; USDC fee model; InkdBuyback | ✅ |
 | Fuzz tests (13) + Invariant tests (6) | ✅ |
 | **352-test CLI suite** (vitest) — all commands covered, 99%+ stmts | ✅ |
 | Security review (internal) — re-entrancy, access control, upgrade safety, timelock | ✅ |
@@ -93,10 +93,11 @@ Make inkd the standard code registry for AI agents. x402 + ERC-8004 + inkd = ful
 
 | Item | Status | Notes |
 |------|--------|-------|
-| **x402 Payment Layer** — `@inkd/api` protected by x402, wallet = identity | ✅ | `api/src/middleware/x402.ts` — $0.001/request |
+| **x402 Payment Layer** — `@inkd/api` protected by x402, wallet = identity | ✅ | `api/src/middleware/x402.ts` — $5 USDC/request; auto-settles to InkdTreasury, triggers $INKD buyback |
+| **`InkdBuyback.sol`** — automated $INKD buyback funded by USDC revenue | ✅ | `deposit()` called by Treasury; swaps USDC→$INKD via Uniswap V3 at $50 threshold; 18 tests |
 | **`@inkd/agentkit`** — Coinbase AgentKit action provider | ✅ | 69 tests; inkd_create_project, inkd_push_version, inkd_list_agents, inkd_get_project; full docs: `docs/AGENTKIT.md` |
 | **`@inkd/mcp`** — Model Context Protocol server | ✅ | 33 tests; Claude Desktop + Cursor native integration; full docs: `docs/MCP.md` |
-| **`@inkd/api` test suite** — 148 tests, full route + middleware coverage | ✅ | All 10 endpoints, auth/rateLimit/x402 middleware, error classes — 100% on all modules except server startup |
+| **`@inkd/api` test suite** — 168 tests, full route + middleware coverage | ✅ | All 10 endpoints, auth/rateLimit/x402 middleware, error classes, config, clients — 100% on all modules except server startup |
 | **ERC-8004 Integration Guide** — inkd as canonical code layer for ERC-8004 agents | ✅ | `docs/ERC8004.md` |
 | **Clanker Launch Script** — $INKD token on Base via Clanker V4 | ✅ | `scripts/clanker-launch.ts` |
 | **x402 Bazaar listing** — get inkd discovered by all x402-aware agents | 📅 | Submit to x402.org/ecosystem |
@@ -142,4 +143,4 @@ Want to contribute? See [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ---
 
-*Last updated: 2026-03-04 19:15 | 1,162 tests passing (237 contracts / 323 SDK / 352 CLI / 69 agentkit / 33 mcp / 148 api) — x402 layer live, AgentKit + MCP providers shipped, ERC-8004 integration guide published, HTTP_API.md + full API test suite added, USDC fee model (InkdTreasury)*
+*Last updated: 2026-03-04 22:24 | 1,225 tests passing (255 contracts / 348 SDK / 352 CLI / 69 agentkit / 33 mcp / 168 api) — full X402 USDC stack live ($5/request, auto-settle to Treasury), InkdBuyback deployed (USDC→$INKD at $50 threshold), AgentVault ECIES storage shipped, all modules ≥98% coverage*

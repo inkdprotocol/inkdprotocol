@@ -64,12 +64,15 @@ Inkd uses the **x402 payment protocol** — your wallet is your identity. No API
 **Flow:**
 1. Agent sends `POST /v1/projects` with no payment
 2. Server returns `402 Payment Required` with payment details
-3. Agent auto-pays `$0.001` via `@x402/fetch`
+3. Agent auto-pays **`$5.00 USDC`** via `@x402/fetch` — USDC goes directly to `InkdTreasury`
 4. Server verifies payment via Coinbase facilitator
-5. Request proceeds — the payer's wallet address becomes the project owner
+5. Server calls `InkdTreasury.settle(amount)` — splits revenue and triggers $INKD buyback on-chain
+6. Request proceeds — the payer's wallet address becomes the project owner
 
-**Payment amount:** `$0.001` per write operation (register project or push version)  
-**Payment network:** Base (mainnet) or Base Sepolia (testnet)  
+**Payment amount:** `$5.00 USDC` per write (register project or push version)  
+**Payment token:** USDC on Base (mainnet: `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913` / testnet: `0x036CbD53842c5426634e7929541eC2318f3dCF7e`)  
+**Payment destination:** `InkdTreasury` contract — auto-splits $1 arweave / $2 buyback / $2 treasury  
+**Payment network:** Base mainnet or Base Sepolia  
 **Facilitator:** `https://x402.org/facilitator` (Coinbase)
 
 With `@x402/fetch`:
@@ -314,7 +317,7 @@ curl https://inkd-protocol.vercel.app/v1/projects/1
 
 Register a new project on-chain. Locks 1 `$INKD` permanently. The payer's wallet address (via x402) becomes the project owner.
 
-**Auth:** x402 payment (`$0.001`) OR Bearer token (dev mode)  
+**Auth:** x402 payment (`$5 USDC`) OR Bearer token (dev mode)  
 **Rate limited:** Yes
 
 **Request body:**
@@ -426,7 +429,7 @@ curl "https://inkd-protocol.vercel.app/v1/projects/1/versions"
 
 Push a new version to a project. The payer's wallet must be the project owner (enforced on-chain by the registry contract).
 
-**Auth:** x402 payment (`$0.001`) OR Bearer token (dev mode)  
+**Auth:** x402 payment (`$5 USDC`) OR Bearer token (dev mode)  
 **Rate limited:** Yes
 
 **Path parameters:**
@@ -605,40 +608,56 @@ curl https://inkd-protocol.vercel.app/v1/agents/by-name/inkd-coder
 ## x402 Payment Flow
 
 ```
-Agent                          Inkd API                    Coinbase Facilitator
-  │                               │                                │
-  │  POST /v1/projects            │                                │
-  │  (no payment header)          │                                │
-  │ ─────────────────────────────►│                                │
-  │                               │                                │
-  │  402 Payment Required         │                                │
-  │  X-Payment-Requirements: ...  │                                │
-  │◄──────────────────────────────│                                │
-  │                               │                                │
-  │  (agent signs payment tx)     │                                │
-  │                               │                                │
-  │  POST /v1/projects            │                                │
-  │  X-Payment: <signed-payment>  │                                │
-  │ ─────────────────────────────►│                                │
-  │                               │  verify(payment)               │
-  │                               │ ──────────────────────────────►│
-  │                               │                                │
-  │                               │  { valid: true, payer: 0x...} │
-  │                               │◄───────────────────────────────│
-  │                               │                                │
-  │                               │  (server wallet signs tx)      │
-  │                               │  createProject(name, ...)      │
-  │                               │  → owner = payer address       │
-  │                               │                                │
-  │  201 Created                  │                                │
-  │  { txHash, projectId, owner } │                                │
-  │◄──────────────────────────────│                                │
+Agent                          Inkd API             Coinbase Facilitator    InkdTreasury
+  │                               │                         │                    │
+  │  POST /v1/projects            │                         │                    │
+  │  (no payment header)          │                         │                    │
+  │ ─────────────────────────────►│                         │                    │
+  │                               │                         │                    │
+  │  402 Payment Required         │                         │                    │
+  │  X-Payment-Requirements: ...  │                         │                    │
+  │  token=USDC, amount=$5        │                         │                    │
+  │◄──────────────────────────────│                         │                    │
+  │                               │                         │                    │
+  │  (agent signs $5 USDC tx)     │                         │                    │
+  │                               │                         │                    │
+  │  POST /v1/projects            │                         │                    │
+  │  X-Payment: <signed-payment>  │                         │                    │
+  │ ─────────────────────────────►│                         │                    │
+  │                               │  verify(payment)        │                    │
+  │                               │ ───────────────────────►│                    │
+  │                               │                         │                    │
+  │                               │  { valid, payer: 0x...}│                    │
+  │                               │◄────────────────────────│                    │
+  │                               │                         │                    │
+  │                               │  USDC.transferFrom      │                    │
+  │                               │  payer → Treasury ─────────────────────────►│
+  │                               │                         │  settle(5_000_000) │
+  │                               │ ───────────────────────────────────────────►│
+  │                               │                         │  split: $1 arweave │
+  │                               │                         │        $2 buyback  │
+  │                               │                         │        $2 treasury │
+  │                               │                         │                    │
+  │                               │  (server wallet signs)  │                    │
+  │                               │  createProject(name, ..)│                    │
+  │                               │  → owner = payer addr   │                    │
+  │                               │                         │                    │
+  │  201 Created                  │                         │                    │
+  │  { txHash, projectId, owner } │                         │                    │
+  │◄──────────────────────────────│                         │                    │
 ```
 
 The **server wallet** (`SERVER_WALLET_KEY`) signs on-chain transactions but the **payer's address** (from the x402 payment) is recorded as the project owner. This means:
 - Agents don't need ETH for gas
 - The API handles signing
 - Ownership is still cryptographically tied to the paying wallet
+
+**Revenue split** (InkdTreasury.settle — default $5 total):
+| Destination | Amount | Purpose |
+|-------------|--------|---------|
+| `arweaveWallet` | $1 USDC | Arweave storage costs |
+| `InkdBuyback` | $2 USDC | Auto-buyback $INKD at $50 threshold via Uniswap V3 |
+| Treasury | $2 USDC | Protocol treasury / operational reserve |
 
 ---
 
@@ -661,11 +680,12 @@ INKD_TREASURY_ADDRESS=0x...
 # Optional: custom RPC (improves reliability)
 INKD_RPC_URL=https://base-sepolia.g.alchemy.com/v2/YOUR_KEY
 
-# x402 payment config
-SERVER_WALLET_KEY=0x...          # Server wallet private key (signs on-chain txns)
-SERVER_WALLET_ADDRESS=0x...      # Server wallet address (receives x402 payments)
+# x402 payment config — USDC $5/request, settles to InkdTreasury
+SERVER_WALLET_KEY=0x...          # Server wallet private key (signs on-chain txns + calls settle())
+SERVER_WALLET_ADDRESS=0x...      # Server wallet address (registered as `settler` in InkdTreasury)
+TREASURY_ADDRESS=0x...           # InkdTreasury contract address — required to enable x402
 X402_FACILITATOR_URL=https://x402.org/facilitator
-X402_ENABLED=true                # Set false for dev/API key mode
+X402_ENABLED=true                # Set false for dev/API key mode (also disabled if TREASURY_ADDRESS unset)
 
 # API key auth (only used when X402_ENABLED=false)
 INKD_API_KEY=                    # Leave empty to disable auth in local dev
