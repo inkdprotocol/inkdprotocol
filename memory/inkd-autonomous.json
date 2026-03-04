@@ -1,5 +1,5 @@
 {
-  "lastUpdated": "2026-03-03T10:53:00+04:00",
+  "lastUpdated": "2026-03-04T20:17:00+04:00",
   "version": "0.9.x",
   "tasks": [
     {
@@ -96,18 +96,110 @@
       "priority": 11,
       "status": "done",
       "title": "Fix: restore test files deleted by workspace-bot regression (c29643f)",
-      "description": "The workspace auto-save bot (AGI Holdings Bot) accidentally committed deletions of 6 test files + events.ts + multicall.ts from the inkd repo in commit c29643f. Restored all files from their original commits. Root cause: workspace-level git add -A ran from within builds/inkd-protocol, picking up unintended deletes.",
       "completedAt": "2026-03-03T10:53:00+04:00",
       "commit": "e1c081d",
       "result": "Restored: events.ts, multicall.ts, events.test.ts, multicall.test.ts, encryption.test.ts (206 lines), InkdClient.connectArweave.test.ts, token.test.ts, watch.test.ts. Quality gate: Contracts 159/159 ✅  SDK 281/281 ✅  CLI 276/276 ✅  Total: 716 tests."
+    },
+    {
+      "id": "test-agentkit-provider",
+      "priority": 12,
+      "status": "done",
+      "title": "@inkd/agentkit — InkdActionProvider full test suite (0% → 100% coverage)",
+      "completedAt": "2026-03-04T04:15:00+04:00",
+      "commit": "3dd8c227",
+      "result": "AgentKit tests: 0 → 69 (+69). provider.ts, actions.ts, types.ts: 100% coverage. All 4 actions tested: create_project, push_version, get_project, list_agents. Happy paths, error paths, Zod schema validation, buildFetch fallback, walletAddress fallback."
+    },
+    {
+      "id": "test-mcp-handlers-edge-cases",
+      "priority": 13,
+      "status": "done",
+      "title": "@inkd/mcp — handler edge-case tests (26 → 33, cover untested branches)",
+      "completedAt": "2026-03-04T04:42:00+04:00",
+      "commit": "17efdd7a",
+      "result": "MCP tests: 26 → 33 (+7). Covered: json().catch fallback in createProject/pushVersion (non-JSON error body), description='' and undefined → '(none)', empty list output in getVersions/listAgents, unix timestamp → ISO date format in getVersions. All quality gates green."
+    },
+    {
+      "id": "docs-mcp-setup-guide",
+      "priority": 14,
+      "status": "done",
+      "title": "docs/MCP.md — @inkd/mcp comprehensive setup guide",
+      "completedAt": "2026-03-04T15:12:00+04:00",
+      "commit": "0384a83b",
+      "result": "docs/MCP.md: 360 lines. Covers: Claude Desktop + Cursor setup, all 5 tool references (parameters, costs, example prompts/responses), x402 payment flow, security guidance, dev/run-from-source instructions, example workflows, troubleshooting table."
+    },
+    {
+      "id": "docs-agentkit-guide",
+      "priority": 15,
+      "status": "done",
+      "title": "docs/AGENTKIT.md — @inkd/agentkit comprehensive integration guide",
+      "completedAt": "2026-03-04T15:42:00+04:00",
+      "commit": "a75e95a4",
+      "result": "docs/AGENTKIT.md: 513 lines. Covers: install, quick start, how x402 auth works, all 4 actions (inkd_create_project/push_version/get_project/list_agents) with full parameter tables and example prompts, x402 payment flow diagram, full working example, agent prompt patterns, error handling table, troubleshooting guide. Quality gate: Contracts 238/238 ✅  SDK 323/323 ✅  CLI 352/352 ✅  AgentKit 69/69 ✅  MCP 33/33 ✅  Total: 1015 tests."
+    },
+    {
+      "id": "docs-contributing-md-update",
+      "priority": 16,
+      "status": "done",
+      "title": "CONTRIBUTING.md — add cli, agentkit, mcp, api packages (307 lines added)",
+      "completedAt": "2026-03-04T16:17:00+04:00",
+      "commit": "4dae5e7b",
+      "result": "CONTRIBUTING.md: +307 lines/-24. Added: full project structure tree for all 6 packages, CLI/AgentKit/MCP/API setup+conventions sections, per-package testing instructions, test count table (1015 tests). ToC expanded 10→13 entries. Quality gate: Contracts 238/238 ✅  SDK 323/323 ✅"
+    },
+    {
+      "id": "docs-http-api-reference",
+      "priority": 17,
+      "status": "done",
+      "title": "docs/HTTP_API.md — complete REST API reference for @inkd/api (856 lines)",
+      "completedAt": "2026-03-04T17:22:00+04:00",
+      "commit": "d010ac9a",
+      "result": "docs/HTTP_API.md: 856 lines. Covers all 10 REST endpoints with request/response schemas, x402 payment flow sequence diagram, auth modes (x402 vs Bearer), rate limiting, error codes table (7 status codes), env vars reference, Vercel deployment guide, code examples in curl/Python/TypeScript. Quality gate: Contracts 238/238 ✅  SDK 323/323 ✅  Total: 1015 tests."
+    },
+    {
+      "id": "test-api-package",
+      "priority": 18,
+      "status": "done",
+      "title": "@inkd/api — first test suite (0 → 92 tests, full route + middleware coverage)",
+      "completedAt": "2026-03-04T17:50:00+04:00",
+      "commit": "eef1e79c",
+      "result": "API tests: 0 → 92 (+92). 7 test files. Covers: all 5 project routes, all 3 agent routes, health/status routes, authMiddleware (9), rateLimitMiddleware (6), x402 getPayerAddress (6), all error classes + sendError() (16). Quality gate: Contracts 238/238 ✅  SDK 323/323 ✅  CLI 352/352 ✅  AgentKit 69/69 ✅  MCP 33/33 ✅  API 92/92 ✅  Total: 1107 tests."
+    },
+    {
+      "id": "test-api-coverage-expansion",
+      "priority": 19,
+      "status": "done",
+      "title": "@inkd/api — coverage expansion: config 11%→100%, x402 55%→100%, rateLimit cleanup timer (+41 tests)",
+      "completedAt": "2026-03-04T18:30:00+04:00",
+      "commit": "044c3c54",
+      "result": "API tests: 92 → 133 (+41). New: config.test.ts (31 tests, all loadConfig() branches, getChain(), ADDRESSES shape). Extended middleware.x402.test.ts (+8): buildX402Middleware() mainnet/testnet selection, HTTPFacilitatorClient instantiation, payTo/price fields, custom facilitatorUrl. Extended middleware.rateLimit.test.ts (+2): 'unknown' IP fallback, setInterval cleanup via vi.useFakeTimers(). config.ts: 11%→100% ✅  x402.ts: 55%→100% ✅  rateLimit.ts: 81%→100% stmts/funcs/lines ✅  Quality gate: Contracts 237/237 ✅  SDK 323/323 ✅  API 133/133 ✅  Total: 1147 tests."
+    },
+    {
+      "id": "docs-changelog-roadmap-sync",
+      "priority": 20,
+      "status": "done",
+      "title": "Sync CHANGELOG.md + ROADMAP.md to current state (v0.10.5–v0.10.7)",
+      "completedAt": "2026-03-04T19:20:00+04:00",
+      "commit": "c91d8c16",
+      "result": "CHANGELOG: added v0.10.5 (agentkit/mcp tests +docs), v0.10.6 (API test suite 0→92), v0.10.7 (USDC model + API coverage 92→148). ROADMAP: contracts 238→237, added @inkd/api test row, updated footer 1015→1162 tests. Quality gate: Contracts 237/237 ✅  SDK 323/323 ✅  CLI 352/352 ✅  AgentKit 69/69 ✅  MCP 33/33 ✅  API 148/148 ✅  Total: 1,162 tests."
+    },
+    {
+      "id": "test-api-clients-ts",
+      "priority": 21,
+      "status": "done",
+      "title": "@inkd/api — clients.ts 0%→100% coverage (18 new tests)",
+      "completedAt": "2026-03-04T20:17:00+04:00",
+      "commit": "857c6449",
+      "result": "API tests: 150 → 168 (+18). clients.ts: buildPublicClient(), buildWalletClient(), normalizePrivateKey() all 100% stmts/branch/funcs/lines. Previous assumption (\"requires network\") was wrong — pure factory functions testable via viem mocks. Quality gate: Contracts 237/237 ✅  SDK 323/323 ✅  CLI 352/352 ✅  AgentKit 69/69 ✅  MCP 33/33 ✅  API 168/168 ✅  Total: 1,182 tests."
     }
   ],
-  "notes": "All non-blocked tasks done. Blocked: React hooks (needs jsdom/testing-library). Remaining low-coverage CLI files: agentd.ts (daemon/long-running process, hard to unit test), index.ts (CLI entry dispatcher, expected). IMPORTANT: workspace auto-save bot must not run git add -A from builds/inkd-protocol — it deletes tracked test files. Consider adding builds/ to workspace .gitignore or use a separate commit script for inkd builds.",
+  "notes": "All non-blocked tasks done. Blocked: React hooks (needs jsdom/testing-library). IMPORTANT: contracts refactored to USDC fee model (commit 4a447535) — InkdTreasury.initialize now takes 4 params (owner, usdc, arweaveWallet, buybackWallet). InkdIntegration.t.sol fully rewritten for USDC model. Contract count is 237 (not 238 — one test removed during USDC refactor). Always check git status before reading counts from JSON. workspace auto-save bot must not run git add -A from builds/inkd-protocol — it deletes tracked test files. Remaining low-coverage items in API: clients.ts now 100% (pure factories, mocked viem). index.ts (0% — module-level server startup) still impractical to unit test. CLI low-coverage: config.ts color branch (requires module re-import with isTTY=true), index.ts main().catch() handler (module-level side effect), agentd.ts humanLine else-if branch (V8 tracking issue). 2026-03-04T18:50 build: Added 503 + contractsDeployed=false branch tests (+15). health.ts branches 71%→100%, API routes 83%→92% branch. Remaining API gaps: agents.ts lines 49/109/140 and projects.ts lines 156/227/264 are V8 quirks (dead-code ternary + Express req.params ?? '' patterns — untestable via HTTP). 2026-03-04T19:48 build: rateLimit.ts 90.9%→100% branch (non-expired entry preserved during cleanup), health.ts 95%→100% stmts (outer catch sendError via unknown network). API middleware/* now all 100%. API total 148→150. 2026-03-04T20:17 build: clients.ts 0%→100% (+18 tests). False assumption corrected — buildPublicClient/buildWalletClient/normalizePrivateKey are pure factories, no network needed. API total 150→168.",
   "testCounts": {
-    "contracts": 159,
-    "sdk": 281,
-    "cli": 276,
-    "total": 716,
-    "asOf": "2026-03-03T10:53:00+04:00"
+    "contracts": 237,
+    "sdk": 323,
+    "cli": 352,
+    "agentkit": 69,
+    "mcp": 33,
+    "api": 168,
+    "total": 1182,
+    "asOf": "2026-03-04T20:17:00+04:00"
   }
 }
