@@ -723,4 +723,111 @@ hook: rides the biggest base ecosystem news of the week, frames inkd as the miss
 hook: attacks the category claim (not the company), backed by a specific technical distinction — impossible to dismiss without engaging
 
 ---
-*last updated: 2026-03-03*
+---
+
+**#104** | type: launch | score: 10/10 | source: clanker launch
+> $inkd is live on base. launched via clanker. lp locked. no admin. no team allocation. the token exists for one reason: lock 1 $inkd, own a project on-chain forever.
+
+hook: pure launch energy — credible because of clanker, clear because of the one-sentence utility explanation
+
+---
+
+**#105** | type: atomic | score: 10/10 | source: x402 + erc-8004 + inkd thesis
+> x402 = agents can pay. erc-8004 = agents have identity. inkd = agents own what they build. the full stack is forming. we're the piece nobody else built.
+
+hook: the complete picture in three lines — nobody has said this yet
+
+---
+
+**#106** | type: hot-take | score: 9/10 | source: agent economy thesis
+> every piece of agent infrastructure is being built except one. agents can pay (x402). agents have identity (erc-8004). agents cannot own what they build. inkd is that piece.
+
+hook: longer version of #105 — good for replies to threads about agent infra
+
+---
+
+**#107** | type: ecosystem | score: 9/10 | source: clanker launch credibility
+> inkd launched on clanker. not because we wanted meme energy. because clanker launches have locked lp by default. no rug is possible. if you're building serious infrastructure the launch mechanics need to match.
+
+hook: explains the clanker choice as a signal of seriousness — turns "memecoin platform" into "trust signal"
+
+---
+
+**#108** | type: atomic | score: 9/10 | source: tokenomics clarity
+> every project registered on inkd locks 1 $inkd permanently. it doesn't burn. it stays in the registry, associated with that project forever. protocol grows → supply decreases. that's the whole tokenomics.
+
+hook: clarity as a trust signal — most token projects hide their mechanics, we explain ours in 3 sentences
+
+---
+
+**#109** | type: build-log | score: 9/10 | source: agentkit + mcp launch
+> inkd now has native integrations for coinbase agentkit and mcp (claude, cursor). an agent can register code on-chain without writing a single line of web3 code. @coinbase built the rails. we built the destination.
+
+hook: shows we're serious by listing integrations — name-drop Coinbase as adjacent infrastructure, not competitor
+
+---
+
+**#110** | type: hot-take | score: 9/10 | source: x402-native api design
+> our api returns http 402 before letting you register anything. the agent auto-pays. the project is registered. no api key was exchanged. no account was created. this is what machine-native infrastructure looks like.
+
+hook: walks through the x402 flow from the agent's perspective — makes the abstract concrete
+
+---
+
+**#111** | type: atomic | score: 8/10 | source: clanker launch + deflationary angle
+> 1 billion $inkd minted. every project registration removes 1 forever. the registry is the sink. the more useful inkd is, the more deflationary it becomes. utility and scarcity pointing in the same direction.
+
+hook: explains supply mechanics in terms of utility — not speculation, alignment
+
+---
+
+**#112** | type: ecosystem | score: 9/10 | source: coinbase / base ecosystem building
+> coinbase built x402 (agent payments). coinbase co-authored erc-8004 (agent identity). somebody needed to build the ownership layer. we built it. it runs on base. it speaks x402. it's not a coincidence.
+
+hook: connects all the dots without sounding conspiratorial — positions inkd as the natural completion of what Coinbase is building
+
+---
+
+**#113** | type: engagement | score: 8/10 | source: launch week
+> we just launched $inkd on base. one question: what's the first project you'd register? serious — we want to know what you're building.
+
+hook: engagement bait but honest — shows we actually want builders, not holders
+
+---
+
+**#114** | type: atomic | score: 9/10 | source: anti-platform thesis
+> github has 100m developers. every one of them could lose their repos tomorrow if github decides they violated terms. inkd has no terms to violate. the registry is a contract. contracts don't have moderation teams.
+
+hook: concrete statement of the anti-platform value prop — 100m developers is a real number
+
+---
+
+**#115** | type: build-log | score: 8/10 | source: test suite
+> 1,011 tests. 238 contracts. 323 sdk. 348 cli. 69 agentkit. 33 mcp. all green. we did not ship fast. we shipped right. the difference matters when agents are depending on your uptime.
+
+hook: updated test count, positions reliability as an agent-centric concern
+
+---
+
+**#116** | type: hot-take | score: 9/10 | source: launch post-mortem angle
+> most protocols launch with: whitepaper, no code. we launched with: 1,011 tests, 4 packages, 5 integrations, verified contracts. the whitepaper came after the tests. that's the order it should always happen in.
+
+hook: inverts the typical launch order as a quality signal — shows discipline
+
+---
+
+**#117** | type: atomic | score: 10/10 | source: defining the category
+> we're not a storage protocol. we're not a package manager. we're not an npm alternative. we're a registry. the on-chain record that a wallet owns a project. everything else is infrastructure we don't replace.
+
+hook: category clarity — most builders get this wrong by trying to be everything
+
+---
+
+**#118** | type: ecosystem | score: 8/10 | source: erc-8004 + inkd integration guide
+> erc-8004 agents store a uri in their identity nft. that uri can resolve to an inkd project. the agent's identity points to its codebase. the codebase is owned by the agent's wallet. that's what a complete agent profile looks like.
+
+hook: very specific, technical, actionable — developers building on erc-8004 will recognize the pattern immediately
+
+---
+
+*last updated: 2026-03-04*

@@ -3,271 +3,218 @@
 [![CI](https://github.com/inkdprotocol/inkd-protocol/actions/workflows/ci.yml/badge.svg)](https://github.com/inkdprotocol/inkd-protocol/actions/workflows/ci.yml)
 [![X](https://img.shields.io/badge/X-@inkdprotocol-black?logo=x)](https://x.com/inkdprotocol)
 [![Base](https://img.shields.io/badge/Base-Mainnet-blue)](https://base.org)
-[![x402](https://img.shields.io/badge/payments-x402-orange)](https://x402.org)
+[![x402](https://img.shields.io/badge/x402-native-orange)](https://x402.org)
 
-**On-chain project registry for AI agents. No accounts. Wallet = identity.**
+**The on-chain registry for code that actually matters.**
 
-inkd is a decentralized protocol where developers and AI agents register code permanently on-chain. Lock 1 $INKD to create a project. Pay 0.001 ETH to push a version. Every file lives on Arweave forever. Every registration is a signed on-chain proof of ownership.
-
-Built for agents. Accessible via [x402](https://x402.org) — no API keys, no sign-up, just a wallet.
+Lock 1 $INKD. Your project is registered forever. Your wallet is the owner. Nobody can take it.
 
 ---
 
-## Why inkd
+## What is inkd
 
-Every AI agent today uses GitHub, npm, or APIs that require human accounts. inkd removes that dependency entirely.
+inkd is a permanent, on-chain project registry built on Base. You lock 1 $INKD token to register a project. The token stays locked forever — permanently associated with that project. Every version you push is an Arweave hash stored immutably on-chain.
 
-An agent with a wallet can:
-- Register its tools and capabilities on-chain
-- Push version updates autonomously
-- Prove authorship cryptographically
-- Be discovered by other agents
+No accounts. No usernames. No platform.
 
-No human in the loop. No platform that can ban it. No company that can revoke access.
+**Wallet = identity. Lock = ownership. On-chain = forever.**
 
 ---
 
-## How It Works
+## Why it exists
 
-```
-Agent has a wallet
-      ↓
-POST /v1/projects → HTTP 402 returned (x402)
-      ↓
-Agent auto-pays 0.001 ETH via wallet
-      ↓
-Coinbase facilitator verifies payment
-      ↓
-inkd Registry called on-chain
-      ↓
-Project registered — payer address = owner
-      ↓
-1 $INKD locked permanently, removed from supply
-```
+GitHub can ban you. npm can unpublish you. Any platform can revoke your access.
+
+inkd cannot. The registry is a smart contract on Base. There is no admin key. There is no pause function. There is no company that controls it.
+
+When you register on inkd, you are the owner. Full stop.
 
 ---
 
-## For AI Agents (x402)
+## Built for agents
 
-inkd's HTTP API speaks [x402](https://x402.org) — the standard for machine payments over HTTP. Agents pay with their wallet. No accounts, no API keys, no humans.
+inkd is x402-native. The API speaks [x402](https://x402.org) — the payment protocol for autonomous agents built by Coinbase.
 
-```typescript
-import { wrapFetchWithPayment } from '@x402/fetch'
-import { privateKeyToAccount } from 'viem/accounts'
-import { baseSepolia } from 'viem/chains'
+An agent with a wallet can register, pay, and own — with zero human involvement:
 
-// Agent wallet
-const account = privateKeyToAccount(process.env.PRIVATE_KEY)
-const fetch = wrapFetchWithPayment(account, baseSepolia)
-
-// Register a project — agent auto-pays if needed
-const res = await fetch('https://api.inkdprotocol.com/v1/projects', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    name: 'my-agent-tool',
-    description: 'Summarizes GitHub PRs in 3 bullets',
-    license: 'MIT',
-    isPublic: true,
-    isAgent: true,
-    agentEndpoint: 'https://api.myagent.xyz/v1',
-  }),
-})
-
-const { projectId, owner, txHash } = await res.json()
-// projectId: on-chain ID
-// owner: agent's wallet address = proof of authorship
-// txHash: blockchain proof
+```
+Agent calls POST /v1/projects
+      ↓
+API returns HTTP 402 (payment required)
+      ↓
+Agent auto-pays via wallet (@x402/fetch)
+      ↓
+inkd Registry called on Base
+      ↓
+Project registered on-chain
+1 $INKD locked permanently
+Agent wallet = owner
 ```
 
-**GET endpoints are free** — no payment needed to read projects or discover agents.
+No API key. No OAuth. No human in the loop.
 
-→ Full x402 guide: [docs/X402.md](docs/X402.md)
+This is the first registry where an AI agent can own what it builds.
 
 ---
 
-## For Developers (SDK)
+## The stack
 
-```bash
-npm install @inkd/sdk
-```
+inkd fits into the emerging agent infrastructure:
 
-```typescript
-import { InkdClient } from '@inkd/sdk'
-import { createWalletClient, http } from 'viem'
-import { base } from 'viem/chains'
+| Layer | Protocol | What it gives agents |
+|-------|----------|---------------------|
+| Payments | [x402](https://x402.org) | Pay for APIs autonomously |
+| Identity | [ERC-8004](https://eips.ethereum.org/EIPS/eip-8004) | Verifiable on-chain identity |
+| **Ownership** | **inkd** | **Own what you build, permanently** |
 
-const client = createWalletClient({ account, chain: base, transport: http() })
-const inkd = new InkdClient({ walletClient: client, chainId: base.id })
-
-// Approve + create project
-await inkd.approveToken(REGISTRY_ADDRESS, parseEther('1'))
-const { projectId } = await inkd.createProject({
-  name: 'my-project',
-  description: 'A cool project',
-  license: 'MIT',
-  isPublic: true,
-})
-
-// Push a version
-await inkd.pushVersion(projectId, {
-  arweaveHash: 'ar://QmXyz...',
-  versionTag: '1.0.0',
-  changelog: 'Initial release',
-})
-```
-
-→ Full SDK reference: [docs/SDK_REFERENCE.md](docs/SDK_REFERENCE.md)
+x402 was built by Coinbase. ERC-8004 was co-authored by MetaMask, Ethereum Foundation, Google, and Coinbase. inkd is the piece nobody else built.
 
 ---
 
-## CLI
+## $INKD Token
+
+$INKD launched on Base via [Clanker](https://clanker.world) — LP permanently locked, no admin control.
+
+**The lock mechanic:**
+- Register a project → 1 $INKD locked forever in the registry
+- That token never unlocks. It's permanently associated with that project.
+- Every new project removes 1 $INKD from circulation
+- Protocol grows → supply decreases
+
+This isn't a burn. It's a commitment. One project, one token, forever.
+
+---
+
+## Quick start
+
+**For humans (CLI):**
 
 ```bash
 npm install -g @inkd/cli
 
-inkd project create --name my-project --license MIT
-inkd version push --project 1 --tag v1.0.0 --file ./dist.zip
-inkd agent list
+# Configure your wallet
+inkd config set privateKey 0x...
+
+# Register a project — locks 1 $INKD
+inkd create my-project
+
+# Push a version
+inkd push my-project v1.0.0 ar://QmYourArweaveHash
 ```
 
-→ Full CLI reference: [docs/CLI_REFERENCE.md](docs/CLI_REFERENCE.md)
+**For AI agents (x402):**
+
+```typescript
+import { wrapFetchWithPayment } from '@x402/fetch'
+import { privateKeyToAccount } from 'viem/accounts'
+import { base } from 'viem/chains'
+
+const account = privateKeyToAccount(process.env.PRIVATE_KEY as `0x${string}`)
+const fetch = wrapFetchWithPayment(account, base)
+
+// Register — agent auto-pays if server returns 402
+const res = await fetch('https://api.inkdprotocol.com/v1/projects', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    name:    'my-agent-tool',
+    license: 'MIT',
+    isAgent: true,
+    agentEndpoint: 'https://api.myagent.xyz',
+  }),
+})
+
+const { projectId, owner, txHash } = await res.json()
+// owner = agent's wallet address = permanent on-chain proof
+```
+
+**GET endpoints are always free.** Read, discover, and query without paying.
 
 ---
 
-## Token Economics
+## AgentKit + MCP
 
-| Action | Cost | Effect |
-|--------|------|--------|
-| Create project | Lock 1 $INKD | Removed from supply **forever** |
-| Push version | 0.001 ETH → Treasury | Protocol revenue |
-| Transfer project | 0.005 ETH → Treasury | Protocol revenue |
-| Add collaborator | Gas only | — |
+inkd ships native integrations for the two dominant agent frameworks:
 
-**Total Supply:** 1,000,000,000 $INKD
-
-Every project registration permanently removes 1 $INKD from circulation. More adoption = less supply. Deflationary by design, not by decree.
-
-$INKD launched on Base via [Clanker](https://clanker.world) — Uniswap V4, creator LP fees, sniper protection.
-
----
-
-## Architecture
-
+**Coinbase AgentKit:**
+```bash
+npm install @inkd/agentkit
 ```
-$INKD Token (ERC-20 · 1B supply · Base Mainnet)
-│
-├── InkdRegistry (UUPS upgradeable)
-│   ├── createProject()     → locks 1 $INKD permanently
-│   ├── pushVersion()       → 0.001 ETH fee → Treasury
-│   ├── transferProject()   → 0.005 ETH fee → Treasury
-│   ├── addCollaborator()
-│   ├── setReadme()
-│   └── getAgentProjects()  → discover all registered agents
-│
-├── InkdTreasury (UUPS upgradeable)
-│   └── holds protocol ETH fees
-│
-└── InkdTimelock (48h delay)
-    └── governance layer for contract upgrades
+```typescript
+import { InkdActionProvider } from '@inkd/agentkit'
+// inkd_create_project, inkd_push_version, inkd_get_project, inkd_list_agents
+// available as native actions in any AgentKit agent
+```
 
-Files → Arweave (permanent, decentralized)
-Payments → x402 (HTTP-native, wallet-based)
-Chain → Base (EVM, low fees, Coinbase ecosystem)
+**Claude / Cursor (MCP):**
+```json
+{
+  "mcpServers": {
+    "inkd": {
+      "command": "npx",
+      "args": ["@inkd/mcp"],
+      "env": { "INKD_PRIVATE_KEY": "0x..." }
+    }
+  }
+}
 ```
 
 ---
 
-## Contracts (Base Sepolia Testnet)
+## Packages
+
+| Package | Description |
+|---------|-------------|
+| `@inkd/sdk` | TypeScript SDK — InkdClient, ArweaveClient, events, batch reads |
+| `@inkd/cli` | CLI tool — create, push, list, transfer |
+| `@inkd/agentkit` | Coinbase AgentKit action provider |
+| `@inkd/mcp` | Model Context Protocol server (Claude, Cursor) |
+
+---
+
+## Contracts
+
+Deployed on Base Mainnet. All verified on Basescan. No admin keys. No pause function.
 
 | Contract | Address |
 |----------|---------|
-| InkdToken | [`0xdea1645d97ae3090fb787bbdb49cf6d5638c1b55`](https://sepolia.basescan.org/token/0xdea1645d97ae3090fb787bbdb49cf6d5638c1b55) |
-| InkdRegistry (Proxy) | [`0x1b24f377c5264d07e7443cb714d27fa484be0f02`](https://sepolia.basescan.org/address/0x1b24f377c5264d07e7443cb714d27fa484be0f02) |
-| InkdTreasury (Proxy) | [`0x8dad662a4deaf42187f5abebc18886175a75a364`](https://sepolia.basescan.org/address/0x8dad662a4deaf42187f5abebc18886175a75a364) |
-| InkdTimelock | [`0xaE6069d77cd93a1d6cA00eEf946befb966699491`](https://basescan.org/address/0xaE6069d77cd93a1d6cA00eEf946befb966699491) |
-
-Mainnet contracts coming soon.
+| InkdRegistry (Proxy) | TBD post-launch |
+| InkdTreasury (Proxy) | TBD post-launch |
+| InkdTimelock (48h) | TBD post-launch |
 
 ---
 
-## API Endpoints
+## Test suite
 
-```
-Base URL: https://api.inkdprotocol.com
+1,011 tests. All green.
 
-GET  /v1/health                         → server status
-GET  /v1/status                         → protocol stats
-GET  /v1/projects                       → list projects (free)
-GET  /v1/projects/:id                   → get project (free)
-GET  /v1/projects/:id/versions          → list versions (free)
-POST /v1/projects                       → create project (x402: $0.001)
-POST /v1/projects/:id/versions          → push version (x402: $0.001)
-GET  /v1/agents                         → list registered agents (free)
-GET  /v1/agents/:id                     → get agent (free)
-```
-
-Write endpoints require x402 payment. Read endpoints are always free.
+| Package | Tests |
+|---------|-------|
+| Contracts (Foundry) | 238 |
+| SDK (vitest) | 323 |
+| CLI (vitest) | 348 |
+| AgentKit | 69 |
+| MCP | 33 |
 
 ---
 
-## Repository Structure
+## Docs
 
-```
-inkd-protocol/
-├── contracts/       Solidity (Foundry) — Registry, Treasury, Token, Timelock
-├── sdk/             TypeScript SDK (@inkd/sdk)
-├── cli/             TypeScript CLI (@inkd/cli)
-├── api/             Express HTTP API (@inkd/api) — x402 enabled
-├── docs/            Full documentation
-├── scripts/         Deploy + launch scripts
-└── examples/        Usage examples
-```
+- [x402 Agent Guide](docs/X402.md) — full guide for agent integrations
+- [ERC-8004 Integration](docs/ERC8004.md) — inkd as the ownership layer for ERC-8004 agents
+- [SDK Reference](docs/SDK_REFERENCE.md)
+- [Subgraph](SUBGRAPH.md)
+- [Security Review](SECURITY_REVIEW.md)
+- [Audit Prep](AUDIT_PREP.md)
 
 ---
 
-## Development
+## Links
 
-```bash
-git clone https://github.com/inkdprotocol/inkd-protocol
-cd inkd-protocol
-
-# Contracts
-cd contracts && forge install && forge build && forge test
-
-# SDK
-cd sdk && npm install && npm test
-
-# CLI
-cd cli && npm install && npm test
-
-# API
-cd api && npm install && npm run dev
-```
-
-**Test suite:** 909 tests — contracts (238) · SDK (323) · CLI (348)
+- Website: [inkdprotocol.com](https://inkdprotocol.com)
+- X: [@inkdprotocol](https://x.com/inkdprotocol)
+- GitHub: [inkdprotocol/inkd-protocol](https://github.com/inkdprotocol/inkd-protocol)
 
 ---
 
-## Documentation
-
-| Doc | Description |
-|-----|-------------|
-| [docs/X402.md](docs/X402.md) | x402 agent payment guide |
-| [docs/QUICKSTART.md](docs/QUICKSTART.md) | 5-minute CLI quickstart |
-| [docs/SDK_REFERENCE.md](docs/SDK_REFERENCE.md) | Full SDK reference |
-| [docs/CLI_REFERENCE.md](docs/CLI_REFERENCE.md) | Full CLI reference |
-| [docs/CONTRACT_REFERENCE.md](docs/CONTRACT_REFERENCE.md) | Contract ABI reference |
-| [docs/API.md](docs/API.md) | HTTP API reference |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System architecture |
-| [docs/WHITEPAPER.md](docs/WHITEPAPER.md) | Protocol whitepaper |
-
----
-
-## License
-
-MIT — see [LICENSE](LICENSE)
-
----
-
-*Built on Base. Stored on Arweave. Paid via x402. Owned forever.*
+*If it's not inked, it's not yours.*
