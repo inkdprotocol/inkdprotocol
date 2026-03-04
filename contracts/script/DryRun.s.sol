@@ -38,7 +38,7 @@ contract DryRun is Script {
         InkdTreasury treasuryImpl = new InkdTreasury();
         ERC1967Proxy treasuryProxy = new ERC1967Proxy(
             address(treasuryImpl),
-            abi.encodeCall(InkdTreasury.initialize, (deployer, MOCK_USDC, MOCK_ARWEAVE_WALLET, MOCK_BUYBACK_WALLET))
+            abi.encodeCall(InkdTreasury.initialize, (deployer, MOCK_USDC, deployer, MOCK_ARWEAVE_WALLET, MOCK_BUYBACK_WALLET))
         );
         InkdTreasury treasury = InkdTreasury(payable(address(treasuryProxy)));
         _assert(treasury.owner() == deployer,              "FAIL: Treasury owner mismatch");

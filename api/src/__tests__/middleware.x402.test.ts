@@ -38,7 +38,7 @@ describe('buildX402Middleware()', () => {
   })
 
   const baseConfig = {
-    payTo:          '0xABCDEF1234567890ABCDef1234567890AbCdEf01' as Address,
+    treasuryAddress:          '0xABCDEF1234567890ABCDef1234567890AbCdEf01' as Address,
     facilitatorUrl: 'https://x402.org/facilitator',
     network:        'testnet' as const,
   }
@@ -75,18 +75,19 @@ describe('buildX402Middleware()', () => {
     expect(routes['POST /v1/projects'].accepts.network).toBe(NETWORK_BASE_MAINNET)
   })
 
-  it('sets payTo address in both route configs', () => {
+  it('sets treasuryAddress in both route configs', () => {
     buildX402Middleware(baseConfig)
     const [routes] = (paymentMiddlewareFromConfig as ReturnType<typeof vi.fn>).mock.calls[0] as [Record<string, { accepts: { payTo: string } }>]
-    expect(routes['POST /v1/projects'].accepts.payTo).toBe(baseConfig.payTo)
-    expect(routes['POST /v1/projects/:id/versions'].accepts.payTo).toBe(baseConfig.payTo)
+    const routeKeys = Object.keys(routes)
+    expect(routes[routeKeys[0]]!.accepts.payTo).toBe(baseConfig.treasuryAddress)
+    expect(routes[routeKeys[1]]!.accepts.payTo).toBe(baseConfig.treasuryAddress)
   })
 
   it('sets price to $0.001 in both route configs', () => {
     buildX402Middleware(baseConfig)
     const [routes] = (paymentMiddlewareFromConfig as ReturnType<typeof vi.fn>).mock.calls[0] as [Record<string, { accepts: { price: string } }>]
-    expect(routes['POST /v1/projects'].accepts.price).toBe('$0.001')
-    expect(routes['POST /v1/projects/:id/versions'].accepts.price).toBe('$0.001')
+    expect(routes['POST /v1/projects'].accepts.price).toBe('$5.00') // create project
+    expect(routes['POST /v1/projects/:id/versions'].accepts.price).toBe('$2.00') // push version
   })
 
   it('uses custom facilitatorUrl when provided', () => {

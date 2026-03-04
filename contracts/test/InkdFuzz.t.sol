@@ -28,7 +28,7 @@ contract InkdFuzzTest is Test {
         InkdTreasury treasuryImpl = new InkdTreasury();
         ERC1967Proxy treasuryProxy = new ERC1967Proxy(
             address(treasuryImpl),
-            abi.encodeCall(InkdTreasury.initialize, (owner, address(usdc), arweaveWallet, buybackWallet))
+            abi.encodeCall(InkdTreasury.initialize, (owner, address(usdc), owner, arweaveWallet, buybackWallet))
         );
         treasury = InkdTreasury(payable(address(treasuryProxy)));
 

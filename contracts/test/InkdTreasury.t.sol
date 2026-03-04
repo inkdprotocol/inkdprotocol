@@ -23,7 +23,7 @@ contract InkdTreasuryTest is Test {
         InkdTreasury impl = new InkdTreasury();
         ERC1967Proxy proxy = new ERC1967Proxy(
             address(impl),
-            abi.encodeCall(InkdTreasury.initialize, (owner, address(usdc), arweaveWallet, buybackWallet))
+            abi.encodeCall(InkdTreasury.initialize, (owner, address(usdc), owner, arweaveWallet, buybackWallet))
         );
         treasury = InkdTreasury(payable(address(proxy)));
         treasury.setRegistry(registry);
@@ -48,7 +48,7 @@ contract InkdTreasuryTest is Test {
     }
 
     function test_buybackWallet() public view {
-        assertEq(treasury.buybackWallet(), buybackWallet);
+        assertEq(treasury.buybackContract(), buybackWallet);
     }
 
     function test_serviceFee_default() public view {
@@ -97,23 +97,23 @@ contract InkdTreasuryTest is Test {
         treasury.setArweaveWallet(address(0));
     }
 
-    // ───── setBuybackWallet ─────
+    // ───── setBuybackContract ─────
 
-    function test_setBuybackWallet() public {
+    function test_setBuybackContract() public {
         address newWallet = makeAddr("newBuyback");
-        treasury.setBuybackWallet(newWallet);
-        assertEq(treasury.buybackWallet(), newWallet);
+        treasury.setBuybackContract(newWallet);
+        assertEq(treasury.buybackContract(), newWallet);
     }
 
-    function test_setBuybackWallet_reverts_nonOwner() public {
+    function test_setBuybackContract_reverts_nonOwner() public {
         vm.prank(alice);
         vm.expectRevert();
-        treasury.setBuybackWallet(alice);
+        treasury.setBuybackContract(alice);
     }
 
-    function test_setBuybackWallet_reverts_zero() public {
+    function test_setBuybackContract_reverts_zero() public {
         vm.expectRevert(InkdTreasury.ZeroAddress.selector);
-        treasury.setBuybackWallet(address(0));
+        treasury.setBuybackContract(address(0));
     }
 
     // ───── setArweaveFee / setServiceFee ─────
@@ -179,16 +179,14 @@ contract InkdTreasuryTest is Test {
     function test_receivePayment_emits_events() public {
         usdc.mint(address(treasury), SERVICE_FEE);
         vm.expectEmit(true, false, false, true);
-        emit InkdTreasury.PaymentReceived(registry, SERVICE_FEE);
-        vm.expectEmit(false, false, false, true);
-        emit InkdTreasury.PaymentSplit(ARWEAVE_FEE, 2_000_000, 2_000_000);
+        emit InkdTreasury.Settled(registry, SERVICE_FEE, ARWEAVE_FEE, 2_000_000, 2_000_000);
         vm.prank(registry);
         treasury.receivePayment(SERVICE_FEE);
     }
 
     function test_receivePayment_reverts_nonRegistry() public {
         vm.prank(alice);
-        vm.expectRevert(InkdTreasury.OnlyRegistry.selector);
+        vm.expectRevert(InkdTreasury.Unauthorized.selector);
         treasury.receivePayment(SERVICE_FEE);
     }
 

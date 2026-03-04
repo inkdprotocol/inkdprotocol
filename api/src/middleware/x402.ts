@@ -1,17 +1,26 @@
 /**
  * Inkd API — x402 Payment Middleware
  *
- * Replaces Bearer token auth for write endpoints.
- * Agents pay with their wallet — no API keys, no accounts.
+ * Agents pay in USDC on Base — no API keys, no accounts, no humans.
  *
  * Flow:
- *   1. Agent sends POST /v1/projects (no payment)
- *   2. Server returns 402 with payment details (0.001 ETH)
- *   3. Agent auto-pays via @x402/fetch
- *   4. Server verifies via Coinbase facilitator
- *   5. Request proceeds — payer address = project owner
+ *   1. Agent sends POST /v1/projects (no payment yet)
+ *   2. Server returns 402 with payment details ($5 USDC → Treasury Contract)
+ *   3. Agent auto-pays via @x402/fetch (EIP-3009 signed transfer)
+ *   4. Coinbase facilitator verifies USDC landed in Treasury
+ *   5. Request proceeds — server calls Treasury.settle() to split revenue
+ *   6. Registry transaction goes on-chain — payer address = owner
  *
- * Docs: https://x402.org / https://docs.cdp.coinbase.com/x402
+ * Pricing:
+ *   POST /v1/projects              → $5.00 USDC (create project)
+ *   POST /v1/projects/:id/versions → $2.00 USDC (push version)
+ *
+ * Revenue split (handled by InkdTreasury.settle()):
+ *   $1.00 → arweaveWallet   (Arweave storage)
+ *   $2.00 → InkdBuyback     (auto-buys $INKD at $50 threshold)
+ *   $2.00 → Treasury        (protocol revenue)
+ *
+ * Docs: https://x402.org | https://docs.cdp.coinbase.com/x402
  */
 
 import { paymentMiddlewareFromConfig } from '@x402/express'
@@ -20,67 +29,85 @@ import type { RoutesConfig }            from '@x402/core/server'
 import type { RequestHandler, Request } from 'express'
 import type { Address }                 from 'viem'
 
-// Network CAIP-2 identifiers
+// CAIP-2 network identifiers
 export const NETWORK_BASE_MAINNET = 'eip155:8453'
 export const NETWORK_BASE_SEPOLIA = 'eip155:84532'
 
+// USDC contract addresses
+export const USDC_BASE_MAINNET = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' as Address
+export const USDC_BASE_SEPOLIA = '0x036CbD53842c5426634e7929541eC2318f3dCF7e' as Address
+
 export interface X402Config {
-  /** Address that receives all payments (treasury/server wallet) */
-  payTo:          Address
+  /** InkdTreasury contract address — receives all USDC payments */
+  treasuryAddress: Address
   /** Coinbase facilitator URL. Default: https://x402.org/facilitator */
-  facilitatorUrl: string
+  facilitatorUrl:  string
   /** Network to accept payments on */
-  network:        'mainnet' | 'testnet'
+  network:         'mainnet' | 'testnet'
 }
 
 /**
- * Build x402 payment middleware for Inkd write endpoints.
+ * Build x402 USDC payment middleware for Inkd write endpoints.
  *
- * Protected routes:
- *   POST /v1/projects              → 0.001 ETH (register project)
- *   POST /v1/projects/:id/versions → 0.001 ETH (push version)
+ * Agents pay with their wallet — USDC goes directly to InkdTreasury.
+ * After payment verification, server calls Treasury.settle() to split revenue.
  */
 export function buildX402Middleware(cfg: X402Config): RequestHandler {
-  const networkId = cfg.network === 'mainnet'
-    ? NETWORK_BASE_MAINNET
-    : NETWORK_BASE_SEPOLIA
+  const networkId  = cfg.network === 'mainnet' ? NETWORK_BASE_MAINNET : NETWORK_BASE_SEPOLIA
+  const usdcAddr   = cfg.network === 'mainnet' ? USDC_BASE_MAINNET    : USDC_BASE_SEPOLIA
 
   const routes: RoutesConfig = {
+    // Register a project — $5 USDC
     'POST /v1/projects': {
       accepts: {
         scheme:  'exact',
-        payTo:   cfg.payTo,
-        price:   '$0.001',
+        payTo:   cfg.treasuryAddress,
+        price:   '$5.00',
         network: networkId,
+        extra: {
+          token: usdcAddr,
+          name:  'USDC',
+        },
       },
-      description: 'Register a project on inkd — locks 1 $INKD on-chain',
+      description: 'Register an AI agent or project on Inkd Protocol (locks $INKD on-chain)',
     },
+    // Push a new version — $2 USDC
     'POST /v1/projects/:id/versions': {
       accepts: {
         scheme:  'exact',
-        payTo:   cfg.payTo,
-        price:   '$0.001',
+        payTo:   cfg.treasuryAddress,
+        price:   '$2.00',
         network: networkId,
+        extra: {
+          token: usdcAddr,
+          name:  'USDC',
+        },
       },
-      description: 'Push a new version on-chain via inkd Registry',
+      description: 'Push a new version to an Inkd project (permanent Arweave + on-chain)',
     },
   }
 
-  // Use Coinbase-hosted facilitator for payment verification + settlement
-  // The facilitator handles all EVM payment processing — no local scheme needed
-  const facilitatorClient = new HTTPFacilitatorClient({ url: cfg.facilitatorUrl })
-
-  return paymentMiddlewareFromConfig(routes, facilitatorClient)
+  const facilitator = new HTTPFacilitatorClient({ url: cfg.facilitatorUrl })
+  return paymentMiddlewareFromConfig(routes, facilitator)
 }
 
 /**
  * Extract the payer's wallet address from x402 payment headers.
- * Returns undefined if no x402 payment was made (e.g. in dev mode).
+ * This address becomes the on-chain owner of the project/version.
  */
 export function getPayerAddress(req: Request): Address | undefined {
-  // x402/express attaches payment info to the request after verification
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const x402 = (req as any).x402
-  const from  = x402?.payment?.payload?.authorization?.from as Address | undefined
-  return from
+  return x402?.payment?.payload?.authorization?.from as Address | undefined
+}
+
+/**
+ * Extract the amount paid (in USDC base units, 6 decimals).
+ * Returns 5_000_000 for $5.00, 2_000_000 for $2.00, etc.
+ */
+export function getPaymentAmount(req: Request): bigint | undefined {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const x402 = (req as any).x402
+  const amount = x402?.payment?.payload?.authorization?.value
+  return amount ? BigInt(amount) : undefined
 }

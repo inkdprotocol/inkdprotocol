@@ -54,7 +54,7 @@ contract InkdUpgradeTest is Test {
         InkdTreasury treasuryImpl = new InkdTreasury();
         ERC1967Proxy treasuryProxy = new ERC1967Proxy(
             address(treasuryImpl),
-            abi.encodeCall(InkdTreasury.initialize, (owner, address(usdc), makeAddr("arweave"), makeAddr("buyback")))
+            abi.encodeCall(InkdTreasury.initialize, (owner, address(usdc), owner, makeAddr("arweave"), makeAddr("buyback")))
         );
         treasury = InkdTreasury(payable(address(treasuryProxy)));
 

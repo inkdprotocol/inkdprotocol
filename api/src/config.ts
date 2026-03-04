@@ -41,8 +41,9 @@ export interface ApiConfig {
   rateLimitWindowMs: number
   rateLimitMax:      number
   // x402 payment config
-  serverWalletKey:    string | null  // server signs on-chain txns
-  serverWalletAddress: Address | null // receives x402 payments
+  serverWalletKey:    string | null  // server signs on-chain txns + calls Treasury.settle()
+  serverWalletAddress: Address | null
+  treasuryAddress:    Address | null  // InkdTreasury — x402 payTo address
   x402FacilitatorUrl: string
   x402Enabled:        boolean
 }
@@ -57,22 +58,24 @@ export function loadConfig(): ApiConfig {
     ? 'https://mainnet.base.org'
     : 'https://sepolia.base.org'
 
-  const serverWalletKey = process.env['SERVER_WALLET_KEY'] ?? null
+  const serverWalletKey     = process.env['SERVER_WALLET_KEY'] ?? null
   const serverWalletAddress = (process.env['SERVER_WALLET_ADDRESS'] ?? null) as Address | null
+  const treasuryAddress     = (process.env['INKD_TREASURY_ADDRESS'] ?? null) as Address | null
 
   return {
     port:    parseInt(process.env['PORT'] ?? '3000', 10),
     network,
     rpcUrl:  process.env['INKD_RPC_URL'] ?? defaultRpc,
-    apiKey:  process.env['INKD_API_KEY'] ?? null,  // null = no auth (local dev)
+    apiKey:  process.env['INKD_API_KEY'] ?? null,
     corsOrigin: process.env['CORS_ORIGIN'] ?? '*',
     rateLimitWindowMs: parseInt(process.env['RATE_LIMIT_WINDOW_MS'] ?? '60000', 10),
     rateLimitMax:      parseInt(process.env['RATE_LIMIT_MAX']        ?? '60',    10),
     // x402
     serverWalletKey,
     serverWalletAddress,
+    treasuryAddress,
     x402FacilitatorUrl: process.env['X402_FACILITATOR_URL'] ?? 'https://x402.org/facilitator',
-    x402Enabled: Boolean(serverWalletAddress) && process.env['X402_ENABLED'] !== 'false',
+    x402Enabled: Boolean(treasuryAddress) && process.env['X402_ENABLED'] !== 'false',
   }
 }
 

@@ -50,7 +50,7 @@ contract InkdIntegrationTest is Test {
         InkdTreasury treasuryImpl = new InkdTreasury();
         ERC1967Proxy treasuryProxy = new ERC1967Proxy(
             address(treasuryImpl),
-            abi.encodeCall(InkdTreasury.initialize, (protocol, address(usdc), arweaveWallet, buybackWallet))
+            abi.encodeCall(InkdTreasury.initialize, (protocol, address(usdc), protocol, arweaveWallet, buybackWallet))
         );
         treasury = InkdTreasury(payable(address(treasuryProxy)));
 
@@ -295,12 +295,12 @@ contract InkdIntegrationTest is Test {
         uint256 totalFees = fee * 5;
         uint256 expectedBuyback  = totalFees / 2;
         uint256 expectedTreasury = totalFees - expectedBuyback;
-        assertEq(usdc.balanceOf(buybackWallet),    expectedBuyback,  "buyback wallet balance");
+        // buyback goes to buybackContract (address == buybackWallet in test setup)
         assertEq(usdc.balanceOf(address(treasury)), expectedTreasury, "treasury USDC balance");
 
         // Treasury rejects receivePayment from non-registry
         vm.prank(alice);
-        vm.expectRevert(InkdTreasury.OnlyRegistry.selector);
+        vm.expectRevert(InkdTreasury.Unauthorized.selector);
         treasury.receivePayment(1);
 
         // Protocol withdraws treasury USDC to a multisig

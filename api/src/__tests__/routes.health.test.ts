@@ -34,6 +34,7 @@ const baseCfg: ApiConfig = {
   serverWalletAddress: null,
   x402FacilitatorUrl: 'https://x402.org/facilitator',
   x402Enabled: false,
+    treasuryAddress: null,
 }
 
 const cfgWithContracts: ApiConfig = {

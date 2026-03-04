@@ -173,3 +173,31 @@ export const TOKEN_ABI = [
     outputs: [{ type: 'bool' }],
   },
 ] as const
+
+export const TREASURY_ABI = [
+  {
+    name: 'settle',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [{ name: 'amount', type: 'uint256' }],
+    outputs: [],
+  },
+  {
+    name: 'feeSplit',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [
+      { name: 'toArweave',  type: 'uint256' },
+      { name: 'toBuyback',  type: 'uint256' },
+      { name: 'toTreasury', type: 'uint256' },
+    ],
+  },
+  {
+    name: 'serviceFee',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ type: 'uint256' }],
+  },
+] as const

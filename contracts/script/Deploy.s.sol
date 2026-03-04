@@ -9,7 +9,8 @@ pragma solidity ^0.8.24;
  *           DEPLOYER_PRIVATE_KEY   — deployer EOA key
  *           USDC_ADDRESS           — USDC token on this chain
  *           ARWEAVE_WALLET         — wallet that receives arweave fee portion
- *           BUYBACK_WALLET         — wallet that executes $INKD buybacks
+ *           BUYBACK_CONTRACT       — InkdBuyback contract address (address(0) before Clanker launch)
+ *           SERVER_WALLET          — API server wallet (settler)
  *
  *         Usage (Base Sepolia):
  *           forge script script/Deploy.s.sol:Deploy \
@@ -30,7 +31,8 @@ contract Deploy is Script {
         address deployer = vm.addr(deployerKey);
         address usdc = vm.envAddress("USDC_ADDRESS");
         address arweaveWallet = vm.envAddress("ARWEAVE_WALLET");
-        address buybackWallet = vm.envAddress("BUYBACK_WALLET");
+        address buybackContract = vm.envOr("BUYBACK_CONTRACT", address(0));
+        address serverWallet = vm.envOr("SERVER_WALLET", deployer);
 
         console.log("========================================");
         console.log("  Inkd Protocol Deployment");
@@ -38,7 +40,8 @@ contract Deploy is Script {
         console.log("Deployer:       ", deployer);
         console.log("USDC:           ", usdc);
         console.log("Arweave Wallet: ", arweaveWallet);
-        console.log("Buyback Wallet: ", buybackWallet);
+        console.log("Buyback Contract:", buybackContract);
+        console.log("Server Wallet:  ", serverWallet);
         console.log("Chain ID:       ", block.chainid);
 
         vm.startBroadcast(deployerKey);
@@ -48,7 +51,7 @@ contract Deploy is Script {
         InkdTreasury treasuryImpl = new InkdTreasury();
         ERC1967Proxy treasuryProxy = new ERC1967Proxy(
             address(treasuryImpl),
-            abi.encodeCall(InkdTreasury.initialize, (deployer, usdc, arweaveWallet, buybackWallet))
+            abi.encodeCall(InkdTreasury.initialize, (deployer, usdc, serverWallet, arweaveWallet, buybackContract))
         );
         InkdTreasury treasury = InkdTreasury(payable(address(treasuryProxy)));
         console.log("InkdTreasury Impl:  ", address(treasuryImpl));
@@ -76,7 +79,7 @@ contract Deploy is Script {
         require(treasury.owner() == deployer, "Treasury owner mismatch");
         require(treasury.registry() == address(registryProxy), "Registry link mismatch");
         require(address(treasury.usdc()) == usdc, "Treasury USDC mismatch");
-        require(treasury.buybackWallet() == buybackWallet, "Buyback wallet mismatch");
+        require(treasury.buybackContract() == buybackContract, "Buyback contract mismatch");
         require(registry.owner() == deployer, "Registry owner mismatch");
         require(address(registry.usdc()) == usdc, "Registry USDC mismatch");
         require(address(registry.treasury()) == address(treasuryProxy), "Treasury link mismatch");

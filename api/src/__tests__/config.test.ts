@@ -165,28 +165,28 @@ describe('loadConfig() — x402 / server wallet', () => {
   })
 
   it('serverWalletAddress defaults to null', () => {
-    delete process.env['SERVER_WALLET_ADDRESS']
+    delete process.env['INKD_TREASURY_ADDRESS']
     expect(loadConfig().serverWalletAddress).toBeNull()
   })
 
   it('reads SERVER_WALLET_ADDRESS', () => {
-    process.env['SERVER_WALLET_ADDRESS'] = '0xABCDEF1234567890ABCDef1234567890AbCdEf01'
-    expect(loadConfig().serverWalletAddress).toBe('0xABCDEF1234567890ABCDef1234567890AbCdEf01')
+    process.env['INKD_TREASURY_ADDRESS'] = '0xABCDEF1234567890ABCDef1234567890AbCdEf01'
+    expect(loadConfig().treasuryAddress).toBe('0xABCDEF1234567890ABCDef1234567890AbCdEf01')
   })
 
-  it('x402Enabled is false when serverWalletAddress not set', () => {
-    delete process.env['SERVER_WALLET_ADDRESS']
+  it('x402Enabled is false when treasuryAddress not set', () => {
+    delete process.env['INKD_TREASURY_ADDRESS']
     expect(loadConfig().x402Enabled).toBe(false)
   })
 
-  it('x402Enabled is true when serverWalletAddress is set', () => {
-    process.env['SERVER_WALLET_ADDRESS'] = '0xABCDEF1234567890ABCDef1234567890AbCdEf01'
+  it('x402Enabled is true when treasuryAddress is set', () => {
+    process.env['INKD_TREASURY_ADDRESS'] = '0xABCDEF1234567890ABCDef1234567890AbCdEf01'
     delete process.env['X402_ENABLED']
     expect(loadConfig().x402Enabled).toBe(true)
   })
 
   it('x402Enabled is false when X402_ENABLED=false even with wallet address', () => {
-    process.env['SERVER_WALLET_ADDRESS'] = '0xABCDEF1234567890ABCDef1234567890AbCdEf01'
+    process.env['INKD_TREASURY_ADDRESS'] = '0xABCDEF1234567890ABCDef1234567890AbCdEf01'
     process.env['X402_ENABLED'] = 'false'
     expect(loadConfig().x402Enabled).toBe(false)
   })

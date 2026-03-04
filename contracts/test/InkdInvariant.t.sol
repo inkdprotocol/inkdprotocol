@@ -74,7 +74,7 @@ contract InkdInvariantTest is StdInvariant, Test {
         InkdTreasury treasuryImpl = new InkdTreasury();
         ERC1967Proxy treasuryProxy = new ERC1967Proxy(
             address(treasuryImpl),
-            abi.encodeCall(InkdTreasury.initialize, (deployer, address(usdc), arweaveWallet, buybackWallet))
+            abi.encodeCall(InkdTreasury.initialize, (deployer, address(usdc), deployer, arweaveWallet, buybackWallet))
         );
         treasury = InkdTreasury(payable(address(treasuryProxy)));
 
