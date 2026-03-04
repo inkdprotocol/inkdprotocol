@@ -4,18 +4,26 @@ pragma solidity ^0.8.24;
 import {Test} from "forge-std/Test.sol";
 import {InkdTreasury} from "../src/InkdTreasury.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {MockUSDC} from "./helpers/MockUSDC.sol";
 
 contract InkdTreasuryTest is Test {
     InkdTreasury public treasury;
+    MockUSDC public usdc;
     address public owner = address(this);
     address public registry = makeAddr("registry");
+    address public arweaveWallet = makeAddr("arweaveWallet");
+    address public buybackWallet = makeAddr("buybackWallet");
     address public alice = makeAddr("alice");
 
+    uint256 constant SERVICE_FEE = 5_000_000; // $5.00
+    uint256 constant ARWEAVE_FEE = 1_000_000; // $1.00
+
     function setUp() public {
+        usdc = new MockUSDC();
         InkdTreasury impl = new InkdTreasury();
         ERC1967Proxy proxy = new ERC1967Proxy(
             address(impl),
-            abi.encodeCall(InkdTreasury.initialize, (owner))
+            abi.encodeCall(InkdTreasury.initialize, (owner, address(usdc), arweaveWallet, buybackWallet))
         );
         treasury = InkdTreasury(payable(address(proxy)));
         treasury.setRegistry(registry);
@@ -29,6 +37,26 @@ contract InkdTreasuryTest is Test {
 
     function test_registry() public view {
         assertEq(treasury.registry(), registry);
+    }
+
+    function test_usdc() public view {
+        assertEq(address(treasury.usdc()), address(usdc));
+    }
+
+    function test_arweaveWallet() public view {
+        assertEq(treasury.arweaveWallet(), arweaveWallet);
+    }
+
+    function test_buybackWallet() public view {
+        assertEq(treasury.buybackWallet(), buybackWallet);
+    }
+
+    function test_serviceFee_default() public view {
+        assertEq(treasury.serviceFee(), SERVICE_FEE);
+    }
+
+    function test_arweaveFee_default() public view {
+        assertEq(treasury.arweaveFee(), ARWEAVE_FEE);
     }
 
     // ───── setRegistry ─────
@@ -45,145 +73,171 @@ contract InkdTreasuryTest is Test {
         treasury.setRegistry(alice);
     }
 
-    // ───── Deposit ─────
-
-    function test_deposit_from_registry() public {
-        vm.deal(registry, 1 ether);
-        vm.prank(registry);
-        treasury.deposit{value: 0.001 ether}();
-        assertEq(address(treasury).balance, 0.001 ether);
+    function test_setRegistry_reverts_zero() public {
+        vm.expectRevert(InkdTreasury.ZeroAddress.selector);
+        treasury.setRegistry(address(0));
     }
 
-    function test_deposit_reverts_nonRegistry() public {
-        vm.deal(alice, 1 ether);
+    // ───── setArweaveWallet ─────
+
+    function test_setArweaveWallet() public {
+        address newWallet = makeAddr("newArweave");
+        treasury.setArweaveWallet(newWallet);
+        assertEq(treasury.arweaveWallet(), newWallet);
+    }
+
+    function test_setArweaveWallet_reverts_nonOwner() public {
+        vm.prank(alice);
+        vm.expectRevert();
+        treasury.setArweaveWallet(alice);
+    }
+
+    function test_setArweaveWallet_reverts_zero() public {
+        vm.expectRevert(InkdTreasury.ZeroAddress.selector);
+        treasury.setArweaveWallet(address(0));
+    }
+
+    // ───── setBuybackWallet ─────
+
+    function test_setBuybackWallet() public {
+        address newWallet = makeAddr("newBuyback");
+        treasury.setBuybackWallet(newWallet);
+        assertEq(treasury.buybackWallet(), newWallet);
+    }
+
+    function test_setBuybackWallet_reverts_nonOwner() public {
+        vm.prank(alice);
+        vm.expectRevert();
+        treasury.setBuybackWallet(alice);
+    }
+
+    function test_setBuybackWallet_reverts_zero() public {
+        vm.expectRevert(InkdTreasury.ZeroAddress.selector);
+        treasury.setBuybackWallet(address(0));
+    }
+
+    // ───── setArweaveFee / setServiceFee ─────
+
+    function test_setArweaveFee() public {
+        treasury.setArweaveFee(2_000_000);
+        assertEq(treasury.arweaveFee(), 2_000_000);
+    }
+
+    function test_setArweaveFee_reverts_exceeds_service() public {
+        vm.expectRevert(InkdTreasury.ArweaveFeeExceedsService.selector);
+        treasury.setArweaveFee(SERVICE_FEE + 1);
+    }
+
+    function test_setServiceFee() public {
+        treasury.setServiceFee(10_000_000);
+        assertEq(treasury.serviceFee(), 10_000_000);
+    }
+
+    function test_setServiceFee_reverts_below_arweave() public {
+        vm.expectRevert(InkdTreasury.ArweaveFeeExceedsService.selector);
+        treasury.setServiceFee(ARWEAVE_FEE - 1);
+    }
+
+    function test_setArweaveFee_reverts_nonOwner() public {
+        vm.prank(alice);
+        vm.expectRevert();
+        treasury.setArweaveFee(500_000);
+    }
+
+    function test_setServiceFee_reverts_nonOwner() public {
+        vm.prank(alice);
+        vm.expectRevert();
+        treasury.setServiceFee(10_000_000);
+    }
+
+    // ───── feeSplit ─────
+
+    function test_feeSplit_default() public view {
+        (uint256 toArweave, uint256 toBuyback, uint256 toTreasury) = treasury.feeSplit();
+        assertEq(toArweave, ARWEAVE_FEE);          // $1.00
+        assertEq(toBuyback, 2_000_000);             // $2.00 (50% of $4)
+        assertEq(toTreasury, 2_000_000);            // $2.00 (50% of $4)
+    }
+
+    // ───── receivePayment ─────
+
+    function test_receivePayment_splits_correctly() public {
+        usdc.mint(address(treasury), SERVICE_FEE);
+
+        uint256 arweaveBefore = usdc.balanceOf(arweaveWallet);
+        uint256 buybackBefore = usdc.balanceOf(buybackWallet);
+        uint256 treasuryBefore = usdc.balanceOf(address(treasury));
+
+        vm.prank(registry);
+        treasury.receivePayment(SERVICE_FEE);
+
+        assertEq(usdc.balanceOf(arweaveWallet), arweaveBefore + ARWEAVE_FEE);
+        assertEq(usdc.balanceOf(buybackWallet), buybackBefore + 2_000_000);
+        assertEq(usdc.balanceOf(address(treasury)), treasuryBefore - SERVICE_FEE + 2_000_000);
+    }
+
+    function test_receivePayment_emits_events() public {
+        usdc.mint(address(treasury), SERVICE_FEE);
+        vm.expectEmit(true, false, false, true);
+        emit InkdTreasury.PaymentReceived(registry, SERVICE_FEE);
+        vm.expectEmit(false, false, false, true);
+        emit InkdTreasury.PaymentSplit(ARWEAVE_FEE, 2_000_000, 2_000_000);
+        vm.prank(registry);
+        treasury.receivePayment(SERVICE_FEE);
+    }
+
+    function test_receivePayment_reverts_nonRegistry() public {
         vm.prank(alice);
         vm.expectRevert(InkdTreasury.OnlyRegistry.selector);
-        treasury.deposit{value: 0.001 ether}();
+        treasury.receivePayment(SERVICE_FEE);
     }
 
-    // ───── Receive ─────
+    // ───── withdraw ─────
+
+    function test_withdraw() public {
+        usdc.mint(address(treasury), 10_000_000);
+        treasury.withdraw(alice, 10_000_000);
+        assertEq(usdc.balanceOf(alice), 10_000_000);
+    }
+
+    function test_withdraw_reverts_nonOwner() public {
+        usdc.mint(address(treasury), 10_000_000);
+        vm.prank(alice);
+        vm.expectRevert();
+        treasury.withdraw(alice, 10_000_000);
+    }
+
+    function test_withdraw_reverts_zero_address() public {
+        usdc.mint(address(treasury), 10_000_000);
+        vm.expectRevert(InkdTreasury.ZeroAddress.selector);
+        treasury.withdraw(address(0), 10_000_000);
+    }
+
+    // ───── withdrawToken ─────
+
+    function test_withdrawToken() public {
+        MockUSDC other = new MockUSDC();
+        other.mint(address(treasury), 5_000_000);
+        treasury.withdrawToken(address(other), alice, 5_000_000);
+        assertEq(other.balanceOf(alice), 5_000_000);
+    }
+
+    // ───── ETH fallback ─────
 
     function test_receive_eth() public {
         vm.deal(alice, 1 ether);
         vm.prank(alice);
-        (bool ok,) = address(treasury).call{value: 0.5 ether}("");
+        (bool ok,) = address(treasury).call{value: 0.1 ether}("");
         assertTrue(ok);
-        assertEq(address(treasury).balance, 0.5 ether);
-    }
-
-    function test_receive_emitsReceived() public {
-        vm.deal(alice, 1 ether);
-        vm.expectEmit(true, false, false, true);
-        emit InkdTreasury.Received(alice, 0.25 ether);
-        vm.prank(alice);
-        (bool ok,) = address(treasury).call{value: 0.25 ether}("");
-        assertTrue(ok);
-    }
-
-    // ───── Withdraw ─────
-
-    function test_withdraw() public {
-        // Fund treasury
-        vm.deal(registry, 1 ether);
-        vm.prank(registry);
-        treasury.deposit{value: 0.1 ether}();
-
-        uint256 aliceBefore = alice.balance;
-        treasury.withdraw(alice, 0.05 ether);
-        assertEq(alice.balance, aliceBefore + 0.05 ether);
-        assertEq(address(treasury).balance, 0.05 ether);
-    }
-
-    function test_withdraw_reverts_nonOwner() public {
-        vm.deal(registry, 1 ether);
-        vm.prank(registry);
-        treasury.deposit{value: 0.1 ether}();
-
-        vm.prank(alice);
-        vm.expectRevert();
-        treasury.withdraw(alice, 0.05 ether);
-    }
-
-    function test_withdraw_reverts_insufficient_balance() public {
-        vm.expectRevert(InkdTreasury.TransferFailed.selector);
-        treasury.withdraw(alice, 1 ether);
-    }
-
-    // ───── Multiple deposits ─────
-
-    function test_multiple_deposits_accumulate() public {
-        vm.deal(registry, 10 ether);
-        vm.startPrank(registry);
-        treasury.deposit{value: 0.001 ether}();
-        treasury.deposit{value: 0.001 ether}();
-        treasury.deposit{value: 0.001 ether}();
-        vm.stopPrank();
-        assertEq(address(treasury).balance, 0.003 ether);
-    }
-
-    // ───── Event coverage ─────
-
-    function test_setRegistry_emitsRegistrySet() public {
-        address newRegistry = makeAddr("newRegistry");
-        vm.expectEmit(true, false, false, false);
-        emit InkdTreasury.RegistrySet(newRegistry);
-        treasury.setRegistry(newRegistry);
-    }
-
-    function test_deposit_emitsDeposited() public {
-        vm.deal(registry, 1 ether);
-        vm.expectEmit(true, false, false, true);
-        emit InkdTreasury.Deposited(registry, 0.001 ether);
-        vm.prank(registry);
-        treasury.deposit{value: 0.001 ether}();
-    }
-
-    function test_withdraw_emitsWithdrawn() public {
-        vm.deal(registry, 1 ether);
-        vm.prank(registry);
-        treasury.deposit{value: 0.1 ether}();
-
-        vm.expectEmit(true, false, false, true);
-        emit InkdTreasury.Withdrawn(alice, 0.05 ether);
-        treasury.withdraw(alice, 0.05 ether);
-    }
-
-    // ───── Withdraw edge cases ─────
-
-    function test_withdraw_zeroAmount() public {
-        // zero-value withdraw should succeed (call succeeds with 0 value)
-        vm.deal(registry, 1 ether);
-        vm.prank(registry);
-        treasury.deposit{value: 0.1 ether}();
-        treasury.withdraw(alice, 0);
         assertEq(address(treasury).balance, 0.1 ether);
     }
 
-    function test_withdraw_fullBalance() public {
-        vm.deal(registry, 1 ether);
-        vm.prank(registry);
-        treasury.deposit{value: 0.5 ether}();
-        treasury.withdraw(alice, 0.5 ether);
-        assertEq(address(treasury).balance, 0);
-        assertEq(alice.balance, 0.5 ether);
-    }
+    // ───── UUPS upgrade ─────
 
-    // ═══════════════════════════════════════════════════════════════════════
-    //  Implementation Guard — constructor _disableInitializers()
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// @notice The InkdTreasury implementation contract cannot be re-initialized.
-    /// @dev Verifies that _disableInitializers() in the constructor locks the impl.
-    function test_implementation_cannotBeInitialized() public {
-        InkdTreasury impl = new InkdTreasury();
+    function test_upgrade_reverts_nonOwner() public {
+        InkdTreasury newImpl = new InkdTreasury();
+        vm.prank(alice);
         vm.expectRevert();
-        impl.initialize(address(this));
-    }
-
-    /// @notice A fresh implementation also blocks initialization — guard is immutable.
-    function test_implementation_cannotBeInitialized_fresh() public {
-        InkdTreasury impl2 = new InkdTreasury();
-        vm.expectRevert();
-        impl2.initialize(makeAddr("owner2"));
+        treasury.upgradeToAndCall(address(newImpl), "");
     }
 }

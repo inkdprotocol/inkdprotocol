@@ -10,21 +10,14 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {InkdTreasury} from "./InkdTreasury.sol";
 
 /// @title InkdRegistry — Project registry for the Inkd Protocol
-/// @notice Lock 1 $INKD to create a project. Push versions for a variable ETH fee.
+/// @notice Register projects and push versions. Fees paid in USDC, auto-split by Treasury.
 contract InkdRegistry is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     using SafeERC20 for IERC20;
 
-    // ───── Constants ─────
-    uint256 public constant TOKEN_LOCK_AMOUNT = 1 ether; // 1 $INKD (18 decimals)
-    uint256 public constant MAX_VERSION_FEE = 0.01 ether;
-    uint256 public constant MAX_TRANSFER_FEE = 0.05 ether;
-
     // ───── State ─────
-    IERC20 public inkdToken;
+    IERC20 public usdc;
     InkdTreasury public treasury;
     uint256 public projectCount;
-    uint256 public versionFee;
-    uint256 public transferFee;
 
     // ───── Structs ─────
     struct Project {
@@ -68,6 +61,7 @@ contract InkdRegistry is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     event VisibilityChanged(uint256 indexed projectId, bool isPublic);
     event VersionFeeUpdated(uint256 oldFee, uint256 newFee);
     event TransferFeeUpdated(uint256 oldFee, uint256 newFee);
+    event UsdcSet(address indexed usdc);
     event ReadmeUpdated(uint256 indexed projectId, string arweaveHash);
     event AgentRegistered(uint256 indexed projectId, string endpoint);
 
@@ -77,6 +71,7 @@ contract InkdRegistry is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     error ProjectNotFound();
     error NotOwner();
     error NotOwnerOrCollaborator();
+    error InsufficientAllowance();
     error InsufficientFee();
     error AlreadyCollaborator();
     error NotCollaborator();
@@ -96,30 +91,19 @@ contract InkdRegistry is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         _disableInitializers();
     }
 
-    function initialize(address owner_, address token_, address treasury_) external initializer {
+    function initialize(address owner_, address usdc_, address treasury_) external initializer {
         __Ownable_init(owner_);
-        inkdToken = IERC20(token_);
+        usdc = IERC20(usdc_);
         treasury = InkdTreasury(payable(treasury_));
-        versionFee = 0.001 ether;
-        transferFee = 0.005 ether;
     }
 
     // ───── Admin Functions ─────
 
-    /// @notice Update the version push fee. Owner only.
-    function setVersionFee(uint256 newFee) external onlyOwner {
-        if (newFee > MAX_VERSION_FEE) revert FeeExceedsMax();
-        uint256 oldFee = versionFee;
-        versionFee = newFee;
-        emit VersionFeeUpdated(oldFee, newFee);
-    }
-
-    /// @notice Update the project transfer fee. Owner only.
-    function setTransferFee(uint256 newFee) external onlyOwner {
-        if (newFee > MAX_TRANSFER_FEE) revert FeeExceedsMax();
-        uint256 oldFee = transferFee;
-        transferFee = newFee;
-        emit TransferFeeUpdated(oldFee, newFee);
+    /// @notice Update the USDC token address. Owner only.
+    function setUsdc(address usdc_) external onlyOwner {
+        if (usdc_ == address(0)) revert ZeroAddress();
+        usdc = IERC20(usdc_);
+        emit UsdcSet(usdc_);
     }
 
     // ───── Core Functions ─────
@@ -138,9 +122,6 @@ contract InkdRegistry is Initializable, OwnableUpgradeable, UUPSUpgradeable {
 
         string memory normalized = _normalizeName(name);
         if (nameTaken[normalized]) revert NameTaken();
-
-        // Lock 1 $INKD in this contract
-        inkdToken.safeTransferFrom(msg.sender, address(this), TOKEN_LOCK_AMOUNT);
 
         uint256 id = ++projectCount;
         projects[id] = Project({
@@ -168,19 +149,25 @@ contract InkdRegistry is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         }
     }
 
-    /// @notice Push a new version. Requires versionFee ETH sent to Treasury.
+    /// @notice Push a new version. Charges serviceFee USDC (set in Treasury). Auto-split on receipt.
     function pushVersion(
         uint256 projectId,
         string calldata arweaveHash,
         string calldata versionTag,
         string calldata changelog
-    ) external payable {
+    ) external {
         Project storage p = projects[projectId];
         if (!p.exists) revert ProjectNotFound();
         if (p.owner != msg.sender && !isCollaborator[projectId][msg.sender]) {
             revert NotOwnerOrCollaborator();
         }
-        if (msg.value < versionFee) revert InsufficientFee();
+
+        uint256 fee = treasury.serviceFee();
+        if (fee > 0) {
+            // Pull USDC from caller → treasury, then notify treasury to split
+            usdc.safeTransferFrom(msg.sender, address(treasury), fee);
+            treasury.receivePayment(fee);
+        }
 
         _versions[projectId].push(Version({
             projectId: projectId,
@@ -191,9 +178,6 @@ contract InkdRegistry is Initializable, OwnableUpgradeable, UUPSUpgradeable {
             pushedAt: block.timestamp
         }));
         p.versionCount++;
-
-        // Forward fee to treasury
-        treasury.deposit{value: msg.value}();
 
         emit VersionPushed(projectId, arweaveHash, versionTag, msg.sender);
     }
@@ -220,26 +204,26 @@ contract InkdRegistry is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         emit CollaboratorRemoved(projectId, collaborator);
     }
 
-    /// @notice Transfer project ownership. $INKD stays locked. Requires transferFee ETH.
-    function transferProject(uint256 projectId, address newOwner) external payable onlyProjectOwner(projectId) {
+    /// @notice Transfer project ownership. Charges serviceFee USDC.
+    function transferProject(uint256 projectId, address newOwner) external onlyProjectOwner(projectId) {
         if (newOwner == address(0)) revert ZeroAddress();
-        if (msg.value < transferFee) revert InsufficientFee();
+
+        uint256 fee = treasury.serviceFee();
+        if (fee > 0) {
+            usdc.safeTransferFrom(msg.sender, address(treasury), fee);
+            treasury.receivePayment(fee);
+        }
 
         address oldOwner = projects[projectId].owner;
         projects[projectId].owner = newOwner;
 
-        // Update owner project lists
         _ownerProjects[newOwner].push(projectId);
         _removeFromOwnerProjects(oldOwner, projectId);
 
-        // Remove new owner from collaborators if they were one
         if (isCollaborator[projectId][newOwner]) {
             isCollaborator[projectId][newOwner] = false;
             _removeFromAddressArray(_collaborators[projectId], newOwner);
         }
-
-        // Forward fee to treasury
-        treasury.deposit{value: msg.value}();
 
         emit ProjectTransferred(projectId, oldOwner, newOwner);
     }

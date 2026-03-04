@@ -42,7 +42,7 @@ contract DeployTest is Script {
         InkdTreasury treasuryImpl = new InkdTreasury();
         ERC1967Proxy treasuryProxy = new ERC1967Proxy(
             address(treasuryImpl),
-            abi.encodeCall(InkdTreasury.initialize, (deployer))
+            abi.encodeCall(InkdTreasury.initialize, (deployer, address(0x036CbD53842c5426634e7929541eC2318f3dCF7e), deployer, deployer))
         );
         InkdTreasury treasury = InkdTreasury(payable(address(treasuryProxy)));
         console.log("InkdTreasury Proxy:", address(treasuryProxy));
