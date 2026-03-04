@@ -94,4 +94,43 @@ describe('rateLimitMiddleware', () => {
     rl(60_000, 10)(req, res, next)
     expect(next).toHaveBeenCalled()
   })
+
+  it('uses "unknown" when both req.ip and socket.remoteAddress are undefined', async () => {
+    const { rateLimitMiddleware: rl } = await import('../middleware/rateLimit.js')
+    const req = {
+      ip:     undefined,
+      socket: { remoteAddress: undefined },
+    } as unknown as Request
+    const { res, next } = makeReqRes()
+    rl(60_000, 10)(req, res, next)
+    // Should still proceed without error
+    expect(next).toHaveBeenCalled()
+  })
+
+  it('cleans up expired entries via setInterval (fake timers)', async () => {
+    vi.useFakeTimers()
+    try {
+      const { rateLimitMiddleware: rl } = await import('../middleware/rateLimit.js')
+      const ip = '10.5.0.1'
+      // Use a very short 50ms window so the entry expires quickly
+      const mw = rl(50, 5)
+
+      // First request — creates an entry, consumes 1 of 5
+      const { req, res, next } = makeReqRes(ip)
+      mw(req, res, next)
+      expect(next).toHaveBeenCalledTimes(1)
+
+      // Advance past the window (50ms) AND past the cleanup interval (60_000ms)
+      vi.advanceTimersByTime(70_000)
+
+      // After cleanup the old entry is deleted; next request gets a fresh window
+      const { req: req2, res: res2, next: next2, setHeader } = makeReqRes(ip)
+      mw(req2, res2, next2)
+      expect(next2).toHaveBeenCalled()
+      // Remaining should be max-1 = 4, proving the entry was reset by cleanup
+      expect(setHeader).toHaveBeenCalledWith('X-RateLimit-Remaining', 4)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
 })

@@ -31,3 +31,4 @@ contracts/.gas-snapshot
 # OS
 .DS_Store
 Thumbs.db
+.vercel
