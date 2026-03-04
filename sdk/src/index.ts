@@ -3,6 +3,9 @@
  * Permanent on-chain project registry on Base
  */
 
+// ─── Agent Vault (wallet-key credential storage) ─────────────────────────────
+export { AgentVault } from "./vault.js";
+
 // ─── Event Subscriptions ─────────────────────────────────────────────────────
 export {
   watchProjectCreated,
