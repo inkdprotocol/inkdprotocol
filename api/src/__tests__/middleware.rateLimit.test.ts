@@ -133,4 +133,44 @@ describe('rateLimitMiddleware', () => {
       vi.useRealTimers()
     }
   })
+
+  it('cleanup keeps non-expired entries while removing expired ones (covers line-21 else branch)', async () => {
+    vi.useFakeTimers()
+    try {
+      const { rateLimitMiddleware: rl } = await import('../middleware/rateLimit.js')
+
+      // Two middleware instances sharing the same internal Map
+      // Short window: expires within the cleanup interval
+      const shortMw = rl(50,      5)
+      // Long window: still alive when cleanup fires at 60_000ms
+      const longMw  = rl(120_000, 5)
+
+      // Create both entries at t=0
+      const { req: reqA, res: resA, next: nextA } = makeReqRes('10.6.0.1')
+      shortMw(reqA, resA, nextA)
+      expect(nextA).toHaveBeenCalledTimes(1)
+
+      const { req: reqB, res: resB, next: nextB } = makeReqRes('10.6.0.2')
+      longMw(reqB, resB, nextB)
+      expect(nextB).toHaveBeenCalledTimes(1)
+
+      // Advance past cleanup interval (60_000ms); short entry (resetAt=+50ms) expires,
+      // long entry (resetAt=+120_000ms) does NOT → cleanup loop exercises both branches.
+      vi.advanceTimersByTime(70_000)
+
+      // Short-window IP: entry was deleted → fresh window, remaining = max-1 = 4
+      const { req: reqA2, res: resA2, next: nextA2, setHeader: shA } = makeReqRes('10.6.0.1')
+      shortMw(reqA2, resA2, nextA2)
+      expect(nextA2).toHaveBeenCalled()
+      expect(shA).toHaveBeenCalledWith('X-RateLimit-Remaining', 4)   // reset, used 1 of 5
+
+      // Long-window IP: entry persisted → count was 1, now incremented to 2 → remaining = 3
+      const { req: reqB2, res: resB2, next: nextB2, setHeader: shB } = makeReqRes('10.6.0.2')
+      longMw(reqB2, resB2, nextB2)
+      expect(nextB2).toHaveBeenCalled()
+      expect(shB).toHaveBeenCalledWith('X-RateLimit-Remaining', 3)   // persisted: 2 of 5 used
+    } finally {
+      vi.useRealTimers()
+    }
+  })
 })

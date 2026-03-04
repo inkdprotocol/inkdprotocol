@@ -146,4 +146,23 @@ describe('GET /v1/status', () => {
     const res = await request(app).get('/v1/status')
     expect(res.body.server.version).toBe('0.1.0')
   })
+
+  it('calls sendError when handler throws (outer catch — covers health.ts:90)', async () => {
+    // Pass a config whose network key is absent from the mocked ADDRESSES map.
+    // healthRouter() sets `addrs = ADDRESSES[cfg.network]` → undefined.
+    // Inside the route handler `Boolean(addrs.registry)` throws a TypeError,
+    // which is caught by the outer try/catch and forwarded to sendError().
+    const brokenCfg: ApiConfig = {
+      ...baseCfg,
+      network: 'broken' as ApiConfig['network'],
+    }
+    const { healthRouter } = await import('../routes/health.js')
+    const app = express()
+    app.use(express.json())
+    app.use('/v1', healthRouter(brokenCfg))
+
+    const res = await request(app).get('/v1/status')
+    expect(res.status).toBe(500)
+    expect(res.body.error).toBeDefined()
+  })
 })
