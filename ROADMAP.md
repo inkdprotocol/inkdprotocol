@@ -87,17 +87,23 @@ Grow usage. Build community. Improve UX.
 
 ---
 
-## Phase 3 — AI Agent Layer 📅 *Q3 2026*
+## Phase 3 — AI Agent Layer 🔄 *Q2-Q3 2026*
 
-Make Inkd the standard identity layer for AI agents.
+Make inkd the standard code registry for AI agents. x402 + ERC-8004 + inkd = full stack.
 
 | Item | Status | Notes |
 |------|--------|-------|
+| **x402 Payment Layer** — `@inkd/api` protected by x402, wallet = identity | ✅ | `api/src/middleware/x402.ts` — $0.001/request |
+| **`@inkd/agentkit`** — Coinbase AgentKit action provider | ✅ | 69 tests; inkd_create_project, inkd_push_version, inkd_list_agents, inkd_get_project |
+| **`@inkd/mcp`** — Model Context Protocol server | ✅ | 26 tests; Claude Desktop + Cursor native integration |
+| **ERC-8004 Integration Guide** — inkd as canonical code layer for ERC-8004 agents | ✅ | `docs/ERC8004.md` |
+| **Clanker Launch Script** — $INKD token on Base via Clanker V4 | ✅ | `scripts/clanker-launch.ts` |
+| **x402 Bazaar listing** — get inkd discovered by all x402-aware agents | 📅 | Submit to x402.org/ecosystem |
+| **ERC-8004 forum outreach** — reach out to Erik Reppel (x402 + ERC-8004 Coinbase lead) | 📅 | ethereum-magicians.org |
 | **Agent capability registry** — structured on-chain schema for agent tools | 📅 | JSON Schema → Arweave |
-| **Agent discovery API** — REST endpoint wrapping subgraph queries | 📅 | `api.inkdprotocol.xyz` |
+| **Agent discovery API** — REST endpoint wrapping subgraph queries | 📅 | |
 | **Agent verification** — stake $INKD to signal trust | 💡 | Slashable stake |
 | **Agent composition** — declare dependencies between agents | 💡 | DAG on-chain |
-| **OpenAI/Anthropic plugin manifest** — agents auto-discoverable by frontier LLMs | 💡 | |
 | **Agent marketplace** — browse, hire, and pay agents with $INKD | 💡 | Long-term vision |
 
 ---
@@ -135,4 +141,4 @@ Want to contribute? See [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ---
 
-*Last updated: 2026-03-04 | Phase 0 + Phase 2 SDK v0.2 complete — 909 tests passing (238 contracts / 323 SDK / 348 CLI), all green*
+*Last updated: 2026-03-04 04:40 | 1004 tests passing (238 contracts / 323 SDK / 348 CLI / 69 agentkit / 26 mcp) — x402 layer live, AgentKit + MCP providers shipped, ERC-8004 integration guide published*
