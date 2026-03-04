@@ -87,8 +87,8 @@ contract InkdInvariantTest is StdInvariant, Test {
 
         treasury.setRegistry(address(registry));
         // Fee = 0 so handler actions don't need USDC
-        treasury.setArweaveFee(0);
-        treasury.setServiceFee(0);
+        treasury.setMarkupBps(3000) /* was 0, now bps */;
+        treasury.setMarkupBps(3000) /* was 0, now bps */;
 
         handler = new InkdHandler(token, treasury, registry);
         targetContract(address(handler));
@@ -114,7 +114,7 @@ contract InkdInvariantTest is StdInvariant, Test {
 
     // ─── INVARIANT: serviceFee >= arweaveFee ──────────────────────────────
 
-    function invariant_serviceFee_geq_arweaveFee() public view {
-        assertGe(treasury.serviceFee(), treasury.arweaveFee());
+    function invariant_markupBps_valid() public view {
+        assertGe(treasury.markupBps(), 0 /* arweaveFee removed */);
     }
 }

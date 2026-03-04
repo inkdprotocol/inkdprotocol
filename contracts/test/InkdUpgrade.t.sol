@@ -35,6 +35,7 @@ contract InkdUpgradeTest is Test {
     InkdToken    public token;
     InkdTreasury public treasury;
     InkdRegistry public registry;
+    MockUSDC     public usdc;
 
     // ─── Actors ───────────────────────────────────────────────────────────────
     address public owner = address(this);
@@ -48,7 +49,7 @@ contract InkdUpgradeTest is Test {
 
     function setUp() public {
         token = new InkdToken();
-        MockUSDC usdc = new MockUSDC();
+        usdc = new MockUSDC();
 
         // Treasury (UUPS proxy)
         InkdTreasury treasuryImpl = new InkdTreasury();
@@ -67,8 +68,7 @@ contract InkdUpgradeTest is Test {
         registry = InkdRegistry(address(registryProxy));
 
         treasury.setRegistry(address(registry));
-        treasury.setArweaveFee(0);
-        treasury.setServiceFee(0);
+        treasury.setDefaultFee(0); // zero fee so most tests don't need USDC
 
         // Fund actors
         vm.deal(alice, 10 ether);
@@ -117,12 +117,12 @@ contract InkdUpgradeTest is Test {
 
     /// @notice After upgrade, version fees and transfer fees are preserved.
     function test_registry_upgradePreservesFees() public {
-        uint256 feeBefore = treasury.serviceFee();
+        uint256 feeBefore = treasury.markupBps();
 
         InkdRegistryV2 v2Impl = new InkdRegistryV2();
         registry.upgradeToAndCall(address(v2Impl), "");
 
-        assertEq(treasury.serviceFee(),  feeBefore, "versionFee preserved after upgrade");
+        assertEq(treasury.markupBps(),  feeBefore, "versionFee preserved after upgrade");
     }
 
     /// @notice Non-owner cannot upgrade the registry.
@@ -264,6 +264,11 @@ contract InkdUpgradeTest is Test {
 
     /// @notice getVersionCount returns correct count as versions accumulate.
     function test_versionCount_accumulates() public {
+        // Fund alice with enough USDC for 5 version pushes
+        usdc.mint(alice, 5_000_000 * 5);
+        vm.prank(alice);
+        usdc.approve(address(registry), 5_000_000 * 5);
+        
         vm.startPrank(alice);
         
         registry.createProject("version-count", "desc", "MIT", true, "", false, "");
@@ -298,6 +303,11 @@ contract InkdUpgradeTest is Test {
 
     /// @notice getOwnerProjects updates correctly after project transfer.
     function test_ownerProjects_updatesOnTransfer() public {
+        // Fund alice for transfer fee
+        usdc.mint(alice, 5_000_000);
+        vm.prank(alice);
+        usdc.approve(address(registry), 5_000_000);
+
         vm.startPrank(alice);
         
         registry.createProject("transfer-test", "desc", "MIT", true, "", false, "");

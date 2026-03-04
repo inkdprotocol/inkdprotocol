@@ -39,28 +39,26 @@ contract InkdTreasury is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     /// @notice InkdBuyback contract address
     address public buybackContract;
 
-    /// @dev Arweave portion in USDC (6 decimals). Default: $1.00
-    uint256 public arweaveFee;
+    /// @notice Service markup in basis points. Default: 2000 = 20%
+    uint256 public markupBps;
 
-    /// @dev Total fee agents pay per action. Default: $5.00
-    uint256 public serviceFee;
+    /// @notice Default flat fee for direct on-chain calls (no dynamic pricing). Default: $5.00
+    uint256 public defaultFee;
 
     /// @notice Total USDC settled (lifetime)
     uint256 public totalSettled;
 
     // ───── Events ────────────────────────────────────────────────────────────
-    event Settled(address indexed settler, uint256 amount, uint256 toArweave, uint256 toBuyback, uint256 toTreasury);
+    event Settled(address indexed settler, uint256 total, uint256 arweaveCost, uint256 toBuyback, uint256 toTreasury);
     event Withdrawn(address indexed to, uint256 amount);
     event SettlerSet(address indexed settler);
     event ArweaveWalletSet(address indexed wallet);
     event BuybackContractSet(address indexed buyback);
-    event ArweaveFeeSet(uint256 fee);
-    event ServiceFeeSet(uint256 fee);
+    event MarkupBpsSet(uint256 bps);
 
     // ───── Errors ────────────────────────────────────────────────────────────
     error Unauthorized();
     error ZeroAddress();
-    error ArweaveFeeExceedsService();
 
     // ───── Modifiers ─────────────────────────────────────────────────────────
     /// @dev Callable by settler (API server) OR registry (on-chain direct flow)
@@ -95,8 +93,8 @@ contract InkdTreasury is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         settler         = settler_;
         arweaveWallet   = arweaveWallet_;
         buybackContract = buybackContract_;
-        arweaveFee      = 1_000_000;  // $1.00 USDC
-        serviceFee      = 5_000_000;  // $5.00 USDC
+        markupBps       = 2000;      // 20%
+        defaultFee      = 5_000_000; // $5.00 USDC — for direct on-chain Registry calls
     }
 
     // ───── Core: X402 Settlement ──────────────────────────────────────────────
@@ -113,16 +111,27 @@ contract InkdTreasury is Initializable, OwnableUpgradeable, UUPSUpgradeable {
      *
      * @param amount  USDC amount to settle (6 decimals, e.g. 5_000_000 = $5)
      */
-    /// @notice Alias for backward compatibility with InkdRegistry
-    function receivePayment(uint256 amount) external onlyTrusted { _split(amount); }
+    /// @notice Called by InkdRegistry (legacy on-chain flow).
+    ///         Arweave cost assumed = 0, full amount treated as markup revenue.
+    function receivePayment(uint256 amount) external onlyTrusted { _split(amount, 0); }
 
-    function settle(uint256 amount) external onlyTrusted {
-        _split(amount);
+    /**
+     * @notice Settle an X402 USDC payment after Arweave upload.
+     * @param total        Total USDC paid by agent (arweaveCost × 1.20)
+     * @param arweaveCost  Actual Arweave upload cost in USDC (6 decimals)
+     *
+     * Split:
+     *   arweaveCost        → arweaveWallet  (exact Arweave cost)
+     *   (total-arweaveCost) × 50% → InkdBuyback
+     *   (total-arweaveCost) × 50% → treasury
+     */
+    function settle(uint256 total, uint256 arweaveCost) external onlyTrusted {
+        _split(total, arweaveCost);
     }
 
-    function _split(uint256 amount) internal {
-        uint256 toArweave  = arweaveFee <= amount ? arweaveFee : amount;
-        uint256 revenue    = amount - toArweave;
+    function _split(uint256 total, uint256 arweaveCost) internal {
+        uint256 toArweave  = arweaveCost <= total ? arweaveCost : total;
+        uint256 revenue    = total - toArweave;
         uint256 toBuyback  = revenue / 2;
         uint256 toTreasury = revenue - toBuyback;
 
@@ -140,8 +149,8 @@ contract InkdTreasury is Initializable, OwnableUpgradeable, UUPSUpgradeable {
             }
         }
 
-        totalSettled += amount;
-        emit Settled(msg.sender, amount, toArweave, toBuyback, toTreasury);
+        totalSettled += total;
+        emit Settled(msg.sender, total, toArweave, toBuyback, toTreasury);
     }
 
     // ───── Admin ─────────────────────────────────────────────────────────────
@@ -169,24 +178,23 @@ contract InkdTreasury is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         emit BuybackContractSet(buyback_);
     }
 
-    function setArweaveFee(uint256 fee_) external onlyOwner {
-        if (fee_ > serviceFee) revert ArweaveFeeExceedsService();
-        arweaveFee = fee_;
-        emit ArweaveFeeSet(fee_);
+    /// @notice Update service markup. Max 5000 bps (50%). Owner only.
+    function setMarkupBps(uint256 bps) external onlyOwner {
+        require(bps <= 5000, "Max 50%");
+        markupBps = bps;
+        emit MarkupBpsSet(bps);
     }
 
-    function setServiceFee(uint256 fee_) external onlyOwner {
-        if (fee_ < arweaveFee) revert ArweaveFeeExceedsService();
-        serviceFee = fee_;
-        emit ServiceFeeSet(fee_);
+    /// @notice Calculate total charge for a given Arweave cost
+    function calculateTotal(uint256 arweaveCost) external view returns (uint256) {
+        return arweaveCost + (arweaveCost * markupBps / 10000);
     }
 
-    /// @notice View fee split breakdown
-    function feeSplit() external view returns (uint256 toArweave, uint256 toBuyback, uint256 toTreasury) {
-        toArweave  = arweaveFee;
-        uint256 revenue = serviceFee > arweaveFee ? serviceFee - arweaveFee : 0;
-        toBuyback  = revenue / 2;
-        toTreasury = revenue - toBuyback;
+    /// @notice Alias for Registry backward-compat — returns defaultFee
+    function serviceFee() external view returns (uint256) { return defaultFee; }
+
+    function setDefaultFee(uint256 fee_) external onlyOwner {
+        defaultFee = fee_;
     }
 
     /// @notice Withdraw USDC treasury balance. Owner only (Multisig).

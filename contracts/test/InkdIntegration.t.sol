@@ -66,8 +66,7 @@ contract InkdIntegrationTest is Test {
         treasury.setRegistry(address(registry));
 
         // Zero out fees so journeys don't need USDC approvals by default
-        treasury.setArweaveFee(0);
-        treasury.setServiceFee(0);
+        treasury.setDefaultFee(0);
 
         // Distribute INKD tokens to all actors
         token.transfer(alice, STARTING_INKD);
@@ -81,6 +80,14 @@ contract InkdIntegrationTest is Test {
         vm.deal(bob,   STARTING_ETH);
         vm.deal(carol, STARTING_ETH);
         vm.deal(agent, STARTING_ETH);
+
+        // Pre-fund all test actors with USDC for fees
+        address[5] memory actors_ = [protocol, alice, bob, carol, agent];
+        for (uint256 i = 0; i < actors_.length; i++) {
+            usdc.mint(actors_[i], 1_000_000_000); // $1000 each
+            vm.prank(actors_[i]);
+            usdc.approve(address(registry), type(uint256).max);
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -262,7 +269,7 @@ contract InkdIntegrationTest is Test {
         // Enable a $2 service fee (USDC has 6 decimals = 2_000_000)
         uint256 fee = 2 * USDC_6;
         vm.startPrank(protocol);
-        treasury.setServiceFee(fee);
+        treasury.setDefaultFee(fee);
         vm.stopPrank();
 
         // Mint USDC to actors and approve registry
@@ -330,14 +337,21 @@ contract InkdIntegrationTest is Test {
         // Protocol sets a $3 service fee
         uint256 newFee = 3 * USDC_6;
         vm.prank(protocol);
-        treasury.setServiceFee(newFee);
+        treasury.setMarkupBps(3000); // 30% new markup
 
-        // Push without approval must revert (ERC20 insufficient allowance)
+        // Drain alice USDC and revoke approval so push reverts
+        vm.startPrank(alice);
+        usdc.transfer(address(0x1), usdc.balanceOf(alice));
+        usdc.approve(address(registry), 0);
+        vm.stopPrank();
+        vm.prank(protocol);
+        treasury.setDefaultFee(3_000_000); // $3 fee
+
         vm.prank(alice);
         vm.expectRevert();
         registry.pushVersion(1, "ar://v2", "v2", "no approval");
 
-        // Give alice USDC and approve; now push succeeds
+        // Refund alice and re-approve
         usdc.mint(alice, 100 * USDC_6);
         vm.prank(alice);
         usdc.approve(address(registry), type(uint256).max);
@@ -347,10 +361,9 @@ contract InkdIntegrationTest is Test {
         assertEq(registry.getVersionCount(1), 2, "paid push succeeded");
 
         // Protocol zeroes fee again → push free again
-        vm.prank(protocol);
-        treasury.setArweaveFee(0);
-        vm.prank(protocol);
-        treasury.setServiceFee(0);
+        vm.startPrank(protocol);
+        treasury.setDefaultFee(0); // zero fee
+        vm.stopPrank();
 
         vm.prank(alice);
         registry.pushVersion(1, "ar://v3", "v3", "free again");

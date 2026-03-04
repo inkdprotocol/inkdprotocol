@@ -44,8 +44,15 @@ contract InkdRegistryTest is Test {
         treasury.setRegistry(address(registry));
 
         // Default: serviceFee = 0 so most tests don't need USDC setup
-        treasury.setArweaveFee(0);
-        treasury.setServiceFee(0);
+        treasury.setDefaultFee(0);
+
+        // Pre-fund all test accounts with USDC for fees
+        address[4] memory actors = [alice, bob, charlie, owner];
+        for (uint256 i = 0; i < actors.length; i++) {
+            usdc.mint(actors[i], 1_000_000_000); // $1000 each
+            vm.prank(actors[i]);
+            usdc.approve(address(registry), type(uint256).max);
+        }
     }
 
     // ───── Helpers ─────
@@ -62,17 +69,27 @@ contract InkdRegistryTest is Test {
         return registry.projectCount();
     }
 
-    /// @dev Push a version. If fee > 0, caller must have USDC approved first.
+    /// @dev Push a version — auto-funds USDC if needed.
     function _pushVersion(address who, uint256 projectId) internal {
+        _fundAndApproveIfNeeded(who, 5_000_000);
         vm.prank(who);
         registry.pushVersion(projectId, "ar://abc123", "1.0.0", "Initial release");
     }
 
+    /// @dev Mint + approve only if balance insufficient.
+    function _fundAndApproveIfNeeded(address who, uint256 amount) internal {
+        if (usdc.balanceOf(who) < amount) {
+            usdc.mint(who, amount);
+        }
+        vm.prank(who);
+        usdc.approve(address(registry), amount);
+    }
+
     /// @dev Mint USDC and approve treasury for service fee.
     function _fundAndApprove(address who) internal {
-        usdc.mint(who, SERVICE_FEE);
+        usdc.mint(who, 5_000_000);
         vm.prank(who);
-        usdc.approve(address(registry), SERVICE_FEE);
+        usdc.approve(address(registry), 5_000_000);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -285,42 +302,43 @@ contract InkdRegistryTest is Test {
     // ═══════════════════════════════════════════════════════════════════════
 
     function test_pushVersion_with_usdc_fee() public {
-        // Enable fee
-        treasury.setServiceFee(SERVICE_FEE);
-        treasury.setArweaveFee(1_000_000);
+        // Enable $5 fee + 20% markup
+        treasury.setDefaultFee(5_000_000); // $5.00
+        treasury.setMarkupBps(2000);       // 20% markup
 
         uint256 id = _createProject(alice, "fee-test");
-        _fundAndApprove(alice);
 
         uint256 buybackBefore = usdc.balanceOf(buybackWallet);
         uint256 arweaveBefore = usdc.balanceOf(arweaveWallet);
 
         _pushVersion(alice, id);
 
-        // Arweave and buyback received their portions
-        assertEq(usdc.balanceOf(arweaveWallet), arweaveBefore + 1_000_000);
-        assertEq(usdc.balanceOf(buybackWallet), buybackBefore + 2_000_000);
-        // Treasury holds its 50% of revenue
-        assertEq(usdc.balanceOf(address(treasury)), 2_000_000);
+        // receivePayment uses arweaveCost=0, full $5 split 50/50
+        assertEq(usdc.balanceOf(arweaveWallet), arweaveBefore);          // $0 arweave (dynamic)
+        assertEq(usdc.balanceOf(buybackWallet), buybackBefore + 2_500_000); // $2.50 buyback
+        assertEq(usdc.balanceOf(address(treasury)), 2_500_000);             // $2.50 treasury
     }
 
     function test_pushVersion_reverts_insufficient_usdc() public {
-        treasury.setServiceFee(SERVICE_FEE);
-        treasury.setArweaveFee(1_000_000);
+        treasury.setMarkupBps(2000); // 20% markup
 
+        treasury.setDefaultFee(5_000_000); // enable fee
         uint256 id = _createProject(alice, "no-usdc");
-        // Alice has no USDC — ERC20 should revert
+        // Revoke alice's approval and drain her USDC
+        vm.prank(alice);
+        usdc.approve(address(registry), 0);
+        vm.prank(alice);
+        usdc.transfer(address(0x1), usdc.balanceOf(alice)); // drain
         vm.prank(alice);
         vm.expectRevert();
         registry.pushVersion(id, "ar://x", "1.0", "no money");
     }
 
     function test_transferProject_with_usdc_fee() public {
-        treasury.setServiceFee(SERVICE_FEE);
-        treasury.setArweaveFee(1_000_000);
+        treasury.setDefaultFee(5_000_000);
+        treasury.setMarkupBps(2000);
 
         uint256 id = _createProject(alice, "transfer-fee");
-        _fundAndApprove(alice);
 
         vm.prank(alice);
         registry.transferProject(id, bob);
@@ -731,15 +749,11 @@ contract InkdRegistryTest is Test {
     }
 
     function test_fullFlow_with_usdc_fee() public {
-        treasury.setServiceFee(SERVICE_FEE);
-        treasury.setArweaveFee(1_000_000);
+        treasury.setDefaultFee(5_000_000);
+        treasury.setMarkupBps(2000); // 20% markup
 
         uint256 id = _createProject(alice, "full-flow-fee");
-
-        // Alice pushes two versions (each costs $5)
-        usdc.mint(alice, SERVICE_FEE * 3);
-        vm.prank(alice);
-        usdc.approve(address(registry), SERVICE_FEE * 3);
+        // alice is already funded from setUp
 
         vm.prank(alice);
         registry.pushVersion(id, "ar://v1", "1.0.0", "First");

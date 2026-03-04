@@ -15,6 +15,7 @@ import { type ApiConfig, ADDRESSES } from '../config.js'
 import { buildPublicClient, buildWalletClient, normalizePrivateKey } from '../clients.js'
 import { getPayerAddress, getPaymentAmount } from '../middleware/x402.js'
 import { REGISTRY_ABI, TREASURY_ABI } from '../abis.js'
+import { getArweaveCostUsdc, calculateCharge } from '../arweave.js'
 import { sendError, NotFoundError, BadRequestError, ServiceUnavailableError } from '../errors.js'
 
 // ─── Zod schemas ──────────────────────────────────────────────────────────────
@@ -34,7 +35,7 @@ const PushVersionBody = z.object({
   tag:          z.string().min(1).max(64),
   contentHash:  z.string().min(1).max(128),
   metadataHash: z.string().max(128).default(''),
-  // privateKey removed — server wallet signs, payer address comes from x402 payment
+  contentSize:  z.number().int().min(0).optional(), // bytes — used for dynamic Arweave pricing
 })
 
 const PaginationQuery = z.object({
@@ -193,13 +194,13 @@ export function projectsRouter(cfg: ApiConfig): Router {
       const { client: walletClient, address: walletAddress } =
         buildWalletClient(cfg, normalizePrivateKey(cfg.serverWalletKey))
 
-      // Settle X402 USDC payment → Treasury splits revenue automatically
+      // Settle X402 USDC payment → createProject has no Arweave upload, arweaveCost = 0
       if (cfg.treasuryAddress && paymentAmount) {
         await walletClient.writeContract({
           address:      cfg.treasuryAddress,
           abi:          TREASURY_ABI,
           functionName: 'settle',
-          args:         [paymentAmount],
+          args:         [paymentAmount, 0n],
         })
       }
 
@@ -278,7 +279,7 @@ export function projectsRouter(cfg: ApiConfig): Router {
       const body = PushVersionBody.safeParse(req.body)
       if (!body.success) throw new BadRequestError(body.error.issues.map(i => i.message).join('; '))
 
-      const { tag, contentHash, metadataHash } = body.data
+      const { tag, contentHash, metadataHash, contentSize } = body.data
 
       if (!cfg.serverWalletKey) throw new ServiceUnavailableError(
         'SERVER_WALLET_KEY not configured. Cannot sign transactions.'
@@ -289,13 +290,20 @@ export function projectsRouter(cfg: ApiConfig): Router {
       const { client: walletClient, address: walletAddress } =
         buildWalletClient(cfg, normalizePrivateKey(cfg.serverWalletKey))
 
-      // Settle X402 USDC payment → Treasury splits revenue automatically
+      // Settle X402 USDC payment → Treasury splits: arweaveCost + 20% markup
       if (cfg.treasuryAddress && paymentAmount) {
+        // Calculate arweave cost portion from content size (best-effort)
+        let arweaveCost = 0n
+        if (contentSize && contentSize > 0) {
+          try {
+            arweaveCost = await getArweaveCostUsdc(contentSize)
+          } catch { /* use 0 if price fetch fails */ }
+        }
         await walletClient.writeContract({
           address:      cfg.treasuryAddress,
           abi:          TREASURY_ABI,
           functionName: 'settle',
-          args:         [paymentAmount],
+          args:         [paymentAmount, arweaveCost],
         })
       }
 
@@ -317,6 +325,33 @@ export function projectsRouter(cfg: ApiConfig): Router {
         signer:    walletAddress,
         status:    receipt.status,
         blockNumber: receipt.blockNumber.toString(),
+      })
+    } catch (err) {
+      sendError(res, err)
+    }
+  })
+
+  // ── GET /v1/projects/estimate?bytes=1000000 ─────────────────────────────────
+  // Returns the USDC charge (arweave cost + 20% markup) for a given content size.
+  // Agents call this BEFORE uploading to know how much to approve for X402.
+  router.get('/estimate', async (req, res) => {
+    try {
+      const bytes = parseInt(req.query['bytes'] as string ?? '0', 10)
+      if (!bytes || bytes <= 0) throw new BadRequestError('bytes must be a positive integer')
+      if (bytes > 500 * 1024 * 1024) throw new BadRequestError('Max 500MB per upload')
+
+      const arweaveCost = await getArweaveCostUsdc(bytes)
+      const { markup, total } = calculateCharge(arweaveCost)
+
+      res.json({
+        bytes,
+        arweaveCost: arweaveCost.toString(),
+        markup:      markup.toString(),
+        total:       total.toString(),
+        markupPct:   '20%',
+        // Human readable
+        arweaveCostUsd: `$${(Number(arweaveCost) / 1e6).toFixed(4)}`,
+        totalUsd:       `$${(Number(total)       / 1e6).toFixed(4)}`,
       })
     } catch (err) {
       sendError(res, err)

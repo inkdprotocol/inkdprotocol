@@ -179,8 +179,25 @@ export const TREASURY_ABI = [
     name: 'settle',
     type: 'function',
     stateMutability: 'nonpayable',
-    inputs: [{ name: 'amount', type: 'uint256' }],
+    inputs: [
+      { name: 'total',        type: 'uint256' },
+      { name: 'arweaveCost',  type: 'uint256' },
+    ],
     outputs: [],
+  },
+  {
+    name: 'calculateTotal',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'arweaveCost', type: 'uint256' }],
+    outputs: [{ type: 'uint256' }],
+  },
+  {
+    name: 'markupBps',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ type: 'uint256' }],
   },
   {
     name: 'feeSplit',

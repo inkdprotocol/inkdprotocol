@@ -42,8 +42,7 @@ contract InkdFuzzTest is Test {
         treasury.setRegistry(address(registry));
 
         // Default: no fee for most tests
-        treasury.setArweaveFee(0);
-        treasury.setServiceFee(0);
+        treasury.setDefaultFee(0); // zero fee so fuzz tests don't need USDC
 
         token.transfer(alice, 100_000 ether);
         token.transfer(bob, 100_000 ether);
@@ -81,44 +80,31 @@ contract InkdFuzzTest is Test {
     //  InkdTreasury — Fee management fuzz
     // ═══════════════════════════════════════════════════════════════════════
 
-    function testFuzz_setServiceFee_valid(uint256 fee) public {
-        uint256 currentArweave = treasury.arweaveFee();
-        fee = bound(fee, currentArweave, 10_000 * 1e6);
-        treasury.setServiceFee(fee);
-        assertEq(treasury.serviceFee(), fee);
+    function testFuzz_setMarkupBps_valid(uint256 bps) public {
+        bps = bound(bps, 0, 5000); // 0% to 50%
+        treasury.setMarkupBps(bps);
+        assertEq(treasury.markupBps(), bps);
     }
 
-    function testFuzz_setServiceFee_belowArweave_reverts(uint256 fee) public {
-        // Set arweaveFee to 1_000_000 first
-        treasury.setServiceFee(5_000_000);
-        treasury.setArweaveFee(1_000_000);
-        fee = bound(fee, 0, 999_999);
-        vm.expectRevert(InkdTreasury.ArweaveFeeExceedsService.selector);
-        treasury.setServiceFee(fee);
+    function testFuzz_setMarkupBps_above50_reverts(uint256 bps) public {
+        bps = bound(bps, 5001, type(uint256).max);
+        vm.expectRevert();
+        treasury.setMarkupBps(bps);
     }
 
-    function testFuzz_setArweaveFee_valid(uint256 fee) public {
-        treasury.setServiceFee(10_000 * 1e6);
-        fee = bound(fee, 0, 10_000 * 1e6);
-        treasury.setArweaveFee(fee);
-        assertEq(treasury.arweaveFee(), fee);
-    }
-
-    function testFuzz_setArweaveFee_exceedsService_reverts(uint256 fee) public {
-        uint256 currentService = treasury.serviceFee();
-        fee = bound(fee, currentService + 1, type(uint256).max);
-        vm.expectRevert(InkdTreasury.ArweaveFeeExceedsService.selector);
-        treasury.setArweaveFee(fee);
+    function testFuzz_setMarkupBps_exceedsService_reverts(uint256 fee) public {
+        // setMarkupBps reverts when bps > 5000 ("Max 50%")
+        fee = bound(fee, 5001, type(uint256).max);
+        vm.expectRevert(bytes("Max 50%"));
+        treasury.setMarkupBps(fee);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
     //  InkdTreasury — USDC fee split fuzz
     // ═══════════════════════════════════════════════════════════════════════
 
-    function testFuzz_receivePayment_split(uint256 amount) public {
+    function testFuzz_settle_split(uint256 amount) public {
         amount = bound(amount, 2, 1_000_000 * 1e6); // $0.000002 to $1M
-        treasury.setServiceFee(amount);
-        treasury.setArweaveFee(0);
 
         usdc.mint(address(treasury), amount);
 
@@ -126,7 +112,7 @@ contract InkdFuzzTest is Test {
         uint256 treasuryBefore = usdc.balanceOf(address(treasury));
 
         vm.prank(address(registry));
-        treasury.receivePayment(amount);
+        treasury.settle(amount, 0) /* arweaveCost=0 for fuzz */;
 
         uint256 toBuyback = amount / 2;
         uint256 toTreasury = amount - toBuyback;

@@ -84,16 +84,14 @@ contract Deploy is Script {
         require(address(registry.usdc()) == usdc, "Registry USDC mismatch");
         require(address(registry.treasury()) == address(treasuryProxy), "Treasury link mismatch");
 
-        (uint256 toArweave, uint256 toBuyback, uint256 toTreasury) = treasury.feeSplit();
-
         console.log("");
         console.log("========================================");
         console.log("  Deployment Verified");
         console.log("========================================");
         console.log("Service Fee:   $5.00 USDC");
-        console.log("  Arweave:    ", toArweave, "USDC (6 dec)");
-        console.log("  Buyback:    ", toBuyback, "USDC (6 dec)");
-        console.log("  Treasury:   ", toTreasury, "USDC (6 dec)");
-        console.log("========================================");
+        console.log("Markup Bps:    ", treasury.markupBps());
+        console.log("Markup Pct:    ", treasury.markupBps() / 100, "%");
+        console.log("Default Fee:   ", treasury.defaultFee());
+                console.log("========================================");
     }
 }

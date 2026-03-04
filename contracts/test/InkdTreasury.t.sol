@@ -52,11 +52,11 @@ contract InkdTreasuryTest is Test {
     }
 
     function test_serviceFee_default() public view {
-        assertEq(treasury.serviceFee(), SERVICE_FEE);
+        assertEq(treasury.markupBps(), 2000); // default 20%
     }
 
-    function test_arweaveFee_default() public view {
-        assertEq(treasury.arweaveFee(), ARWEAVE_FEE);
+    function test_markupBps_default() public view {
+        assertEq(treasury.markupBps(), 2000); // 20%
     }
 
     // ───── setRegistry ─────
@@ -116,78 +116,62 @@ contract InkdTreasuryTest is Test {
         treasury.setBuybackContract(address(0));
     }
 
-    // ───── setArweaveFee / setServiceFee ─────
+    // ───── setMarkupBps ─────
 
-    function test_setArweaveFee() public {
-        treasury.setArweaveFee(2_000_000);
-        assertEq(treasury.arweaveFee(), 2_000_000);
+    function test_setMarkupBps() public {
+        treasury.setMarkupBps(3000); // 30%
+        assertEq(treasury.markupBps(), 3000);
     }
 
-    function test_setArweaveFee_reverts_exceeds_service() public {
-        vm.expectRevert(InkdTreasury.ArweaveFeeExceedsService.selector);
-        treasury.setArweaveFee(SERVICE_FEE + 1);
+    function test_setMarkupBps_reverts_above_50pct() public {
+        vm.expectRevert();
+        treasury.setMarkupBps(5001); // above 50%, should revert
     }
 
-    function test_setServiceFee() public {
-        treasury.setServiceFee(10_000_000);
-        assertEq(treasury.serviceFee(), 10_000_000);
-    }
-
-    function test_setServiceFee_reverts_below_arweave() public {
-        vm.expectRevert(InkdTreasury.ArweaveFeeExceedsService.selector);
-        treasury.setServiceFee(ARWEAVE_FEE - 1);
-    }
-
-    function test_setArweaveFee_reverts_nonOwner() public {
+    function test_setMarkupBps_reverts_nonOwner() public {
         vm.prank(alice);
         vm.expectRevert();
-        treasury.setArweaveFee(500_000);
+        treasury.setMarkupBps(1000);
     }
 
-    function test_setServiceFee_reverts_nonOwner() public {
-        vm.prank(alice);
-        vm.expectRevert();
-        treasury.setServiceFee(10_000_000);
-    }
+    // ───── calculateTotal ─────
 
-    // ───── feeSplit ─────
-
-    function test_feeSplit_default() public view {
-        (uint256 toArweave, uint256 toBuyback, uint256 toTreasury) = treasury.feeSplit();
-        assertEq(toArweave, ARWEAVE_FEE);          // $1.00
-        assertEq(toBuyback, 2_000_000);             // $2.00 (50% of $4)
-        assertEq(toTreasury, 2_000_000);            // $2.00 (50% of $4)
+    function test_calculateTotal_20pct() public view {
+        // $10 arweave cost → $12 total (20% markup)
+        uint256 total = treasury.calculateTotal(10_000_000);
+        assertEq(total, 12_000_000);
     }
 
     // ───── receivePayment ─────
 
     function test_receivePayment_splits_correctly() public {
-        usdc.mint(address(treasury), SERVICE_FEE);
+        usdc.mint(address(treasury), 5_000_000);
 
         uint256 arweaveBefore = usdc.balanceOf(arweaveWallet);
         uint256 buybackBefore = usdc.balanceOf(buybackWallet);
         uint256 treasuryBefore = usdc.balanceOf(address(treasury));
 
         vm.prank(registry);
-        treasury.receivePayment(SERVICE_FEE);
+        treasury.receivePayment(5_000_000);
 
-        assertEq(usdc.balanceOf(arweaveWallet), arweaveBefore + ARWEAVE_FEE);
-        assertEq(usdc.balanceOf(buybackWallet), buybackBefore + 2_000_000);
-        assertEq(usdc.balanceOf(address(treasury)), treasuryBefore - SERVICE_FEE + 2_000_000);
+        // receivePayment passes arweaveCost=0, so full amount split 50/50
+        assertEq(usdc.balanceOf(arweaveWallet), arweaveBefore); // no arweave portion
+        assertEq(usdc.balanceOf(buybackWallet), buybackBefore + 2_500_000); // 50% of $5
+        assertEq(usdc.balanceOf(address(treasury)), treasuryBefore - 5_000_000 + 2_500_000); // 50% stays
     }
 
     function test_receivePayment_emits_events() public {
-        usdc.mint(address(treasury), SERVICE_FEE);
+        usdc.mint(address(treasury), 5_000_000);
         vm.expectEmit(true, false, false, true);
-        emit InkdTreasury.Settled(registry, SERVICE_FEE, ARWEAVE_FEE, 2_000_000, 2_000_000);
+        emit InkdTreasury.Settled(registry, 5_000_000, 0, 2_500_000, 2_500_000); // arweaveCost=0
         vm.prank(registry);
-        treasury.receivePayment(SERVICE_FEE);
+        treasury.receivePayment(5_000_000);
     }
 
     function test_receivePayment_reverts_nonRegistry() public {
         vm.prank(alice);
         vm.expectRevert(InkdTreasury.Unauthorized.selector);
-        treasury.receivePayment(SERVICE_FEE);
+        treasury.receivePayment(5_000_000);
     }
 
     // ───── withdraw ─────

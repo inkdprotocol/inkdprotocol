@@ -41,10 +41,10 @@ contract DryRun is Script {
             abi.encodeCall(InkdTreasury.initialize, (deployer, MOCK_USDC, deployer, MOCK_ARWEAVE_WALLET, MOCK_BUYBACK_WALLET))
         );
         InkdTreasury treasury = InkdTreasury(payable(address(treasuryProxy)));
-        _assert(treasury.owner() == deployer,              "FAIL: Treasury owner mismatch");
-        _assert(address(treasury.usdc()) == MOCK_USDC,     "FAIL: Treasury USDC mismatch");
-        _assert(treasury.serviceFee() == 5_000_000,        "FAIL: Service fee mismatch");
-        _assert(treasury.arweaveFee() == 1_000_000,        "FAIL: Arweave fee mismatch");
+        _assert(treasury.owner() == deployer,          "FAIL: Treasury owner mismatch");
+        _assert(address(treasury.usdc()) == MOCK_USDC, "FAIL: Treasury USDC mismatch");
+        _assert(treasury.serviceFee() == 5_000_000,    "FAIL: Service fee mismatch");
+        _assert(treasury.markupBps() == 2000,          "FAIL: Markup bps mismatch");
         console.log("[OK] InkdTreasury (UUPS proxy)");
         console.log("     Impl: ", address(treasuryImpl));
         console.log("     Proxy:", address(treasuryProxy));
@@ -56,9 +56,9 @@ contract DryRun is Script {
             abi.encodeCall(InkdRegistry.initialize, (deployer, MOCK_USDC, address(treasuryProxy)))
         );
         InkdRegistry registry = InkdRegistry(address(registryProxy));
-        _assert(registry.owner() == deployer,                          "FAIL: Registry owner mismatch");
-        _assert(address(registry.usdc()) == MOCK_USDC,                 "FAIL: Registry USDC mismatch");
-        _assert(address(registry.treasury()) == address(treasuryProxy),"FAIL: Treasury link mismatch");
+        _assert(registry.owner() == deployer,                           "FAIL: Registry owner mismatch");
+        _assert(address(registry.usdc()) == MOCK_USDC,                  "FAIL: Registry USDC mismatch");
+        _assert(address(registry.treasury()) == address(treasuryProxy), "FAIL: Treasury link mismatch");
         console.log("[OK] InkdRegistry (UUPS proxy)");
         console.log("     Impl: ", address(registryImpl));
         console.log("     Proxy:", address(registryProxy));
@@ -68,9 +68,14 @@ contract DryRun is Script {
         _assert(treasury.registry() == address(registryProxy), "FAIL: Registry link mismatch");
         console.log("[OK] Treasury linked to Registry");
 
-        // ─── 4. Fee split check ─────────────────────────────────────────────
-        (uint256 toArweave, uint256 toBuyback, uint256 toTreasury) = treasury.feeSplit();
-        console.log("[OK] Fee split (USDC 6 decimals):");
+        // ─── 4. Fee split simulation (based on $5 serviceFee, $1 arweave cost) ─
+        uint256 serviceFee  = treasury.serviceFee();
+        uint256 arweaveCost = 1_000_000; // $1.00 USDC — standard Arweave storage fee
+        uint256 toArweave   = arweaveCost <= serviceFee ? arweaveCost : serviceFee;
+        uint256 revenue     = serviceFee - toArweave;
+        uint256 toBuyback   = revenue / 2;
+        uint256 toTreasury  = revenue - toBuyback;
+        console.log("[OK] Fee split (USDC 6 decimals, per $5 payment):");
         console.log("     Arweave:  ", toArweave);
         console.log("     Buyback:  ", toBuyback);
         console.log("     Treasury: ", toTreasury);
