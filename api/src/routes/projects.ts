@@ -150,6 +150,34 @@ export function projectsRouter(cfg: ApiConfig): Router {
     }
   })
 
+  // ── GET /v1/projects/estimate?bytes=N ──────────────────────────────────────
+  // NOTE: must be registered BEFORE /:id to avoid Express matching 'estimate' as an id param.
+  // Returns the USDC charge (arweave cost + 20% markup) for a given content size.
+  // Agents call this BEFORE uploading to know how much to approve for X402.
+  router.get('/estimate', async (req, res) => {
+    try {
+      const bytes = parseInt(req.query['bytes'] as string ?? '0', 10)
+      if (!bytes || bytes <= 0) throw new BadRequestError('bytes must be a positive integer')
+      if (bytes > 500 * 1024 * 1024) throw new BadRequestError('Max 500MB per upload')
+
+      const arweaveCost = await getArweaveCostUsdc(bytes)
+      const { markup, total } = calculateCharge(arweaveCost)
+
+      res.json({
+        bytes,
+        arweaveCost: arweaveCost.toString(),
+        markup:      markup.toString(),
+        total:       total.toString(),
+        markupPct:   '20%',
+        // Human readable
+        arweaveCostUsd: `$${(Number(arweaveCost) / 1e6).toFixed(4)}`,
+        totalUsd:       `$${(Number(total)       / 1e6).toFixed(4)}`,
+      })
+    } catch (err) {
+      sendError(res, err)
+    }
+  })
+
   // ── GET /v1/projects/:id ────────────────────────────────────────────────────
   router.get('/:id', async (req, res) => {
     try {
@@ -325,33 +353,6 @@ export function projectsRouter(cfg: ApiConfig): Router {
         signer:    walletAddress,
         status:    receipt.status,
         blockNumber: receipt.blockNumber.toString(),
-      })
-    } catch (err) {
-      sendError(res, err)
-    }
-  })
-
-  // ── GET /v1/projects/estimate?bytes=1000000 ─────────────────────────────────
-  // Returns the USDC charge (arweave cost + 20% markup) for a given content size.
-  // Agents call this BEFORE uploading to know how much to approve for X402.
-  router.get('/estimate', async (req, res) => {
-    try {
-      const bytes = parseInt(req.query['bytes'] as string ?? '0', 10)
-      if (!bytes || bytes <= 0) throw new BadRequestError('bytes must be a positive integer')
-      if (bytes > 500 * 1024 * 1024) throw new BadRequestError('Max 500MB per upload')
-
-      const arweaveCost = await getArweaveCostUsdc(bytes)
-      const { markup, total } = calculateCharge(arweaveCost)
-
-      res.json({
-        bytes,
-        arweaveCost: arweaveCost.toString(),
-        markup:      markup.toString(),
-        total:       total.toString(),
-        markupPct:   '20%',
-        // Human readable
-        arweaveCostUsd: `$${(Number(arweaveCost) / 1e6).toFixed(4)}`,
-        totalUsd:       `$${(Number(total)       / 1e6).toFixed(4)}`,
       })
     } catch (err) {
       sendError(res, err)
