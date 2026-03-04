@@ -30,7 +30,7 @@ Core protocol, tooling, and infrastructure — fully shipped.
 | **323-test SDK suite** (vitest) — unit, integration, advanced, error, encryption, ProjectRegistry, multicall, events — **100% stmts/branches/funcs/lines** | ✅ |
 | **238-test contract suite** (Foundry) — unit, fuzz, invariant, UUPS upgrade, timelock, test token | ✅ |
 | Fuzz tests (13) + Invariant tests (6) | ✅ |
-| **348-test CLI suite** (vitest) — all commands covered, 99%+ stmts | ✅ |
+| **352-test CLI suite** (vitest) — all commands covered, 99%+ stmts | ✅ |
 | Security review (internal) — re-entrancy, access control, upgrade safety, timelock | ✅ |
 | **AUDIT_PREP.md** — 342-line auditor guide (scope, trust model, focus areas, known decisions) | ✅ |
 | **SECURITY_REVIEW.md** — updated with InkdTimelock analysis (LOW-3, INFO-6) | ✅ |
@@ -95,7 +95,7 @@ Make inkd the standard code registry for AI agents. x402 + ERC-8004 + inkd = ful
 |------|--------|-------|
 | **x402 Payment Layer** — `@inkd/api` protected by x402, wallet = identity | ✅ | `api/src/middleware/x402.ts` — $0.001/request |
 | **`@inkd/agentkit`** — Coinbase AgentKit action provider | ✅ | 69 tests; inkd_create_project, inkd_push_version, inkd_list_agents, inkd_get_project |
-| **`@inkd/mcp`** — Model Context Protocol server | ✅ | 26 tests; Claude Desktop + Cursor native integration |
+| **`@inkd/mcp`** — Model Context Protocol server | ✅ | 33 tests; Claude Desktop + Cursor native integration |
 | **ERC-8004 Integration Guide** — inkd as canonical code layer for ERC-8004 agents | ✅ | `docs/ERC8004.md` |
 | **Clanker Launch Script** — $INKD token on Base via Clanker V4 | ✅ | `scripts/clanker-launch.ts` |
 | **x402 Bazaar listing** — get inkd discovered by all x402-aware agents | 📅 | Submit to x402.org/ecosystem |
@@ -141,4 +141,4 @@ Want to contribute? See [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ---
 
-*Last updated: 2026-03-04 04:40 | 1004 tests passing (238 contracts / 323 SDK / 348 CLI / 69 agentkit / 26 mcp) — x402 layer live, AgentKit + MCP providers shipped, ERC-8004 integration guide published*
+*Last updated: 2026-03-04 14:45 | 1,015 tests passing (238 contracts / 323 SDK / 352 CLI / 69 agentkit / 33 mcp) — x402 layer live, AgentKit + MCP providers shipped, ERC-8004 integration guide published*

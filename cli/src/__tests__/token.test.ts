@@ -571,3 +571,70 @@ describe("cmdToken router — approve/transfer break coverage", () => {
     );
   });
 });
+
+// ─── Branch-coverage: mainnet chain ternary + parseAddress error path ─────────
+
+describe("token branch coverage — mainnet chain + parseAddress invalid address", () => {
+  const VALID_PK = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80" as const;
+
+  beforeEach(() => {
+    mockWriteContract.mockResolvedValue(MOCK_TX_HASH);
+    mockWaitForReceipt.mockResolvedValue({ status: "success", blockNumber: 300n });
+  });
+
+  it("approve: uses base chain (mainnet branch of ternary) when network=mainnet", async () => {
+    // Override loadConfig to return mainnet
+    const { loadConfig, ADDRESSES } = await import("../config.js");
+    (loadConfig as Mock).mockReturnValueOnce({
+      network: "mainnet",
+      privateKey: VALID_PK,
+      rpcUrl: undefined,
+    });
+    // Give mainnet addresses valid values
+    (ADDRESSES as Record<string, Record<string, string>>).mainnet.token    = MOCK_TOKEN;
+    (ADDRESSES as Record<string, Record<string, string>>).mainnet.registry = MOCK_REGISTRY;
+
+    const { cmdTokenApprove } = await import("../commands/token.js");
+    await expect(cmdTokenApprove(["5"])).resolves.toBeUndefined();
+
+    // The writeContract call should have been made with the base chain (mainnet path)
+    expect(mockWriteContract).toHaveBeenCalledWith(
+      expect.objectContaining({ functionName: "approve" })
+    );
+
+    // Restore
+    (ADDRESSES as Record<string, Record<string, string>>).mainnet.token    = "";
+    (ADDRESSES as Record<string, Record<string, string>>).mainnet.registry = "";
+  });
+
+  it("transfer: uses base chain (mainnet branch of ternary) when network=mainnet", async () => {
+    const { loadConfig, ADDRESSES } = await import("../config.js");
+    (loadConfig as Mock).mockReturnValueOnce({
+      network: "mainnet",
+      privateKey: VALID_PK,
+      rpcUrl: undefined,
+    });
+    (ADDRESSES as Record<string, Record<string, string>>).mainnet.token    = MOCK_TOKEN;
+    (ADDRESSES as Record<string, Record<string, string>>).mainnet.registry = MOCK_REGISTRY;
+
+    const { cmdTokenTransfer } = await import("../commands/token.js");
+    await expect(cmdTokenTransfer([MOCK_RECIPIENT, "3"])).resolves.toBeUndefined();
+
+    expect(mockWriteContract).toHaveBeenCalledWith(
+      expect.objectContaining({ functionName: "transfer" })
+    );
+
+    (ADDRESSES as Record<string, Record<string, string>>).mainnet.token    = "";
+    (ADDRESSES as Record<string, Record<string, string>>).mainnet.registry = "";
+  });
+
+  it("parseAddress: error() called on invalid hex address (covers catch branch)", async () => {
+    // cmdTokenBalance uses parseAddress when an explicit address arg is provided
+    // Passing a non-EIP-55 garbage string triggers getAddress() to throw
+    const { cmdTokenBalance } = await import("../commands/token.js");
+    // "not-an-address" will fail viem's getAddress() → parseAddress catch → error()
+    await expect(cmdTokenBalance(["not-an-address"])).rejects.toThrow();
+    const { error } = await import("../config.js");
+    expect(error).toHaveBeenCalledWith(expect.stringContaining("Invalid address"));
+  });
+});

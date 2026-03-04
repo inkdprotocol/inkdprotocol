@@ -263,3 +263,60 @@ describe("ANSI colour exports", () => {
     }
   });
 });
+
+// ─── loadConfig() — JSON parse error branch (line 31 in config.ts) ──────────
+
+describe("loadConfig() — invalid JSON in config file", () => {
+  let tmpDir: string;
+  let originalCwd: string;
+  let savedEnv: Record<string, string | undefined>;
+
+  beforeEach(() => {
+    tmpDir = mkdtempSync(path.join(os.tmpdir(), "inkd-cfg-err-"));
+    originalCwd = process.cwd();
+    process.chdir(tmpDir);
+    savedEnv = {
+      INKD_PRIVATE_KEY: process.env["INKD_PRIVATE_KEY"],
+      INKD_RPC_URL: process.env["INKD_RPC_URL"],
+      INKD_NETWORK: process.env["INKD_NETWORK"],
+    };
+    delete process.env["INKD_PRIVATE_KEY"];
+    delete process.env["INKD_RPC_URL"];
+    delete process.env["INKD_NETWORK"];
+  });
+
+  afterEach(() => {
+    process.chdir(originalCwd);
+    rmSync(tmpDir, { recursive: true, force: true });
+    for (const [k, v] of Object.entries(savedEnv)) {
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+    }
+  });
+
+  it("calls error() and continues when inkd.config.json contains invalid JSON", () => {
+    // Write a corrupt config file — JSON.parse will throw, hitting the catch branch
+    writeFileSync(
+      path.join(tmpDir, "inkd.config.json"),
+      "{ this is: not valid JSON !!!",
+      "utf-8"
+    );
+
+    // error() calls process.exit(1) — mock it so we can observe the call
+    const mockExit = vi.spyOn(process, "exit").mockImplementation((_?: number | string | null) => {
+      throw new Error("process.exit called");
+    });
+    const mockConsoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    // loadConfig() should call error() which calls process.exit(1)
+    expect(() => loadConfig()).toThrow("process.exit called");
+
+    // Verify error was reported (via console.error inside error())
+    expect(mockConsoleError).toHaveBeenCalledWith(
+      expect.stringContaining("Failed to parse")
+    );
+
+    mockExit.mockRestore();
+    mockConsoleError.mockRestore();
+  });
+});
