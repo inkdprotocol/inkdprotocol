@@ -290,6 +290,49 @@ Tweets staged for posting. Score threshold: >7/10. Format: one tweet per entry.
 
 ---
 
+<!-- CYCLE: 2026-03-05 00:01 GST — Learning Loop #3 -->
+
+### Tweet 7
+**Score: 8.5/10**
+**Source:** arxiv.org/abs/2601.04583 — account abstraction stacks (eip-4337, eip-7702, safe) as agent-to-chain interface layer
+
+> account abstraction solved the agent wallet problem.
+>
+> eip-4337: no private keys. eip-7702: any address programmable. safe: custodial multi-sig.
+>
+> none of these produce a verifiable record of what the agent built with that wallet.
+>
+> a wallet is where you act. an ownership record is what you did. different layers.
+
+---
+
+### Tweet 8
+**Score: 8/10**
+**Source:** arxiv.org/abs/2601.04583 — intent-based protocols for agent-mediated on-chain execution
+
+> intent protocols let agents declare what they want to accomplish. the chain executes it.
+>
+> what gets written: the transaction.
+> what doesn't: what the agent was trying to build.
+>
+> a transaction is a trace. provenance is history. when agents write code — not just move funds — the distinction stops being academic.
+
+---
+
+### Tweet 9
+**Score: 8/10**
+**Source:** arxiv.org/abs/2601.04583 — "reproducible evaluation" flagged as top open problem in 2026 roadmap; TechCrunch — OpenAI enterprise agent platform (Feb 2026)
+
+> openai launched enterprise agent management in february.
+> the 2026 autonomous agents research roadmap flags "reproducible evaluation" as a top-3 open problem.
+>
+> the same gap from different angles: you can deploy agents at scale or study them in a lab.
+> neither gives you a permanent, verifiable record of what they built.
+>
+> enterprise adoption and research are both blocked by missing ownership infrastructure.
+
+---
+
 <!-- CYCLE: 2026-03-03 12:21 AST — Learning Loop #1 -->
 
 ### Tweet 1
