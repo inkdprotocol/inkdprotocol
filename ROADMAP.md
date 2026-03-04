@@ -141,4 +141,4 @@ Want to contribute? See [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ---
 
-*Last updated: 2026-03-04 14:45 | 1,015 tests passing (238 contracts / 323 SDK / 352 CLI / 69 agentkit / 33 mcp) — x402 layer live, AgentKit + MCP providers shipped, ERC-8004 integration guide published*
+*Last updated: 2026-03-04 17:20 | 1,015 tests passing (238 contracts / 323 SDK / 352 CLI / 69 agentkit / 33 mcp) — x402 layer live, AgentKit + MCP providers shipped, ERC-8004 integration guide published, HTTP_API.md added*

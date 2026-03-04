@@ -6,6 +6,27 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v0.10.4] — 2026-03-04
+
+### Added
+- **docs/HTTP_API.md** — 856-line complete REST API reference for `@inkd/api`:
+  - All 10 endpoints documented (GET /v1/health, /v1/status, /v1/projects, /v1/projects/:id, POST /v1/projects, GET /v1/projects/:id/versions, POST /v1/projects/:id/versions, GET /v1/agents, /v1/agents/:id, /v1/agents/by-name/:name)
+  - Request/response schemas with all fields, types, and constraints
+  - x402 payment flow sequence diagram (wallet = identity)
+  - Auth modes: x402 production vs Bearer token dev mode
+  - Rate limiting, error codes table (400/401/402/404/429/500/502/503)
+  - Environment variables reference
+  - Vercel deployment guide
+  - Code examples: curl, Python, TypeScript with `@x402/fetch`
+  - Troubleshooting table (8 common issues)
+  - Fills the gap between `docs/API.md` (SDK reference) and the actual `@inkd/api` HTTP server
+
+### Quality Gates
+- Contracts: 238/238 ✅  SDK: 323/323 ✅  CLI: 352/352 ✅  AgentKit: 69/69 ✅  MCP: 33/33 ✅
+- **Total: 1,015 tests**
+
+---
+
 ## [v0.10.3] — 2026-03-04
 
 ### Added
