@@ -1,0 +1,56 @@
+1
+00:00:00,000 --> 00:00:06,920
+Und sag mir mal, wird es jetzt alles x402 freundlich, also kann ich jetzt so bei Base, bei
+
+2
+00:00:06,920 --> 00:00:10,720
+die Leute, die Base Leute pushen, die ganze Zeit nur x402 sachen.
+
+3
+00:00:10,720 --> 00:00:15,320
+Die sagen hier, guck mal noch eine neue App of Base, die x402 Tech nutzt.
+
+4
+00:00:15,320 --> 00:00:19,120
+Verschließt so eine hat jetzt so E-Mates mit x402 gemacht, so mit Agents, einer hat das
+
+5
+00:00:19,120 --> 00:00:24,520
+und wir wollen ja sein, dass man hier per x402 kannst du jetzt deine Wallet als Adresse
+
+6
+00:00:24,520 --> 00:00:29,560
+machen, dass du so, dass die Wallet sozusagen ja Accredentials und so was sind.
+
+7
+00:00:29,560 --> 00:00:30,560
+Weiß was, meine.
+
+8
+00:00:30,560 --> 00:00:35,680
+Die Tech dahinter ist die komplett fertig jetzt, so, wenn die Fertisches dann können wir
+
+9
+00:00:35,680 --> 00:00:41,360
+theoretisch jetzt in Coinlaunchen, also die Adresse erstmal festlegen, die Adresse, die
+
+10
+00:00:41,360 --> 00:00:45,640
+Coinadresse geben für die Buyback, aber an sich die Tech funktioniert jetzt, für Agents
+
+11
+00:00:45,640 --> 00:00:50,880
+komplett ist dieses Kennung CLE oder NPM, ich weiß nicht, alles ready ist, alles fertig,
+
+12
+00:00:50,880 --> 00:00:57,000
+alles komplett x402 Agents freundlich, die Banker Wallet zum Beispiel, du hast nur noch
+
+13
+00:00:57,000 --> 00:01:04,840
+dieses GitHub von Banker API oder Banker CLE, funktioniert das alles damit unsere Tech
+
+14
+00:01:04,840 --> 00:01:06,600
+oder ist da jetzt irgendwelche Blockaden noch da?
+

@@ -1,5 +1,5 @@
 {
-  "lastUpdated": "2026-03-04T20:17:00+04:00",
+  "lastUpdated": "2026-03-04T22:33:00+04:00",
   "version": "0.9.x",
   "tasks": [
     {
@@ -19,6 +19,24 @@
       "completedAt": "2026-03-03T01:14:00+04:00",
       "commit": "8dc84c6",
       "result": "SDK tests: 153 → 194 (+41). All 194 passing."
+    },
+    {
+      "id": "feat-inkd-buyback-contract",
+      "priority": 23,
+      "status": "done",
+      "title": "InkdBuyback.sol — automated USDC→$INKD buyback at $50 threshold (18 tests)",
+      "completedAt": "2026-03-04T22:24:00+04:00",
+      "commit": "aa1da2c2",
+      "result": "InkdBuyback: deposit() from Treasury, executeBuyback() via Uniswap V3 exactInputSingle, auto-trigger on receive(), SafeERC20. Contracts: 237→255 (+18). InkdTreasury: settle() callable by settler (API server) or registry; split $1 arweave/$2 buyback/$2 treasury. vault.ts branch 85.71%→100% (+4 tests, SDK 344→348). Total: 1225 tests."
+    },
+    {
+      "id": "docs-changelog-roadmap-http-api-sync",
+      "priority": 24,
+      "status": "done",
+      "title": "docs: sync CHANGELOG v0.10.9 + ROADMAP + HTTP_API for X402 USDC stack",
+      "completedAt": "2026-03-04T22:33:00+04:00",
+      "commit": "9255b56c",
+      "result": "CHANGELOG v0.10.9: InkdBuyback, InkdTreasury.settle(), x402 USDC $5/request, vault.ts 100% branch. ROADMAP: contracts 237→255, SDK 323→348, API 148→168, +InkdBuyback row, x402 updated, footer 1162→1225. HTTP_API.md: $0.001 ETH→$5 USDC, expanded flow diagram with settle() + revenue split table, TREASURY_ADDRESS env var. Quality gate: Contracts 255/255 ✅ SDK 348/348 ✅"
     },
     {
       "id": "test-hooks-vitest-env",
@@ -189,17 +207,26 @@
       "completedAt": "2026-03-04T20:17:00+04:00",
       "commit": "857c6449",
       "result": "API tests: 150 → 168 (+18). clients.ts: buildPublicClient(), buildWalletClient(), normalizePrivateKey() all 100% stmts/branch/funcs/lines. Previous assumption (\"requires network\") was wrong — pure factory functions testable via viem mocks. Quality gate: Contracts 237/237 ✅  SDK 323/323 ✅  CLI 352/352 ✅  AgentKit 69/69 ✅  MCP 33/33 ✅  API 168/168 ✅  Total: 1,182 tests."
+    },
+    {
+      "id": "docs-agentvault-sdk-reference",
+      "priority": 22,
+      "status": "done",
+      "title": "AgentVault SDK_REFERENCE.md — seal/unseal/store/load reference (+257 lines)",
+      "completedAt": "2026-03-04T20:45:00+04:00",
+      "commit": "61efaacc",
+      "result": "SDK_REFERENCE.md: +257 lines. AgentVault section: encryption stack overview (ECIES/HKDF/AES-GCM), binary layout diagram, method reference tables (constructor/seal/unseal/store/load), full InkdClient roundtrip example, cross-agent sharing pattern. TOC updated (+8 entries). Changelog table updated 0.1.0→0.10.8. CHANGELOG.md v0.10.8 added. Quality gate: Contracts 237/237 ✅ SDK 344/344 ✅ CLI 352/352 ✅ AgentKit 69/69 ✅ MCP 33/33 ✅ API 168/168 ✅ Total: 1,203 tests."
     }
   ],
-  "notes": "All non-blocked tasks done. Blocked: React hooks (needs jsdom/testing-library). IMPORTANT: contracts refactored to USDC fee model (commit 4a447535) — InkdTreasury.initialize now takes 4 params (owner, usdc, arweaveWallet, buybackWallet). InkdIntegration.t.sol fully rewritten for USDC model. Contract count is 237 (not 238 — one test removed during USDC refactor). Always check git status before reading counts from JSON. workspace auto-save bot must not run git add -A from builds/inkd-protocol — it deletes tracked test files. Remaining low-coverage items in API: clients.ts now 100% (pure factories, mocked viem). index.ts (0% — module-level server startup) still impractical to unit test. CLI low-coverage: config.ts color branch (requires module re-import with isTTY=true), index.ts main().catch() handler (module-level side effect), agentd.ts humanLine else-if branch (V8 tracking issue). 2026-03-04T18:50 build: Added 503 + contractsDeployed=false branch tests (+15). health.ts branches 71%→100%, API routes 83%→92% branch. Remaining API gaps: agents.ts lines 49/109/140 and projects.ts lines 156/227/264 are V8 quirks (dead-code ternary + Express req.params ?? '' patterns — untestable via HTTP). 2026-03-04T19:48 build: rateLimit.ts 90.9%→100% branch (non-expired entry preserved during cleanup), health.ts 95%→100% stmts (outer catch sendError via unknown network). API middleware/* now all 100%. API total 148→150. 2026-03-04T20:17 build: clients.ts 0%→100% (+18 tests). False assumption corrected — buildPublicClient/buildWalletClient/normalizePrivateKey are pure factories, no network needed. API total 150→168.",
+  "notes": "All non-blocked tasks done. Blocked: React hooks (needs jsdom/testing-library). IMPORTANT: contracts refactored to USDC fee model (commit 4a447535) — InkdTreasury.initialize now takes 4 params (owner, usdc, arweaveWallet, buybackWallet). InkdIntegration.t.sol fully rewritten for USDC model. Always check git status before reading counts from JSON. workspace auto-save bot must not run git add -A from builds/inkd-protocol — it deletes tracked test files. Remaining low-coverage items in API: index.ts (0% — module-level server startup) still impractical to unit test. CLI low-coverage: config.ts color branch (requires module re-import with isTTY=true), index.ts main().catch() handler (module-level side effect), agentd.ts humanLine else-if branch (V8 tracking issue). Remaining API gaps: agents.ts lines 49/109/140 and projects.ts lines 156/227/264 are V8 quirks (dead-code ternary + Express req.params ?? '' patterns — untestable via HTTP). 2026-03-04T22:24 build: X402 USDC stack landed (commit aa1da2c2): InkdBuyback deployed (USDC→$INKD at $50 threshold via Uniswap V3, 18 tests), InkdTreasury.settle() + settler role, API x402 $0.001 ETH→$5 USDC, TREASURY_ADDRESS env var, settle() call after x402 verify. Contracts 237→255. vault.ts branch 85.71%→100% (+4). Total: 1225 tests. 2026-03-04T22:33 build: docs sync — CHANGELOG v0.10.9, ROADMAP (updated all counts + new rows), HTTP_API.md ($5 USDC, expanded flow diagram with settle() + revenue split table). Commit 9255b56c.",
   "testCounts": {
-    "contracts": 237,
-    "sdk": 323,
+    "contracts": 255,
+    "sdk": 348,
     "cli": 352,
     "agentkit": 69,
     "mcp": 33,
     "api": 168,
-    "total": 1182,
-    "asOf": "2026-03-04T20:17:00+04:00"
+    "total": 1225,
+    "asOf": "2026-03-04T22:33:00+04:00"
   }
 }

@@ -15077,3 +15077,103 @@ roxy will use 10.5.0.2 as source for IPv4
 2026-03-03T00:42:39Z INF Registered tunnel connection connIndex=2 connection=8ef7f8e0-fdd1-40ea-9d1c-bf1199e22d42 event=0 ip=198.41.192.57 location=dxb02 protocol=quic
 2026-03-03T00:42:39Z INF Registered tunnel connection connIndex=3 connection=fe8419ab-e540-4763-8d2f-0ed40c67dc3b event=0 ip=198.41.200.13 location=sin15 protocol=quic
 2026-03-03T00:42:39Z INF Registered tunnel connection connIndex=1 connection=1157c7c2-18e7-47fb-a79f-ca48bc03c9c7 event=0 ip=198.41.192.37 location=dxb02 protocol=quic
+2026-03-04T10:15:49Z INF Starting tunnel tunnelID=b7257963-34e4-4ef8-bc59-3b713adb416a
+2026-03-04T10:15:49Z INF Version 2026.1.1 (Checksum 8476506f0817b2d10d519d829bb5321b65ff20dbcc4bb0266c608774f1d38b28)
+2026-03-04T10:15:49Z INF GOOS: darwin, GOVersion: go1.25.6, GoArch: arm64
+2026-03-04T10:15:49Z INF Settings: map[config:/Users/hazar/.cloudflared/config.yml cred-file:/Users/hazar/.cloudflared/b7257963-34e4-4ef8-bc59-3b713adb416a.json credentials-file:/Users/hazar/.cloudflared/b7257963-34e4-4ef8-bc59-3b713adb416a.json]
+2026-03-04T10:15:49Z INF cloudflared will not automatically update if installed by a package manager.
+2026-03-04T10:15:49Z ERR Failed to fetch features, default to disable error="lookup cfd-features.argotunnel.com on [::1]:53: read udp [::1]:50853->[::1]:53: read: connection refused"
+2026-03-04T10:15:49Z INF Generated Connector ID: 386d3c26-5fe4-4901-89bb-be14f6a3a764
+2026-03-04T10:15:49Z WRN Unable to lookup protocol percentage.
+2026-03-04T10:15:49Z INF Initial protocol http2
+2026-03-04T10:15:49Z INF ICMP proxy will use 0.0.0.0 as source for IPv4
+2026-03-04T10:15:49Z INF ICMP proxy will use ::1 in zone lo0 as source for IPv6
+2026-03-04T10:15:49Z INF Created ICMP proxy listening on 0.0.0.0:0
+2026-03-04T10:15:49Z INF Created ICMP proxy listening on [::1]:0
+2026-03-04T10:15:49Z ERR edge discovery: error looking up Cloudflare edge IPs: the DNS query failed error="lookup _v2-origintunneld._tcp.argotunnel.com on [::1]:53: read udp [::1]:59028->[::1]:53: read: connection refused" event=0
+2026-03-04T10:15:49Z ERR Please try the following things to diagnose this issue: event=0
+2026-03-04T10:15:49Z ERR   1. ensure that argotunnel.com is returning "origintunneld" service records. event=0
+2026-03-04T10:15:49Z ERR      Run your system's equivalent of: dig srv _origintunneld._tcp.argotunnel.com event=0
+2026-03-04T10:15:49Z ERR   2. ensure that your DNS resolver is not returning compressed SRV records. event=0
+2026-03-04T10:15:49Z ERR      See GitHub issue https://github.com/golang/go/issues/27546 event=0
+2026-03-04T10:15:49Z ERR      For example, you could use Cloudflare's 1.1.1.1 as your resolver: event=0
+2026-03-04T10:15:49Z ERR      https://developers.cloudflare.com/1.1.1.1/setting-up-1.1.1.1/ event=0
+2026-03-04T10:15:49Z INF ICMP proxy will use 0.0.0.0 as source for IPv4
+2026-03-04T10:15:49Z INF ICMP proxy will use ::1 in zone lo0 as source for IPv6
+2026-03-04T10:15:49Z INF Starting metrics server on 127.0.0.1:20241/metrics
+2026-03-04T10:15:49Z ERR edge discovery: error looking up Cloudflare edge IPs: the DNS query failed error="lookup _v2-origintunneld._tcp.argotunnel.com on [::1]:53: read udp [::1]:58058->[::1]:53: read: connection refused" event=0
+2026-03-04T10:15:49Z ERR Please try the following things to diagnose this issue: event=0
+2026-03-04T10:15:49Z ERR   1. ensure that argotunnel.com is returning "origintunneld" service records. event=0
+2026-03-04T10:15:49Z ERR      Run your system's equivalent of: dig srv _origintunneld._tcp.argotunnel.com event=0
+2026-03-04T10:15:49Z ERR   2. ensure that your DNS resolver is not returning compressed SRV records. event=0
+2026-03-04T10:15:49Z ERR      See GitHub issue https://github.com/golang/go/issues/27546 event=0
+2026-03-04T10:15:49Z ERR      For example, you could use Cloudflare's 1.1.1.1 as your resolver: event=0
+2026-03-04T10:15:49Z ERR      https://developers.cloudflare.com/1.1.1.1/setting-up-1.1.1.1/ event=0
+2026-03-04T10:15:49Z INF Tunnel server stopped
+2026-03-04T10:15:49Z ERR Initiating shutdown error="Could not lookup srv records on _v2-origintunneld._tcp.argotunnel.com: lookup _v2-origintunneld._tcp.argotunnel.com on [::1]:53: read udp [::1]:58058->[::1]:53: read: connection refused"
+2026-03-04T10:15:49Z INF Metrics server stopped
+Could not lookup srv records on _v2-origintunneld._tcp.argotunnel.com: lookup _v2-origintunneld._tcp.argotunnel.com on [::1]:53: read udp [::1]:58058->[::1]:53: read: connection refused
+2026-03-04T10:15:56Z INF Starting tunnel tunnelID=b7257963-34e4-4ef8-bc59-3b713adb416a
+2026-03-04T10:15:56Z INF Version 2026.1.1 (Checksum 8476506f0817b2d10d519d829bb5321b65ff20dbcc4bb0266c608774f1d38b28)
+2026-03-04T10:15:56Z INF GOOS: darwin, GOVersion: go1.25.6, GoArch: arm64
+2026-03-04T10:15:56Z INF Settings: map[config:/Users/hazar/.cloudflared/config.yml cred-file:/Users/hazar/.cloudflared/b7257963-34e4-4ef8-bc59-3b713adb416a.json credentials-file:/Users/hazar/.cloudflared/b7257963-34e4-4ef8-bc59-3b713adb416a.json]
+2026-03-04T10:15:56Z INF cloudflared will not automatically update if installed by a package manager.
+2026-03-04T10:15:56Z ERR Failed to fetch features, default to disable error="lookup cfd-features.argotunnel.com on [::1]:53: read udp [::1]:54966->[::1]:53: read: connection refused"
+2026-03-04T10:15:56Z INF Generated Connector ID: 9b411a2a-b025-4917-94a0-fd82ae819fa1
+2026-03-04T10:15:56Z WRN Unable to lookup protocol percentage.
+2026-03-04T10:15:56Z INF Initial protocol http2
+2026-03-04T10:15:56Z INF ICMP proxy will use 0.0.0.0 as source for IPv4
+2026-03-04T10:15:56Z INF ICMP proxy will use ::1 in zone lo0 as source for IPv6
+2026-03-04T10:15:56Z INF Created ICMP proxy listening on 0.0.0.0:0
+2026-03-04T10:15:56Z INF Created ICMP proxy listening on [::1]:0
+2026-03-04T10:15:56Z ERR edge discovery: error looking up Cloudflare edge IPs: the DNS query failed error="lookup _v2-origintunneld._tcp.argotunnel.com on [::1]:53: read udp [::1]:62901->[::1]:53: read: connection refused" event=0
+2026-03-04T10:15:56Z ERR Please try the following things to diagnose this issue: event=0
+2026-03-04T10:15:56Z ERR   1. ensure that argotunnel.com is returning "origintunneld" service records. event=0
+2026-03-04T10:15:56Z ERR      Run your system's equivalent of: dig srv _origintunneld._tcp.argotunnel.com event=0
+2026-03-04T10:15:56Z ERR   2. ensure that your DNS resolver is not returning compressed SRV records. event=0
+2026-03-04T10:15:56Z ERR      See GitHub issue https://github.com/golang/go/issues/27546 event=0
+2026-03-04T10:15:56Z ERR      For example, you could use Cloudflare's 1.1.1.1 as your resolver: event=0
+2026-03-04T10:15:56Z ERR      https://developers.cloudflare.com/1.1.1.1/setting-up-1.1.1.1/ event=0
+2026-03-04T10:15:56Z INF ICMP proxy will use 0.0.0.0 as source for IPv4
+2026-03-04T10:15:56Z INF ICMP proxy will use ::1 in zone lo0 as source for IPv6
+2026-03-04T10:15:56Z INF Starting metrics server on 127.0.0.1:20241/metrics
+2026-03-04T10:15:56Z ERR edge discovery: error looking up Cloudflare edge IPs: the DNS query failed error="lookup _v2-origintunneld._tcp.argotunnel.com on [::1]:53: read udp [::1]:60083->[::1]:53: read: connection refused" event=0
+2026-03-04T10:15:56Z ERR Please try the following things to diagnose this issue: event=0
+2026-03-04T10:15:56Z ERR   1. ensure that argotunnel.com is returning "origintunneld" service records. event=0
+2026-03-04T10:15:56Z ERR      Run your system's equivalent of: dig srv _origintunneld._tcp.argotunnel.com event=0
+2026-03-04T10:15:56Z ERR   2. ensure that your DNS resolver is not returning compressed SRV records. event=0
+2026-03-04T10:15:56Z ERR      See GitHub issue https://github.com/golang/go/issues/27546 event=0
+2026-03-04T10:15:56Z ERR      For example, you could use Cloudflare's 1.1.1.1 as your resolver: event=0
+2026-03-04T10:15:56Z ERR      https://developers.cloudflare.com/1.1.1.1/setting-up-1.1.1.1/ event=0
+2026-03-04T10:15:56Z INF Tunnel server stopped
+2026-03-04T10:15:56Z ERR Initiating shutdown error="Could not lookup srv records on _v2-origintunneld._tcp.argotunnel.com: lookup _v2-origintunneld._tcp.argotunnel.com on [::1]:53: read udp [::1]:60083->[::1]:53: read: connection refused"
+2026-03-04T10:15:56Z INF Metrics server stopped
+Could not lookup srv records on _v2-origintunneld._tcp.argotunnel.com: lookup _v2-origintunneld._tcp.argotunnel.com on [::1]:53: read udp [::1]:60083->[::1]:53: read: connection refused
+2026-03-04T10:16:07Z INF Starting tunnel tunnelID=b7257963-34e4-4ef8-bc59-3b713adb416a
+2026-03-04T10:16:07Z INF Version 2026.1.1 (Checksum 8476506f0817b2d10d519d829bb5321b65ff20dbcc4bb0266c608774f1d38b28)
+2026-03-04T10:16:07Z INF GOOS: darwin, GOVersion: go1.25.6, GoArch: arm64
+2026-03-04T10:16:07Z INF Settings: map[config:/Users/hazar/.cloudflared/config.yml cred-file:/Users/hazar/.cloudflared/b7257963-34e4-4ef8-bc59-3b713adb416a.json credentials-file:/Users/hazar/.cloudflared/b7257963-34e4-4ef8-bc59-3b713adb416a.json]
+2026-03-04T10:16:07Z INF cloudflared will not automatically update if installed by a package manager.
+2026-03-04T10:16:07Z INF Generated Connector ID: a866c797-4adb-4df7-b16a-35afcdeeddd2
+2026-03-04T10:16:07Z INF Initial protocol quic
+2026-03-04T10:16:07Z INF ICMP proxy will use 192.168.1.120 as source for IPv4
+2026-03-04T10:16:07Z INF ICMP proxy will use fe80::1098:646b:d1d1:c975 in zone en0 as source for IPv6
+2026-03-04T10:16:07Z INF Created ICMP proxy listening on 192.168.1.120:0
+2026-03-04T10:16:07Z INF ICMP proxy will use 192.168.1.120 as source for IPv4
+2026-03-04T10:16:07Z INF ICMP proxy will use fe80::1098:646b:d1d1:c975 in zone en0 as source for IPv6
+2026-03-04T10:16:07Z INF Starting metrics server on 127.0.0.1:20241/metrics
+2026-03-04T10:16:07Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveP256] connIndex=0 event=0 ip=198.41.192.107
+2026-03-04T10:16:08Z INF Registered tunnel connection connIndex=0 connection=4a94e0a2-e00d-4e0e-911a-9cea75aca58d event=0 ip=198.41.192.107 location=dxb02 protocol=quic
+2026-03-04T10:16:08Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveP256] connIndex=1 event=0 ip=198.41.200.43
+2026-03-04T10:16:09Z ERR failed to accept incoming stream requests error="failed to accept QUIC stream: Application error 0x0 (remote)" connIndex=1 event=0 ip=198.41.200.43
+2026-03-04T10:16:09Z ERR failed to run the datagram handler error="Application error 0x0 (remote)" connIndex=1 event=0 ip=198.41.200.43
+2026-03-04T10:16:09Z WRN failed to serve tunnel connection error="control stream encountered a failure while serving" connIndex=1 event=0 ip=198.41.200.43
+2026-03-04T10:16:09Z WRN Serve tunnel error error="control stream encountered a failure while serving" connIndex=1 event=0 ip=198.41.200.43
+2026-03-04T10:16:09Z INF Retrying connection in up to 2s connIndex=1 event=0 ip=198.41.200.43
+2026-03-04T10:16:09Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveP256] connIndex=2 event=0 ip=198.41.200.193
+2026-03-04T10:16:09Z INF Registered tunnel connection connIndex=2 connection=0c81a79a-9109-4097-9808-4bb3b2fd761d event=0 ip=198.41.200.193 location=sin13 protocol=quic
+2026-03-04T10:16:10Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveP256] connIndex=3 event=0 ip=198.41.192.7
+2026-03-04T10:16:10Z INF Registered tunnel connection connIndex=3 connection=038aab5e-5fbe-47f5-ba47-9327ca43a5cf event=0 ip=198.41.192.7 location=dxb02 protocol=quic
+2026-03-04T10:16:11Z WRN Connection terminated error="control stream encountered a failure while serving" connIndex=1
+2026-03-04T10:16:12Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveP256] connIndex=1 event=0 ip=198.41.200.43
+2026-03-04T10:16:13Z INF Registered tunnel connection connIndex=1 connection=e1bf50c5-752e-463d-96ec-d72c2817bd18 event=0 ip=198.41.200.43 location=sin13 protocol=quic
