@@ -6,6 +6,26 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v0.10.3] — 2026-03-04
+
+### Added
+- **CLI test coverage** — two new branch-coverage describe blocks:
+  - `config.test.ts`: `loadConfig()` invalid-JSON catch branch (corrupt `inkd.config.json` → `error()` → `process.exit(1)`)
+  - `token.test.ts`: mainnet chain ternary (approve + transfer via `base` chain), `parseAddress` catch branch (invalid hex address)
+  - CLI tests: **348 → 352** (+4)
+
+### Changed
+- **ROADMAP.md** sync to actual test counts:
+  - Phase 0 CLI entry: 348 → 352
+  - Phase 3 `@inkd/mcp` entry: 26 → 33 tests
+  - Footer: 1,004 → 1,015 total tests
+
+### Quality Gates
+- Contracts: 238/238 ✅  SDK: 323/323 ✅  CLI: 352/352 ✅  AgentKit: 69/69 ✅  MCP: 33/33 ✅
+- **Total: 1,015 tests**
+
+---
+
 ## [v0.10.2] — 2026-03-04
 
 ### Changed
