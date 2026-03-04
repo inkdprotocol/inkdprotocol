@@ -6,6 +6,70 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v0.10.7] — 2026-03-04
+
+### Changed
+- **`@inkd/api` coverage expansion** — 92 → 148 tests (+56):
+  - `config.ts`: 11% → 100% (all `loadConfig()` branches, `getChain()`, `ADDRESSES` shape — 31 tests)
+  - `x402.ts` middleware: 55% → 100% (mainnet/testnet selection, `HTTPFacilitatorClient`, `payTo`/`price` fields — +8 tests)
+  - `rateLimit.ts` middleware: 81% → 100% stmts/funcs/lines (`'unknown'` IP fallback, `setInterval` cleanup via `vi.useFakeTimers()` — +2 tests)
+  - Routes health: 503 + `contractsDeployed=false` branch tests (+15 tests)
+- **USDC fee model** — `InkdTreasury` refactored from native-ETH to USDC-only fees with 50/50 auto-split buyback:
+  - `InkdTreasury.initialize()` now takes 4 params: `(owner, usdc, arweaveWallet, buybackWallet)`
+  - `InkdIntegration.t.sol` fully rewritten for USDC model
+  - Contract test count: 238 → 237 (one test removed during refactor)
+
+### Quality Gates
+- Contracts: 237/237 ✅  SDK: 323/323 ✅  CLI: 352/352 ✅  AgentKit: 69/69 ✅  MCP: 33/33 ✅  API: 148/148 ✅
+- **Total: 1,162 tests**
+
+---
+
+## [v0.10.6] — 2026-03-04
+
+### Added
+- **`@inkd/api` full test suite** — 0 → 92 tests across 7 test files:
+  - All 5 project routes (list, get, create, versions list, version push)
+  - All 3 agent routes (list, get-by-id, get-by-name)
+  - Health/status routes (8 tests)
+  - `authMiddleware` (9 tests: no-key passthrough, valid Bearer, invalid Bearer, x402 mode)
+  - `rateLimitMiddleware` (6 tests: rate limit enforcement, per-IP isolation, headers)
+  - x402 `getPayerAddress` (6 tests: happy path, invalid sig, malformed header)
+  - All error classes + `sendError()` (16 tests: all error subclasses, JSON format, status codes)
+
+### Quality Gates
+- Contracts: 238/238 ✅  SDK: 323/323 ✅  CLI: 352/352 ✅  AgentKit: 69/69 ✅  MCP: 33/33 ✅  API: 92/92 ✅
+- **Total: 1,107 tests**
+
+---
+
+## [v0.10.5] — 2026-03-04
+
+### Added
+- **`docs/AGENTKIT.md`** — 513-line comprehensive `@inkd/agentkit` integration guide:
+  - Install, quick start, how x402 auth works
+  - All 4 actions (`inkd_create_project`, `inkd_push_version`, `inkd_get_project`, `inkd_list_agents`) with full parameter tables and example prompts
+  - x402 payment flow diagram, full working example, agent prompt patterns
+  - Error handling table, troubleshooting guide
+- **`CONTRIBUTING.md`** updated (+307 lines/-24):
+  - Full project structure tree for all 6 packages
+  - CLI/AgentKit/MCP/API setup + conventions sections
+  - Per-package testing instructions, test count table
+  - ToC expanded from 10 to 13 entries
+- **`@inkd/agentkit` full test suite** — 0 → 69 tests, 100% coverage on `provider.ts`, `actions.ts`, `types.ts`:
+  - All 4 actions tested: happy paths, error paths, Zod schema validation, `buildFetch` fallback, `walletAddress` fallback
+- **`@inkd/mcp` edge-case tests** — 26 → 33 tests (+7):
+  - `json().catch` fallback in `createProject`/`pushVersion` (non-JSON error body)
+  - `description=''` and `undefined` → `'(none)'`
+  - Empty list output in `getVersions`/`listAgents`
+  - Unix timestamp → ISO date format in `getVersions`
+
+### Quality Gates
+- Contracts: 238/238 ✅  SDK: 323/323 ✅  CLI: 352/352 ✅  AgentKit: 69/69 ✅  MCP: 33/33 ✅
+- **Total: 1,015 tests**
+
+---
+
 ## [v0.10.4] — 2026-03-04
 
 ### Added
