@@ -361,9 +361,8 @@ contract InkdIntegrationTest is Test {
         assertEq(registry.getVersionCount(1), 2, "paid push succeeded");
 
         // Protocol zeroes fee again → push free again
-        vm.startPrank(protocol);
+        vm.prank(protocol);
         treasury.setDefaultFee(0); // zero fee
-        vm.stopPrank();
 
         vm.prank(alice);
         registry.pushVersion(1, "ar://v3", "v3", "free again");
