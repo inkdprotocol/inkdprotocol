@@ -6,6 +6,93 @@ Tweets staged for posting. Score threshold: >7/10. Format: one tweet per entry.
 
 ## Ready to Post
 
+<!-- CYCLE: 2026-03-05 — Agent Prep — Thu Mar 5, 2026 -->
+
+### Tweet 1 — Atomic
+**Score: 8.5/10**
+**Type:** atomic
+**Suggested slot:** 13:00 UTC
+
+> Inkd now speaks mcp. Any agent with a Model Context Protocol client can register a project, publish versions, and prove on-chain ownership.
+>
+> No custom sdk integration. No new auth flow.
+>
+> Friction is how protocols die. We removed it.
+
+*Hook: MCP is the default agent API surface — positions inkd as friction-free infrastructure, not a walled garden*
+
+---
+
+### Tweet 2 — Atomic
+**Score: 8.5/10**
+**Type:** atomic
+**Suggested slot:** 17:00 UTC
+
+> x402 handles agent payments. One http header, machine-readable, no oauth required.
+>
+> What it doesn't handle: a permanent record of what the agent built with what it earned.
+>
+> Payments are a moment. Ownership is a record. Both need to exist before autonomous agents operate at scale.
+
+*Hook: completes a narrative engineers already know — x402 is real, the gap is real, the ask is obvious*
+
+---
+
+### Tweet 3 — Build Log
+**Score: 8.5/10**
+**Type:** build-log
+**Source:** inkdprotocol/inkd-protocol — @inkd/mcp (9f8de25, 17efdd7) + InkdActionProvider (3dd8c22) + API expansion (4e777db) + ERC-8004 guide (b70ceb6)
+**Suggested slot:** 13:00 UTC
+
+> @inkd/mcp: 33 tests. inkd-agentkit: 69 tests, 100% coverage. api: 168 endpoints.
+>
+> 1,182 total tests across contracts, sdk, cli, mcp, and agentkit.
+>
+> This week: erc-8004 integration guide, x402 stack documentation, $inkd clanker launch committed to repo.
+
+*Hook: raw numbers + breadth of integrations — shows the protocol is becoming a full stack, not a single contract*
+
+---
+
+### Tweet 4 — Ecosystem Positioning
+**Score: 8.5/10**
+**Type:** ecosystem
+**Suggested slot:** 17:00 UTC
+
+> On-chain agent identity is taking shape. erc-8004 gives agents a verified address, a capability manifest, a trust score.
+>
+> What it doesn't give them: a record of what they built.
+>
+> Identity answers who this agent is. Ownership answers what it did. You need both before you can trust an agent in production.
+
+*Hook: acknowledges erc-8004 as real progress, then cleanly exposes the gap inkd fills — no defensiveness, just a missing layer*
+
+---
+
+### Tweet 5 — Engagement
+**Score: 8/10**
+**Type:** engagement
+**Suggested slot:** 13:00 UTC
+
+> If you were deploying a fully autonomous agent today, what would actually block you?
+>
+> Payments: x402. Wallets: safe. Identity: erc-8004. Ownership: inkd.
+>
+> What's still genuinely missing from that stack?
+
+*Hook: practical framing with a real stack laid out — invites builders with specific opinions, not general sentiment*
+
+---
+
+<!-- THREAD CHECK: 2026-03-05 -->
+<!-- No overdue thread confirmed. X-CONTENT-STRATEGY.md not present in project directory. -->
+<!-- "The Agent Storage Problem" thread (8 tweets) was written in the 2026-03-04 cycle. -->
+<!-- Strong candidate for next planned thread: "The Agent Stack in 2026 — Payments, Identity, Ownership" -->
+<!-- Trigger: Clanker launch + MCP + ERC-8004 all shipped this week. Natural arc exists. -->
+<!-- Flag for review: add to CONTENT_STRATEGY.md when next thread slot opens. -->
+
+---
+
 <!-- CYCLE: 2026-03-04 — Agent Prep — Wed Mar 4, 2026 -->
 
 ### Tweet 1 — Atomic
