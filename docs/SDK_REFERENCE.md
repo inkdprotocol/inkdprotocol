@@ -27,6 +27,15 @@ pnpm add @inkd/sdk viem
   - [Registry Operations](#registry-operations)
   - [Version Operations](#version-operations)
   - [Collaborator Management](#collaborator-management)
+- [AgentVault](#agentvault)
+  - [Overview](#overview-1)
+  - [Installation](#installation-1)
+  - [Constructor](#constructor)
+  - [seal](#seal)
+  - [unseal](#unseal)
+  - [store](#store)
+  - [load](#load)
+  - [Full Vault Example](#full-vault-example)
 - [Types](#types)
 - [Error Handling](#error-handling)
 - [React Hooks](#react-hooks)
@@ -669,11 +678,259 @@ agents.forEach(a => {
 
 ---
 
+---
+
+## AgentVault
+
+### Overview
+
+`AgentVault` is a wallet-key encrypted credential store for AI agents. It lets an agent seal its secrets (API keys, private keys, Arweave JWKs, bearer tokens) into an encrypted binary blob using ECIES, then optionally persist them on Arweave. Only the wallet that sealed the vault can unseal it.
+
+**Encryption stack:**
+- **Key agreement:** ECDH over secp256k1 with an ephemeral keypair
+- **Key derivation:** HKDF-SHA256 over the ECDH shared secret
+- **Symmetric encryption:** AES-256-GCM (authenticated — tamper-evident)
+
+Binary blob layout:
+
+```
+[33 bytes] ephemeral compressed secp256k1 public key
+[12 bytes] AES-GCM IV (nonce)
+[16 bytes] AES-GCM authentication tag  ← appended by @noble/ciphers
+[N  bytes] ciphertext
+```
+
+Because each `seal()` generates a fresh ephemeral keypair and random IV, two calls with identical input produce different ciphertexts (semantic security).
+
+### Installation
+
+AgentVault ships inside `@inkd/sdk`. No additional install needed, but it depends on `@noble/curves` and `@noble/ciphers` — both are direct dependencies of the SDK.
+
+```bash
+npm install @inkd/sdk
+```
+
+```typescript
+import { AgentVault } from "@inkd/sdk";
+```
+
+### Constructor
+
+```typescript
+const vault = new AgentVault(privateKey: `0x${string}`)
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `privateKey` | `` `0x${string}` `` | 32-byte (64 hex char) EVM private key |
+
+**Throws** `EncryptionError` if the key is not exactly 32 bytes.
+
+```typescript
+const vault = new AgentVault(process.env.AGENT_PRIVATE_KEY as `0x${string}`);
+```
+
+> ⚠️ Never hard-code private keys. Load from environment variables or a secrets manager.
+
+---
+
+### seal
+
+```typescript
+vault.seal(credentials: Record<string, unknown>): Promise<Uint8Array>
+```
+
+Encrypts a JSON-serialisable object with the vault's wallet public key.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `credentials` | `Record<string, unknown>` | Any JSON-serialisable object |
+
+**Returns** `Promise<Uint8Array>` — binary blob ready for Arweave upload or local storage.
+
+```typescript
+const encrypted = await vault.seal({
+  openaiKey:   "sk-proj-...",
+  anthropicKey: "sk-ant-...",
+  arweaveJwk:  { kty: "RSA", n: "...", e: "AQAB", /* ... */ },
+  balance:     42.5,
+});
+
+// encrypted is a Uint8Array — store it however you like
+await fs.writeFile("vault.bin", encrypted);
+```
+
+---
+
+### unseal
+
+```typescript
+vault.unseal(encrypted: Uint8Array): Promise<Record<string, unknown>>
+```
+
+Decrypts a blob previously sealed by this vault's private key.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `encrypted` | `Uint8Array` | Binary blob from `seal()` or `load()` |
+
+**Returns** `Promise<Record<string, unknown>>` — the original credentials object.
+
+**Throws** `EncryptionError` if:
+- The blob is too short (corrupted or wrong format)
+- The ephemeral public key is invalid
+- The AES-GCM auth tag fails (wrong key or tampered data)
+- The decrypted bytes are not valid JSON
+
+```typescript
+const creds = await vault.unseal(encrypted) as {
+  openaiKey: string;
+  anthropicKey: string;
+};
+
+// Use your decrypted credentials
+const openai = new OpenAI({ apiKey: creds.openaiKey });
+```
+
+---
+
+### store
+
+```typescript
+vault.store(
+  credentials: Record<string, unknown>,
+  arweave: ArweaveClient
+): Promise<string>
+```
+
+Seals credentials and uploads the encrypted blob to Arweave in one call.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `credentials` | `Record<string, unknown>` | Credentials to encrypt and store |
+| `arweave` | `ArweaveClient` | Connected Arweave client from `vault.connectArweave()` |
+
+**Returns** `Promise<string>` — Arweave hash in `ar://` format (e.g. `ar://Qm...`).
+
+Tags written: `Inkd-Vault: true`, `Inkd-Version: 1`
+
+```typescript
+const inkd = new InkdClient({ /* ... */ });
+await inkd.connectArweave(arweaveJwk);
+
+const vaultHash = await vault.store(
+  { openaiKey: "sk-...", balance: 1.0 },
+  inkd.arweave
+);
+
+console.log("Vault stored at:", vaultHash);
+// ar://QmXyz...
+```
+
+---
+
+### load
+
+```typescript
+vault.load(
+  arweaveHash: string,
+  arweave: ArweaveClient
+): Promise<Record<string, unknown>>
+```
+
+Fetches an encrypted blob from Arweave and unseals it.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `arweaveHash` | `string` | `ar://Qm...` hash or raw Arweave transaction ID |
+| `arweave` | `ArweaveClient` | Connected Arweave client |
+
+**Returns** `Promise<Record<string, unknown>>` — the original credentials object.
+
+```typescript
+// Load by ar:// hash
+const creds = await vault.load("ar://QmXyz...", inkd.arweave);
+
+// Or with a bare transaction ID
+const creds = await vault.load("QmXyz...", inkd.arweave);
+```
+
+---
+
+### Full Vault Example
+
+End-to-end: seal → store → load → unseal, with an `InkdClient` providing the Arweave connection.
+
+```typescript
+import { InkdClient, AgentVault } from "@inkd/sdk";
+
+const PRIVATE_KEY = process.env.AGENT_PRIVATE_KEY as `0x${string}`;
+const ARWEAVE_JWK = JSON.parse(process.env.ARWEAVE_JWK!);
+
+async function storeAgentSecrets() {
+  // Set up the Inkd client with Arweave
+  const inkd = new InkdClient({
+    tokenAddress:    "0x...",
+    registryAddress: "0x...",
+    treasuryAddress: "0x...",
+    chainId: 84532,
+  });
+  await inkd.connectArweave(ARWEAVE_JWK);
+
+  // Create a vault from the agent's wallet key
+  const vault = new AgentVault(PRIVATE_KEY);
+
+  // Seal and store on Arweave
+  const vaultHash = await vault.store(
+    {
+      openaiKey:    "sk-proj-abc123",
+      anthropicKey: "sk-ant-xyz789",
+      arweaveJwk:   ARWEAVE_JWK,
+      config: { model: "claude-opus-4", maxTokens: 8192 },
+    },
+    inkd.arweave
+  );
+
+  console.log("Vault on Arweave:", vaultHash);
+  // e.g. ar://QmABCDEFGH...
+
+  // Later, in another session: retrieve and unseal
+  const creds = await vault.load(vaultHash, inkd.arweave) as {
+    openaiKey: string;
+    anthropicKey: string;
+    config: { model: string; maxTokens: number };
+  };
+
+  console.log("Loaded model config:", creds.config.model);
+}
+```
+
+#### Cross-agent credential sharing
+
+Because ECIES encrypts to a *public key*, you can seal credentials for a different agent's wallet:
+
+```typescript
+const myVault = new AgentVault(MY_PRIVATE_KEY);
+
+// Encrypt a handoff package specifically for agent B's public key
+// (Create a vault from agent B's address by using their known private key, OR
+//  send via the Inkd Protocol x402 handoff API — see HTTP_API.md)
+
+// To seal FOR your own key (most common — self-custody):
+const encrypted = await myVault.seal({ handoffToken: "xyz", taskId: "42" });
+// Only MY_PRIVATE_KEY can unseal this
+```
+
+---
+
 ## Changelog
 
 | Version | Changes |
 |---------|---------|
 | `0.1.0` | Initial release — InkdClient, TypeScript types, React hooks |
+| `0.2.0` | Event subscriptions (`watchEvent` wrappers), Multicall3 batch reads |
+| `0.10.0` | LitEncryptionProvider, InkdClient.connectArweave, full SDK test suite |
+| `0.10.8` | AgentVault — ECIES wallet-key credential storage (seal/unseal/store/load) |
 
 ---
 

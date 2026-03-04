@@ -6,6 +6,31 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v0.10.8] — 2026-03-04
+
+### Added
+- **`AgentVault`** — ECIES wallet-key encrypted credential storage for AI agents (`sdk/src/vault.ts`):
+  - `seal(credentials)` → encrypts any JSON object to a `Uint8Array` using the agent's EVM wallet public key
+  - `unseal(encrypted)` → decrypts blob; throws typed `EncryptionError` on wrong key, corruption, or truncated data
+  - `store(credentials, arweave)` → seal + upload to Arweave in one call; returns `ar://` hash
+  - `load(arweaveHash, arweave)` → fetch from Arweave + unseal in one call
+  - Encryption: ECIES (ephemeral ECDH secp256k1 + HKDF-SHA256 + AES-256-GCM); each seal is semantically secure (fresh ephemeral key + random IV)
+  - **21 tests** covering constructor validation, roundtrips (simple/nested/empty/unicode), random IV non-determinism, blob length invariant, wrong-key rejection, AES-GCM tamper detection, too-short data, invalid ephemeral pubkey, Arweave store/load mocking, store/load full roundtrip, cross-vault isolation
+  - vault.ts coverage: **98.88% stmts / 85.71% branch / 100% funcs / 98.88% lines** (uncovered: JSON.parse error path — only reachable with crafted non-JSON plaintext)
+- **`docs/SDK_REFERENCE.md`** — AgentVault section (+~180 lines):
+  - Encryption stack description and binary layout diagram
+  - Method reference tables for constructor, seal, unseal, store, load
+  - Full end-to-end example (store + load via InkdClient.arweave)
+  - Cross-agent credential sharing pattern
+  - Updated changelog table (0.1.0 → 0.10.8)
+  - Updated Table of Contents with AgentVault sub-entries
+
+### Quality Gates
+- Contracts: 237/237 ✅  SDK: 344/344 ✅  CLI: 352/352 ✅  AgentKit: 69/69 ✅  MCP: 33/33 ✅  API: 168/168 ✅
+- **Total: 1,203 tests** (+21 vault tests)
+
+---
+
 ## [v0.10.7] — 2026-03-04
 
 ### Changed
