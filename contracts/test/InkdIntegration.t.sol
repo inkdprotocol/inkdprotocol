@@ -5,6 +5,7 @@ import {Test, console} from "forge-std/Test.sol";
 import {InkdToken} from "../src/InkdToken.sol";
 import {InkdTreasury} from "../src/InkdTreasury.sol";
 import {InkdRegistry} from "../src/InkdRegistry.sol";
+import {MockUSDC} from "./helpers/MockUSDC.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
@@ -12,38 +13,44 @@ import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/U
 /// @notice Tests full user journeys across InkdToken, InkdRegistry, and InkdTreasury.
 ///         These tests verify the protocol behaves correctly across realistic multi-step
 ///         flows rather than testing individual functions in isolation.
+///
+/// Fee model: fees are USDC-based, pulled from caller → treasury → split.
+///            setUp() zeros both arweaveFee and serviceFee so journeys work
+///            without USDC approvals unless the test explicitly sets a fee.
 contract InkdIntegrationTest is Test {
     // ─── Contracts ────────────────────────────────────────────────────────────
-    InkdToken  public token;
+    InkdToken    public token;
+    MockUSDC     public usdc;
     InkdTreasury public treasury;
     InkdRegistry public registry;
 
     // ─── Actors ───────────────────────────────────────────────────────────────
-    address public protocol = makeAddr("protocol"); // protocol admin
-    address public alice    = makeAddr("alice");     // developer
-    address public bob      = makeAddr("bob");       // collaborator / buyer
-    address public carol    = makeAddr("carol");     // another developer
-    address public agent    = makeAddr("agent");     // AI agent wallet
+    address public protocol     = makeAddr("protocol");     // protocol admin
+    address public alice        = makeAddr("alice");         // developer
+    address public bob          = makeAddr("bob");           // collaborator / buyer
+    address public carol        = makeAddr("carol");         // another developer
+    address public agent        = makeAddr("agent");         // AI agent wallet
+    address public arweaveWallet = makeAddr("arweave");
+    address public buybackWallet = makeAddr("buyback");
 
     // ─── Constants ────────────────────────────────────────────────────────────
-    uint256 constant LOCK_AMOUNT   = 1 ether;         // 1 $INKD
-    uint256 constant VERSION_FEE   = 0.001 ether;     // default
-    uint256 constant TRANSFER_FEE  = 0.005 ether;     // default
     uint256 constant STARTING_INKD = 100_000 ether;   // INKD per user
     uint256 constant STARTING_ETH  = 10 ether;        // ETH per user
+    uint256 constant USDC_6        = 1_000_000;       // $1.00 in USDC (6 decimals)
 
     // ─── Setup ────────────────────────────────────────────────────────────────
 
     function setUp() public {
-        // Deploy InkdToken (protocol admin receives 1B supply)
         vm.startPrank(protocol);
-        token = new InkdToken();
 
-        // Deploy Treasury (UUPS proxy)
+        token = new InkdToken();
+        usdc  = new MockUSDC();
+
+        // Deploy Treasury (UUPS proxy) with 4-parameter initialize
         InkdTreasury treasuryImpl = new InkdTreasury();
         ERC1967Proxy treasuryProxy = new ERC1967Proxy(
             address(treasuryImpl),
-            abi.encodeCall(InkdTreasury.initialize, (protocol))
+            abi.encodeCall(InkdTreasury.initialize, (protocol, address(usdc), protocol, arweaveWallet, buybackWallet))
         );
         treasury = InkdTreasury(payable(address(treasuryProxy)));
 
@@ -51,12 +58,16 @@ contract InkdIntegrationTest is Test {
         InkdRegistry registryImpl = new InkdRegistry();
         ERC1967Proxy registryProxy = new ERC1967Proxy(
             address(registryImpl),
-            abi.encodeCall(InkdRegistry.initialize, (protocol, address(token), address(treasury)))
+            abi.encodeCall(InkdRegistry.initialize, (protocol, address(usdc), address(treasury)))
         );
         registry = InkdRegistry(address(registryProxy));
 
         // Wire up treasury → registry
         treasury.setRegistry(address(registry));
+
+        // Zero out fees so journeys don't need USDC approvals by default
+        treasury.setArweaveFee(0);
+        treasury.setServiceFee(0);
 
         // Distribute INKD tokens to all actors
         token.transfer(alice, STARTING_INKD);
@@ -81,7 +92,6 @@ contract InkdIntegrationTest is Test {
     function test_journey_fullDeveloperWorkflow() public {
         // ── Step 1: Alice creates project ──
         vm.startPrank(alice);
-        token.approve(address(registry), LOCK_AMOUNT);
         registry.createProject(
             "my-first-project",
             "An on-chain Solidity library",
@@ -94,8 +104,6 @@ contract InkdIntegrationTest is Test {
         vm.stopPrank();
 
         assertEq(registry.projectCount(), 1, "project count");
-        assertEq(token.balanceOf(address(registry)), LOCK_AMOUNT, "locked INKD");
-        assertEq(token.balanceOf(alice), STARTING_INKD - LOCK_AMOUNT);
 
         {
             InkdRegistry.Project memory p = registry.getProject(1);
@@ -108,17 +116,13 @@ contract InkdIntegrationTest is Test {
 
         // ── Step 2: Alice pushes v0.1.0 ──
         vm.prank(alice);
-        registry.pushVersion{value: VERSION_FEE}(1, "ar://v1hash", "v0.1.0", "Initial release");
-
+        registry.pushVersion(1, "ar://v1hash", "v0.1.0", "Initial release");
         assertEq(registry.getVersionCount(1), 1);
-        assertEq(address(treasury).balance, VERSION_FEE);
 
         // ── Step 3: Alice pushes v0.2.0 ──
         vm.prank(alice);
-        registry.pushVersion{value: VERSION_FEE}(1, "ar://v2hash", "v0.2.0", "Bug fixes");
-
+        registry.pushVersion(1, "ar://v2hash", "v0.2.0", "Bug fixes");
         assertEq(registry.getVersionCount(1), 2);
-        assertEq(address(treasury).balance, VERSION_FEE * 2);
 
         // ── Step 4: Alice adds Bob as collaborator ──
         vm.prank(alice);
@@ -129,7 +133,7 @@ contract InkdIntegrationTest is Test {
 
         // ── Step 5: Bob pushes v0.3.0 as collaborator ──
         vm.prank(bob);
-        registry.pushVersion{value: VERSION_FEE}(1, "ar://v3hash", "v0.3.0", "Bob's contribution");
+        registry.pushVersion(1, "ar://v3hash", "v0.3.0", "Bob's contribution");
 
         assertEq(registry.getVersionCount(1), 3);
         assertEq(registry.getVersion(1, 2).pushedBy, bob);
@@ -143,7 +147,7 @@ contract InkdIntegrationTest is Test {
         // ── Step 7: Bob can no longer push ──
         vm.prank(bob);
         vm.expectRevert(InkdRegistry.NotOwnerOrCollaborator.selector);
-        registry.pushVersion{value: VERSION_FEE}(1, "ar://v4hash", "v0.4.0", "Should fail");
+        registry.pushVersion(1, "ar://v4hash", "v0.4.0", "Should fail");
 
         // ── Step 8: Alice updates README ──
         vm.prank(alice);
@@ -151,41 +155,34 @@ contract InkdIntegrationTest is Test {
         assertEq(registry.getProject(1).readmeHash, "ar://readme-updated");
 
         // ── Step 9: Alice transfers ownership to Carol ──
-        uint256 aliceEthBefore = alice.balance;
         vm.prank(alice);
-        registry.transferProject{value: TRANSFER_FEE}(1, carol);
+        registry.transferProject(1, carol);
 
         assertEq(registry.getProject(1).owner, carol, "carol is owner");
-        assertEq(alice.balance, aliceEthBefore - TRANSFER_FEE);
-        assertEq(address(treasury).balance, (VERSION_FEE * 3) + TRANSFER_FEE);
-
-        // Owner lists updated
         assertEq(registry.getOwnerProjects(carol).length, 1);
         assertEq(registry.getOwnerProjects(alice).length, 0);
 
         // ── Step 10: Carol pushes a new version ──
         vm.prank(carol);
-        registry.pushVersion{value: VERSION_FEE}(1, "ar://v5hash", "v1.0.0", "Major release");
+        registry.pushVersion(1, "ar://v5hash", "v1.0.0", "Major release");
         assertEq(registry.getVersionCount(1), 4);
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
     //  Journey 2: AI Agent Workflow
-    //  Agent registers an agent project, updates endpoint, creates versions,
-    //  another party queries agent projects with pagination.
+    //  Agent registers agent projects, updates endpoint, pushes checkpoints,
+    //  queries with pagination, transfers ownership.
     // ═══════════════════════════════════════════════════════════════════════════
 
     function test_journey_agentWorkflow() public {
         // ── Create 3 regular projects (alice) and 2 agent projects (agent) ──
         vm.startPrank(alice);
-        token.approve(address(registry), LOCK_AMOUNT * 3);
         registry.createProject("lib-one",   "", "MIT",   true,  "", false, "");
         registry.createProject("lib-two",   "", "MIT",   true,  "", false, "");
         registry.createProject("lib-three", "", "MIT",   true,  "", false, "");
         vm.stopPrank();
 
         vm.startPrank(agent);
-        token.approve(address(registry), LOCK_AMOUNT * 2);
         registry.createProject(
             "brain-v1",
             "AI memory system",
@@ -235,7 +232,7 @@ contract InkdIntegrationTest is Test {
 
         // ── Agent pushes model snapshot version ──
         vm.prank(agent);
-        registry.pushVersion{value: VERSION_FEE}(
+        registry.pushVersion(
             4,
             "ar://brain-weights-checkpoint-1",
             "checkpoint-1",
@@ -247,140 +244,117 @@ contract InkdIntegrationTest is Test {
         assertEq(v.versionTag, "checkpoint-1");
         assertEq(v.pushedBy, agent);
 
-        // ── Collaborator transfers should not affect agent flag ──
+        // ── isAgent flag preserved after transfer ──
         vm.prank(agent);
-        registry.transferProject{value: TRANSFER_FEE}(4, alice);
+        registry.transferProject(4, alice);
         InkdRegistry.Project memory transferred = registry.getProject(4);
         assertTrue(transferred.isAgent, "agent flag preserved after transfer");
         assertEq(transferred.owner, alice);
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
-    //  Journey 3: Treasury Accounting
-    //  Verify ETH flows correctly across many transactions; protocol withdraws.
+    //  Journey 3: Treasury USDC Accounting
+    //  Enable a non-zero serviceFee, verify USDC flows correctly; protocol
+    //  withdraws accumulated USDC from the treasury.
     // ═══════════════════════════════════════════════════════════════════════════
 
     function test_journey_treasuryAccounting() public {
-        // Create projects for alice, bob, carol
-        vm.startPrank(alice);
-        token.approve(address(registry), LOCK_AMOUNT * 2);
-        registry.createProject("alice-proj-1", "", "MIT", true, "", false, "");
-        registry.createProject("alice-proj-2", "", "MIT", true, "", false, "");
+        // Enable a $2 service fee (USDC has 6 decimals = 2_000_000)
+        uint256 fee = 2 * USDC_6;
+        vm.startPrank(protocol);
+        treasury.setServiceFee(fee);
         vm.stopPrank();
 
-        vm.startPrank(bob);
-        token.approve(address(registry), LOCK_AMOUNT);
-        registry.createProject("bob-proj", "", "Apache-2.0", true, "", false, "");
-        vm.stopPrank();
+        // Mint USDC to actors and approve registry
+        usdc.mint(alice,  100 * USDC_6);
+        usdc.mint(bob,    100 * USDC_6);
+        usdc.mint(carol,  100 * USDC_6);
 
-        vm.startPrank(carol);
-        token.approve(address(registry), LOCK_AMOUNT);
-        registry.createProject("carol-proj", "", "GPL-3.0", true, "", false, "");
-        vm.stopPrank();
+        vm.prank(alice);  usdc.approve(address(registry), type(uint256).max);
+        vm.prank(bob);    usdc.approve(address(registry), type(uint256).max);
+        vm.prank(carol);  usdc.approve(address(registry), type(uint256).max);
 
-        // Push multiple versions from each
+        // Create projects
+        vm.prank(alice);  registry.createProject("alice-proj-1", "", "MIT", true, "", false, "");
+        vm.prank(alice);  registry.createProject("alice-proj-2", "", "MIT", true, "", false, "");
+        vm.prank(bob);    registry.createProject("bob-proj", "", "Apache-2.0", true, "", false, "");
+        vm.prank(carol);  registry.createProject("carol-proj", "", "GPL-3.0", true, "", false, "");
+
+        // Push one version per project (4 total → 4 × fee USDC)
+        vm.prank(alice);  registry.pushVersion(1, "ar://a1v1", "v1", "");
+        vm.prank(alice);  registry.pushVersion(2, "ar://a2v1", "v1", "");
+        vm.prank(bob);    registry.pushVersion(3, "ar://b1v1", "v1", "");
+        vm.prank(carol);  registry.pushVersion(4, "ar://c1v1", "v1", "");
+
+        // Transfer: alice proj 1 → bob (another fee)
+        vm.prank(alice);  registry.transferProject(1, bob);
+
+        // 5 fee-bearing ops total → treasury + arweave + buyback received 5×fee
+        // (arweaveFee is 0 so treasury.receivePayment splits: 0 to arweave, 50% buyback, 50% treasury)
+        // arweaveFee=0 so revenue=fee, toBuyback=fee/2, toTreasury=fee/2
+        uint256 totalFees = fee * 5;
+        uint256 expectedBuyback  = totalFees / 2;
+        uint256 expectedTreasury = totalFees - expectedBuyback;
+        // buyback goes to buybackContract (address == buybackWallet in test setup)
+        assertEq(usdc.balanceOf(address(treasury)), expectedTreasury, "treasury USDC balance");
+
+        // Treasury rejects receivePayment from non-registry
         vm.prank(alice);
-        registry.pushVersion{value: VERSION_FEE}(1, "ar://a1v1", "v1", "");
-        vm.prank(alice);
-        registry.pushVersion{value: VERSION_FEE}(2, "ar://a2v1", "v1", "");
-        vm.prank(bob);
-        registry.pushVersion{value: VERSION_FEE}(3, "ar://b1v1", "v1", "");
-        vm.prank(carol);
-        registry.pushVersion{value: VERSION_FEE}(4, "ar://c1v1", "v1", "");
+        vm.expectRevert(InkdTreasury.Unauthorized.selector);
+        treasury.receivePayment(1);
 
-        // Transfer: alice → bob
-        vm.prank(alice);
-        registry.transferProject{value: TRANSFER_FEE}(1, bob);
-
-        // Expected treasury balance
-        uint256 expectedBalance = (VERSION_FEE * 4) + TRANSFER_FEE;
-        assertEq(address(treasury).balance, expectedBalance, "treasury balance");
-
-        // Treasury rejects direct deposit from non-registry
-        vm.expectRevert(InkdTreasury.OnlyRegistry.selector);
-        vm.prank(alice);
-        treasury.deposit{value: 1 ether}();
-
-        // Protocol withdraws to EOA
+        // Protocol withdraws treasury USDC to a multisig
         address withdrawTo = makeAddr("multisig");
         vm.prank(protocol);
-        treasury.withdraw(withdrawTo, expectedBalance);
+        treasury.withdraw(withdrawTo, expectedTreasury);
 
-        assertEq(address(treasury).balance, 0, "treasury drained");
-        assertEq(withdrawTo.balance, expectedBalance, "multisig received");
-
-        // INKD locked in registry = 4 projects × 1 INKD
-        assertEq(token.balanceOf(address(registry)), LOCK_AMOUNT * 4, "locked INKD unchanged");
+        assertEq(usdc.balanceOf(address(treasury)), 0, "treasury drained");
+        assertEq(usdc.balanceOf(withdrawTo), expectedTreasury, "multisig received USDC");
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
     //  Journey 4: Fee Parameter Changes Mid-Flight
-    //  Protocol changes fees; verify new fees apply to new actions but
-    //  existing projects are not affected retroactively.
+    //  Protocol raises the service fee; verify new fee applies to subsequent
+    //  ops and zero-fee ops work when fee is removed.
     // ═══════════════════════════════════════════════════════════════════════════
 
     function test_journey_feeChanges() public {
-        // Setup
-        vm.startPrank(alice);
-        token.approve(address(registry), LOCK_AMOUNT);
+        // Start with fee=0 (from setUp) → push works freely
+        vm.prank(alice);
         registry.createProject("fee-test", "", "MIT", true, "", false, "");
-        vm.stopPrank();
 
-        // Push at old fee
         vm.prank(alice);
-        registry.pushVersion{value: VERSION_FEE}(1, "ar://v1", "v1", "old fee");
-        assertEq(address(treasury).balance, VERSION_FEE);
+        registry.pushVersion(1, "ar://v1", "v1", "free push");
+        assertEq(registry.getVersionCount(1), 1, "free push succeeded");
 
-        // Protocol raises version fee to max
-        uint256 newVersionFee = 0.01 ether;
+        // Protocol sets a $3 service fee
+        uint256 newFee = 3 * USDC_6;
         vm.prank(protocol);
-        registry.setVersionFee(newVersionFee);
-        assertEq(registry.versionFee(), newVersionFee);
+        treasury.setServiceFee(newFee);
 
-        // Old fee now insufficient
+        // Push without approval must revert (ERC20 insufficient allowance)
         vm.prank(alice);
-        vm.expectRevert(InkdRegistry.InsufficientFee.selector);
-        registry.pushVersion{value: VERSION_FEE}(1, "ar://v2", "v2", "should fail");
+        vm.expectRevert();
+        registry.pushVersion(1, "ar://v2", "v2", "no approval");
 
-        // Exact new fee works
+        // Give alice USDC and approve; now push succeeds
+        usdc.mint(alice, 100 * USDC_6);
         vm.prank(alice);
-        registry.pushVersion{value: newVersionFee}(1, "ar://v2", "v2", "new fee");
-        assertEq(address(treasury).balance, VERSION_FEE + newVersionFee);
+        usdc.approve(address(registry), type(uint256).max);
 
-        // Near-miss underpay also reverts (0.009 < 0.01)
         vm.prank(alice);
-        vm.expectRevert(InkdRegistry.InsufficientFee.selector);
-        registry.pushVersion{value: 0.009 ether}(1, "ar://v3", "v3", "underpay");
+        registry.pushVersion(1, "ar://v2", "v2", "paid push");
+        assertEq(registry.getVersionCount(1), 2, "paid push succeeded");
 
-        // Overpaying works — all ETH goes to treasury
-        vm.prank(alice);
-        registry.pushVersion{value: 0.05 ether}(1, "ar://v3", "v3", "overpay");
-        // All ETH (0.05) goes to treasury
-        assertEq(
-            address(treasury).balance,
-            VERSION_FEE + newVersionFee + 0.05 ether,
-            "overpay all goes to treasury"
-        );
-
-        // Protocol cannot set fee above MAX
+        // Protocol zeroes fee again → push free again
         vm.prank(protocol);
-        vm.expectRevert(InkdRegistry.FeeExceedsMax.selector);
-        registry.setVersionFee(0.011 ether);
-
-        // Protocol raises transfer fee to max
-        uint256 newTransferFee = 0.05 ether;
+        treasury.setArweaveFee(0);
         vm.prank(protocol);
-        registry.setTransferFee(newTransferFee);
+        treasury.setServiceFee(0);
 
-        // Old transfer fee insufficient
         vm.prank(alice);
-        vm.expectRevert(InkdRegistry.InsufficientFee.selector);
-        registry.transferProject{value: TRANSFER_FEE}(1, bob);
-
-        // New transfer fee works
-        vm.prank(alice);
-        registry.transferProject{value: newTransferFee}(1, bob);
-        assertEq(registry.getProject(1).owner, bob);
+        registry.pushVersion(1, "ar://v3", "v3", "free again");
+        assertEq(registry.getVersionCount(1), 3, "fee-free push after reset");
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -402,7 +376,6 @@ contract InkdIntegrationTest is Test {
         // Each user creates 2 projects
         for (uint256 i = 0; i < 4; i++) {
             vm.startPrank(users[i]);
-            token.approve(address(registry), LOCK_AMOUNT * 2);
             registry.createProject(names[i * 2],     "", "MIT", true, "", false, "");
             registry.createProject(names[i * 2 + 1], "", "MIT", true, "", false, "");
             vm.stopPrank();
@@ -412,9 +385,6 @@ contract InkdIntegrationTest is Test {
 
         assertEq(registry.projectCount(), 8, "8 total projects");
 
-        // Total locked = 8 INKD
-        assertEq(token.balanceOf(address(registry)), LOCK_AMOUNT * 8);
-
         // Names are normalized to lowercase
         assertEq(registry.getProject(1).name, "alpha");
         assertEq(registry.getProject(2).name, "beta");
@@ -422,20 +392,17 @@ contract InkdIntegrationTest is Test {
 
         // Cannot reuse name in any case
         vm.prank(alice);
-        token.approve(address(registry), LOCK_AMOUNT);
         vm.expectRevert(InkdRegistry.NameTaken.selector);
         registry.createProject("ALPHA", "", "MIT", true, "", false, ""); // same as "alpha"
 
         // Alice adds Bob as collaborator on project 1
         vm.prank(alice);
         registry.addCollaborator(1, bob);
-
-        // Bob is already owner of his own projects — but also collab on alice's
         assertTrue(registry.isCollaborator(1, bob));
 
         // Transfer: alice proj 1 → carol; carol already owns 2, now 3
         vm.prank(alice);
-        registry.transferProject{value: TRANSFER_FEE}(1, carol);
+        registry.transferProject(1, carol);
 
         assertEq(registry.getOwnerProjects(alice).length, 1, "alice has 1 left");
         assertEq(registry.getOwnerProjects(carol).length, 3, "carol has 3");
@@ -450,9 +417,7 @@ contract InkdIntegrationTest is Test {
     // ═══════════════════════════════════════════════════════════════════════════
 
     function test_journey_visibilityToggling() public {
-        // Create public project
         vm.startPrank(alice);
-        token.approve(address(registry), LOCK_AMOUNT * 2);
         registry.createProject("public-proj", "", "MIT", true, "", false, "");
         registry.createProject("private-proj", "Company internal", "Proprietary", false, "", false, "");
         vm.stopPrank();
@@ -484,7 +449,6 @@ contract InkdIntegrationTest is Test {
 
     function test_journey_collaboratorEdgeCases() public {
         vm.startPrank(alice);
-        token.approve(address(registry), LOCK_AMOUNT);
         registry.createProject("collab-test", "", "MIT", true, "", false, "");
         vm.stopPrank();
 
@@ -508,9 +472,9 @@ contract InkdIntegrationTest is Test {
         vm.expectRevert(InkdRegistry.AlreadyCollaborator.selector);
         registry.addCollaborator(1, bob);
 
-        // Transfer to Bob (who is a collaborator): Bob should be removed from collabs, becomes owner
+        // Transfer to Bob (who is a collaborator): Bob removed from collabs, becomes owner
         vm.prank(alice);
-        registry.transferProject{value: TRANSFER_FEE}(1, bob);
+        registry.transferProject(1, bob);
 
         assertEq(registry.getProject(1).owner, bob);
         assertFalse(registry.isCollaborator(1, bob), "bob removed from collabs on transfer");
@@ -525,9 +489,8 @@ contract InkdIntegrationTest is Test {
     function test_journey_uupsUpgrade() public {
         // Create a project before upgrade
         vm.startPrank(alice);
-        token.approve(address(registry), LOCK_AMOUNT);
         registry.createProject("pre-upgrade-project", "", "MIT", true, "ar://readme", false, "");
-        registry.pushVersion{value: VERSION_FEE}(1, "ar://v1", "v1.0.0", "pre-upgrade release");
+        registry.pushVersion(1, "ar://v1", "v1.0.0", "pre-upgrade release");
         vm.stopPrank();
 
         assertEq(registry.projectCount(), 1);
@@ -553,7 +516,6 @@ contract InkdIntegrationTest is Test {
 
         // Can still create new projects after upgrade
         vm.startPrank(carol);
-        token.approve(address(registry), LOCK_AMOUNT);
         registry.createProject("post-upgrade-project", "", "MIT", true, "", false, "");
         vm.stopPrank();
 
@@ -561,21 +523,27 @@ contract InkdIntegrationTest is Test {
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
-    //  Journey 9: Treasury Direct Receive
+    //  Journey 9: Treasury Direct Receive & ETH Withdrawal
     //  Treasury accepts ETH via receive() fallback (e.g., manual donation).
+    //  Protocol withdraws ETH separately from USDC using withdrawToken.
     // ═══════════════════════════════════════════════════════════════════════════
 
     function test_journey_treasuryDirectReceive() public {
         uint256 donation = 1 ether;
         vm.prank(alice);
         (bool ok,) = address(treasury).call{value: donation}("");
-        assertTrue(ok, "direct transfer succeeds");
-        assertEq(address(treasury).balance, donation, "treasury has donation");
+        assertTrue(ok, "direct ETH transfer succeeds");
+        assertEq(address(treasury).balance, donation, "treasury has ETH donation");
 
-        // Protocol can withdraw the donation
-        vm.prank(protocol);
-        treasury.withdraw(protocol, donation);
-        assertEq(protocol.balance, donation);
+        // Non-owner cannot send USDC withdraw (empty balance, but access check is enough)
+        vm.prank(alice);
+        vm.expectRevert();
+        treasury.withdraw(alice, 1);
+
+        // Protocol uses withdrawToken to recover ETH is not possible (ETH isn't ERC20)
+        // Instead: treasury holds ETH for future ETH-fee support; owner can upgrade to access it.
+        // Just verify the ETH is safely held.
+        assertEq(address(treasury).balance, donation, "donation held safely");
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -585,16 +553,15 @@ contract InkdIntegrationTest is Test {
 
     function test_journey_versionHistoryIntegrity() public {
         vm.startPrank(alice);
-        token.approve(address(registry), LOCK_AMOUNT);
         registry.createProject("versioned-lib", "", "MIT", true, "", false, "");
 
-        string[5] memory tags = ["v0.1.0", "v0.2.0", "v1.0.0", "v1.1.0", "v2.0.0"];
+        string[5] memory tags   = ["v0.1.0", "v0.2.0", "v1.0.0", "v1.1.0", "v2.0.0"];
         string[5] memory hashes = [
             "ar://hash-a1", "ar://hash-a2", "ar://hash-a3", "ar://hash-a4", "ar://hash-a5"
         ];
 
         for (uint256 i = 0; i < 5; i++) {
-            registry.pushVersion{value: VERSION_FEE}(1, hashes[i], tags[i], string.concat("Release ", tags[i]));
+            registry.pushVersion(1, hashes[i], tags[i], string.concat("Release ", tags[i]));
         }
         vm.stopPrank();
 
@@ -603,10 +570,10 @@ contract InkdIntegrationTest is Test {
         // Retrieve each version and verify fields
         for (uint256 i = 0; i < 5; i++) {
             InkdRegistry.Version memory v = registry.getVersion(1, i);
-            assertEq(v.arweaveHash, hashes[i],   "arweave hash");
-            assertEq(v.versionTag, tags[i],       "version tag");
-            assertEq(v.pushedBy,   alice,          "pushed by");
-            assertEq(v.projectId,  1,              "project id");
+            assertEq(v.arweaveHash, hashes[i],  "arweave hash");
+            assertEq(v.versionTag,  tags[i],     "version tag");
+            assertEq(v.pushedBy,    alice,        "pushed by");
+            assertEq(v.projectId,   1,            "project id");
         }
 
         // Verify project versionCount matches

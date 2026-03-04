@@ -11,11 +11,15 @@ This guide covers everything you need to get started.
 2. [Project Structure](#project-structure)
 3. [Smart Contracts](#smart-contracts)
 4. [TypeScript SDK](#typescript-sdk)
-5. [The Graph Subgraph](#the-graph-subgraph)
-6. [Code Style](#code-style)
-7. [Testing](#testing)
-8. [Pull Request Process](#pull-request-process)
-9. [Reporting Issues](#reporting-issues)
+5. [CLI (`@inkd/cli`)](#cli-inkdcli)
+6. [AgentKit Integration (`@inkd/agentkit`)](#agentkit-integration-inkdagentkit)
+7. [MCP Server (`@inkd/mcp`)](#mcp-server-inkdmcp)
+8. [REST API (`@inkd/api`)](#rest-api-inkdapi)
+9. [The Graph Subgraph](#the-graph-subgraph)
+10. [Code Style](#code-style)
+11. [Testing](#testing)
+12. [Pull Request Process](#pull-request-process)
+13. [Reporting Issues](#reporting-issues)
 
 ---
 
@@ -33,15 +37,27 @@ foundryup
 # 3. Install contract dependencies (git submodules)
 git submodule update --init --recursive
 
-# 4. Build contracts
+# 4. Build & test contracts
 cd contracts
 forge build
-
-# 5. Run tests
 forge test
 
-# 6. Install SDK dependencies
+# 5. Install & test SDK
 cd ../sdk
+npm install
+npm test
+
+# 6. Install & test CLI
+cd ../cli
+npm install
+npm test
+
+# 7. Install & test AgentKit / MCP
+cd ../agentkit && npm install && npm test
+cd ../mcp     && npm install && npm test
+
+# 8. Build REST API (optional — only needed for self-hosting)
+cd ../api
 npm install
 npm run build
 ```
@@ -52,20 +68,23 @@ Everything compiles → you're ready.
 
 ## Project Structure
 
+The monorepo has six top-level packages plus contracts and a subgraph.
+
 ```
 inkd-protocol/
 ├── contracts/                  # Solidity smart contracts (Foundry)
 │   ├── src/
-│   │   ├── InkdToken.sol       # ERC-20 $INKD token
+│   │   ├── InkdToken.sol       # ERC-20 $INKD token (1B supply, immutable)
 │   │   ├── InkdRegistry.sol    # Project registry (UUPS upgradeable)
-│   │   └── InkdTreasury.sol    # Fee treasury (UUPS upgradeable)
+│   │   ├── InkdTreasury.sol    # Fee treasury (UUPS upgradeable)
+│   │   └── InkdTimelock.sol    # 48h governance timelock
 │   ├── test/
 │   │   ├── InkdToken.t.sol     # Unit tests for InkdToken
 │   │   ├── InkdRegistry.t.sol  # Unit tests for InkdRegistry
 │   │   ├── InkdTreasury.t.sol  # Unit tests for InkdTreasury
-│   │   ├── InkdIntegration.t.sol # End-to-end integration tests
-│   │   ├── InkdFuzz.t.sol      # Fuzz tests
-│   │   └── InkdInvariant.t.sol # Invariant tests
+│   │   ├── InkdIntegration.t.sol # End-to-end lifecycle tests
+│   │   ├── InkdFuzz.t.sol      # Property-based fuzz tests
+│   │   └── InkdInvariant.t.sol # Invariant tests (ghost accounting)
 │   └── script/
 │       ├── Deploy.s.sol        # Production deploy script
 │       ├── DryRun.s.sol        # Dry-run (no broadcast)
@@ -73,15 +92,63 @@ inkd-protocol/
 │
 ├── sdk/                        # TypeScript SDK (@inkd/sdk)
 │   └── src/
-│       ├── InkdClient.ts       # Main ERC-721/vault client
+│       ├── InkdClient.ts       # Main viem-based client
 │       ├── ProjectRegistry.ts  # InkdRegistry.sol client
-│       ├── ArweaveClient.ts    # Arweave/Irys upload wrapper
+│       ├── arweave.ts          # Arweave/Irys upload wrapper
 │       ├── encryption.ts       # Pluggable encryption interface
-│       ├── hooks/              # React hooks
+│       ├── events.ts           # watchEvent wrappers (watchProjectCreated, etc.)
+│       ├── multicall.ts        # Multicall3 batch reads (batchGetProjects, etc.)
+│       ├── hooks/              # React hooks (useInkd, useToken, etc.)
 │       ├── types.ts            # Core TypeScript types
 │       ├── errors.ts           # Custom error classes
 │       ├── abi.ts              # Contract ABIs
 │       └── index.ts            # Public exports
+│
+├── cli/                        # Command-line interface (@inkd/cli → `inkd` binary)
+│   └── src/
+│       ├── commands/
+│       │   ├── project.ts      # inkd project create|get|list|transfer
+│       │   ├── version.ts      # inkd version push|list
+│       │   ├── token.ts        # inkd token balance|approve|allowance|transfer|info
+│       │   ├── agent.ts        # inkd agent list|get
+│       │   ├── agentd.ts       # inkd agentd (daemon: auto-push on file change)
+│       │   ├── search.ts       # inkd search <query>
+│       │   ├── status.ts       # inkd status (network + wallet info)
+│       │   ├── init.ts         # inkd init (create inkd.config.json)
+│       │   └── watch.ts        # inkd watch (live event stream)
+│       ├── config.ts           # Config loader, env vars, ADDRESSES map
+│       ├── client.ts           # viem client builders
+│       ├── abi.ts              # Contract ABIs (CLI copy)
+│       └── index.ts            # CLI entry point (command router)
+│
+├── agentkit/                   # Coinbase AgentKit integration (@inkd/agentkit)
+│   └── src/
+│       ├── provider.ts         # InkdActionProvider (registers with AgentKit)
+│       ├── actions.ts          # 4 actions: create_project, push_version,
+│       │                       #            get_project, list_agents
+│       ├── types.ts            # Zod schemas for action inputs
+│       └── index.ts            # Public exports
+│
+├── mcp/                        # Model Context Protocol server (@inkd/mcp)
+│   └── src/
+│       ├── server.ts           # MCP server entry point (stdio transport)
+│       ├── handlers.ts         # 5 tool handlers: create_project, push_version,
+│       │                       #   get_project, get_versions, list_agents
+│       └── abis.ts             # Contract ABIs (MCP copy)
+│
+├── api/                        # HTTP REST API server (@inkd/api)
+│   ├── src/
+│   │   ├── routes/
+│   │   │   ├── projects.ts     # GET/POST /v1/projects, GET /v1/projects/:id
+│   │   │   ├── agents.ts       # GET /v1/agents, GET /v1/agents/:address
+│   │   │   └── health.ts       # GET /v1/health, GET /v1/status
+│   │   ├── middleware/         # Auth (API key), error handling, x402 payment
+│   │   ├── clients.ts          # viem client builders
+│   │   ├── config.ts           # Env var loader
+│   │   ├── errors.ts           # HTTP error types
+│   │   └── index.ts            # Express app entry point
+│   ├── openapi.yaml            # OpenAPI 3.1 spec
+│   └── Dockerfile              # Container image for self-hosting
 │
 ├── subgraph/                   # The Graph subgraph
 │   ├── schema.graphql          # Entity definitions
@@ -91,18 +158,37 @@ inkd-protocol/
 │       ├── treasury.ts         # InkdTreasury event handlers
 │       └── utils.ts            # Shared helpers
 │
-├── docs/                       # Documentation
+├── docs/                       # Long-form documentation
 │   ├── ARCHITECTURE.md         # System design
-│   ├── CONTRACT_REFERENCE.md   # Full Solidity API reference
+│   ├── QUICKSTART.md           # Getting started
+│   ├── CLI_REFERENCE.md        # Full `inkd` command reference
 │   ├── SDK_REFERENCE.md        # TypeScript SDK reference
-│   ├── QUICKSTART.md           # Getting started guide
+│   ├── CONTRACT_REFERENCE.md   # Solidity API reference
+│   ├── AGENTKIT.md             # @inkd/agentkit integration guide
+│   ├── MCP.md                  # @inkd/mcp setup guide
+│   ├── API.md                  # REST API reference
+│   ├── X402.md                 # x402 payment protocol guide
+│   ├── ARCHITECTURE.md         # System design
+│   ├── AUDIT_PREP.md           # Audit preparation notes
 │   └── WHITEPAPER.md           # Protocol whitepaper
 │
 ├── .github/workflows/ci.yml    # GitHub Actions CI
 ├── CHANGELOG.md                # Version history
-├── SECURITY_REVIEW.md          # Security audit report
+├── SECURITY.md                 # Security policy + disclosure instructions
+├── SECURITY_REVIEW.md          # Internal security review notes
 └── POST_DEPLOY.md              # Post-deployment checklist
 ```
+
+**Test counts (v0.10.3):**
+
+| Package | Tests | Coverage |
+|---------|------:|---------|
+| `contracts/` | 238 | — |
+| `sdk/` | 323 | 100% all files |
+| `cli/` | 352 | 99.5% stmts |
+| `agentkit/` | 69 | 100% all files |
+| `mcp/` | 33 | — |
+| **Total** | **1,015** | |
 
 ---
 
@@ -222,6 +308,172 @@ For interacting with the V1 protocol (what's deployed), use **`ProjectRegistry`*
 
 ---
 
+## CLI (`@inkd/cli`)
+
+The `inkd` binary. Users install it via `npm install -g @inkd/cli`.
+
+### Setup
+
+```bash
+cd cli
+npm install
+npm run build       # tsc compile → dist/
+npm test            # vitest test suite (352 tests)
+npm run typecheck   # type-check only
+```
+
+### Adding a New Command
+
+1. Create `src/commands/<name>.ts` and export a `cmd<Name>(args: string[]): Promise<void>`
+2. Add the case to the router in `src/index.ts`
+3. Add a `src/__tests__/<name>.test.ts` with unit tests
+4. Document in `docs/CLI_REFERENCE.md`
+
+### Command Conventions
+
+- All commands accept `--json` for machine-readable output
+- Use `error()` (from `config.ts`) + `process.exit(1)` for fatal errors
+- Use `info()` / `success()` / `warn()` (from `config.ts`) for output
+- Private keys come from `INKD_PRIVATE_KEY` env var — never accept via flag
+- All on-chain amounts are `bigint`; use `parseEther` / `formatEther` from viem
+
+---
+
+## AgentKit Integration (`@inkd/agentkit`)
+
+Coinbase AgentKit action provider — lets any AgentKit-powered agent use Inkd.
+See `docs/AGENTKIT.md` for the full integration guide.
+
+### Setup
+
+```bash
+cd agentkit
+npm install
+npm run build       # tsc + tsup dual CJS/ESM build
+npm test            # vitest test suite (69 tests)
+```
+
+### The 4 Actions
+
+| Action | What it does |
+|--------|-------------|
+| `inkd_create_project` | Register a new project on-chain |
+| `inkd_push_version` | Push a version (locks 0.001 ETH fee) |
+| `inkd_get_project` | Read project metadata |
+| `inkd_list_agents` | List all registered agents |
+
+### Adding a New Action
+
+1. Add the Zod schema to `src/types.ts`
+2. Add the handler function to `src/actions.ts`
+3. Register it in `src/provider.ts` (`this.actions` array)
+4. Export from `src/index.ts`
+5. Add tests to `src/__tests__/provider.test.ts`
+6. Document in `docs/AGENTKIT.md`
+
+---
+
+## MCP Server (`@inkd/mcp`)
+
+Model Context Protocol server — connects Claude Desktop, Cursor, and other MCP-compatible
+hosts to the Inkd Protocol. Uses stdio transport.
+See `docs/MCP.md` for setup and usage.
+
+### Setup
+
+```bash
+cd mcp
+npm install
+npm run build       # tsc → dist/
+npm test            # vitest test suite (33 tests)
+```
+
+The compiled binary is `dist/server.js`. Users add it to their MCP host config:
+
+```json
+{
+  "mcpServers": {
+    "inkd": {
+      "command": "node",
+      "args": ["/path/to/inkd-protocol/mcp/dist/server.js"],
+      "env": { "INKD_PRIVATE_KEY": "0x..." }
+    }
+  }
+}
+```
+
+### The 5 Tools
+
+| Tool | What it does |
+|------|-------------|
+| `create_project` | Register a project on-chain |
+| `push_version` | Push a new version |
+| `get_project` | Read project details |
+| `get_versions` | List all versions for a project |
+| `list_agents` | Discover registered agents |
+
+### Adding a New Tool
+
+1. Add the handler to `src/handlers.ts`
+2. Register it with `server.tool(...)` in `src/server.ts`
+3. Add tests to `src/__tests__/handlers.test.ts`
+4. Document in `docs/MCP.md`
+
+---
+
+## REST API (`@inkd/api`)
+
+Self-hostable HTTP API for teams that prefer REST over direct viem calls.
+See `docs/API.md` for the endpoint reference. The OpenAPI spec lives at `api/openapi.yaml`.
+
+### Setup
+
+```bash
+cd api
+npm install
+npm run build       # tsc → dist/
+npm run dev         # tsx watch (hot-reload for local dev)
+```
+
+Required env vars:
+
+```bash
+INKD_PRIVATE_KEY=0x...        # Wallet key for write operations
+INKD_NETWORK=testnet           # mainnet | testnet
+INKD_API_KEY=secret            # API key for bearer auth (optional)
+```
+
+### Routes
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET`  | `/v1/health` | public | Liveness check |
+| `GET`  | `/v1/status` | public | Network + wallet info |
+| `GET`  | `/v1/projects` | bearer | List all projects |
+| `POST` | `/v1/projects` | bearer | Create a project |
+| `GET`  | `/v1/projects/:id` | bearer | Get a project |
+| `GET`  | `/v1/agents` | bearer | List all agents |
+| `GET`  | `/v1/agents/:address` | bearer | Get an agent's projects |
+
+### Self-hosting with Docker
+
+```bash
+docker build -t inkd-api .
+docker run -p 3000:3000 \
+  -e INKD_PRIVATE_KEY=0x... \
+  -e INKD_NETWORK=mainnet \
+  inkd-api
+```
+
+### Adding a New Route
+
+1. Create or edit a file in `src/routes/`
+2. Mount it in `src/index.ts`
+3. Add the endpoint to `api/openapi.yaml`
+4. Document in `docs/API.md`
+
+---
+
 ## The Graph Subgraph
 
 ```bash
@@ -231,7 +483,7 @@ graph codegen   # regenerate AssemblyScript types from schema
 graph build     # compile
 ```
 
-Deploy guide: `subgraph/SUBGRAPH.md`
+Deploy guide: `SUBGRAPH.md`
 
 If you add a new event to InkdRegistry.sol:
 
@@ -288,6 +540,36 @@ forge snapshot --check   # fails if gas increased >5%
 cd ../sdk
 npm run typecheck
 npm run build
+npm test
+
+# CLI
+cd ../cli
+npm run typecheck
+npm test
+
+# AgentKit
+cd ../agentkit
+npm run typecheck
+npm test
+
+# MCP
+cd ../mcp
+npm run typecheck
+npm test
+```
+
+Quick all-packages shortcut from the repo root:
+
+```bash
+make test   # if Makefile is present, otherwise run the above manually
+```
+
+### Running with coverage
+
+```bash
+cd sdk && npm test -- --coverage
+cd cli && npm test -- --coverage
+cd agentkit && npm test -- --coverage
 ```
 
 ### CI runs automatically on push:
@@ -296,8 +578,9 @@ npm run build
 2. `forge test -vvv`
 3. `forge snapshot --check`
 4. Invariant test step
-5. TypeScript `tsc --noEmit`
-6. All-checks gate
+5. `tsc --noEmit` for `sdk`, `cli`, `agentkit`, `mcp`, `api`
+6. `npm test` for `sdk`, `cli`, `agentkit`, `mcp`
+7. All-checks gate
 
 All checks must pass for a PR to merge.
 

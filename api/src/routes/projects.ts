@@ -13,8 +13,8 @@ import { z }      from 'zod'
 import type { Address } from 'viem'
 import { type ApiConfig, ADDRESSES } from '../config.js'
 import { buildPublicClient, buildWalletClient, normalizePrivateKey } from '../clients.js'
-import { getPayerAddress } from '../middleware/x402.js'
-import { REGISTRY_ABI } from '../abis.js'
+import { getPayerAddress, getPaymentAmount } from '../middleware/x402.js'
+import { REGISTRY_ABI, TREASURY_ABI } from '../abis.js'
 import { sendError, NotFoundError, BadRequestError, ServiceUnavailableError } from '../errors.js'
 
 // ─── Zod schemas ──────────────────────────────────────────────────────────────
@@ -188,9 +188,20 @@ export function projectsRouter(cfg: ApiConfig): Router {
         'SERVER_WALLET_KEY not configured. Cannot sign transactions.'
       )
 
-      const payerAddress = getPayerAddress(req)
+      const payerAddress   = getPayerAddress(req)
+      const paymentAmount  = getPaymentAmount(req)
       const { client: walletClient, address: walletAddress } =
         buildWalletClient(cfg, normalizePrivateKey(cfg.serverWalletKey))
+
+      // Settle X402 USDC payment → Treasury splits revenue automatically
+      if (cfg.treasuryAddress && paymentAmount) {
+        await walletClient.writeContract({
+          address:      cfg.treasuryAddress,
+          abi:          TREASURY_ABI,
+          functionName: 'settle',
+          args:         [paymentAmount],
+        })
+      }
 
       const hash = await walletClient.writeContract({
         address:      registryAddress,
@@ -210,7 +221,7 @@ export function projectsRouter(cfg: ApiConfig): Router {
       res.status(201).json({
         txHash:    hash,
         projectId: total.toString(),
-        owner:     payerAddress ?? walletAddress,  // payer = owner via x402
+        owner:     payerAddress ?? walletAddress,
         signer:    walletAddress,
         status:    receipt.status,
         blockNumber: receipt.blockNumber.toString(),
@@ -273,9 +284,20 @@ export function projectsRouter(cfg: ApiConfig): Router {
         'SERVER_WALLET_KEY not configured. Cannot sign transactions.'
       )
 
-      const payerAddress = getPayerAddress(req)
+      const payerAddress  = getPayerAddress(req)
+      const paymentAmount = getPaymentAmount(req)
       const { client: walletClient, address: walletAddress } =
         buildWalletClient(cfg, normalizePrivateKey(cfg.serverWalletKey))
+
+      // Settle X402 USDC payment → Treasury splits revenue automatically
+      if (cfg.treasuryAddress && paymentAmount) {
+        await walletClient.writeContract({
+          address:      cfg.treasuryAddress,
+          abi:          TREASURY_ABI,
+          functionName: 'settle',
+          args:         [paymentAmount],
+        })
+      }
 
       const hash = await walletClient.writeContract({
         address:      registryAddress,

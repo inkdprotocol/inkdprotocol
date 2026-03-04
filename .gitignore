@@ -32,3 +32,10 @@ contracts/.gas-snapshot
 .DS_Store
 Thumbs.db
 .vercel
+
+# Additional coverage dirs
+api/coverage/
+mcp/coverage/
+
+# One-off deployment scripts
+sdk/create-pool.js
