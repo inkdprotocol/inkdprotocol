@@ -206,7 +206,7 @@ export async function cmdProjectTransfer(args: string[]): Promise<void> {
   const { publicClient, walletClient, account, addrs: a } = buildClients(cfg)
 
   const transferFee = await publicClient.readContract({
-    address: a.registry, abi: REGISTRY_ABI, functionName: 'transferFee',
+    address: a.registry, abi: REGISTRY_ABI, functionName: 'serviceFee',
   }) as bigint
 
   info(`Transfer fee: ${formatEther(transferFee)} ETH`)

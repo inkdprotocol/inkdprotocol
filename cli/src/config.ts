@@ -64,9 +64,9 @@ export function requirePrivateKey(cfg: InkdConfig): `0x${string}` {
 
 export const ADDRESSES = {
   mainnet: {
-    token:    '' as Address,   // populated post-launch
-    registry: '' as Address,
-    treasury: '' as Address,
+    token:    '0x8826344c9b0bcfa860048203431062c555300b07' as Address,
+    registry: '0xEd3067dDa601f19A5737babE7Dd3AbfD4a783e5d' as Address,
+    treasury: '0x23012C3EF1E95aBC0792c03671B9be33C239D449' as Address,
   },
   testnet: {
     token:    '' as Address,   // populated post-testnet deploy

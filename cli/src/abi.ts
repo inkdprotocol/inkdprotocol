@@ -197,7 +197,7 @@ export const REGISTRY_ABI = [
     outputs: [{ type: 'uint256' }],
   },
   {
-    name: 'transferFee',
+    name: 'serviceFee',
     type: 'function',
     stateMutability: 'view',
     inputs: [],

@@ -28,15 +28,11 @@ export async function cmdStatus(): Promise<void> {
 
   try {
     const client = buildPublicClient(cfg)
-    const [versionFee, transferFee, projectCount] = await Promise.all([
-      client.readContract({ address: addrs.registry, abi: REGISTRY_ABI, functionName: 'versionFee' }),
-      client.readContract({ address: addrs.registry, abi: REGISTRY_ABI, functionName: 'transferFee' }),
-      client.readContract({ address: addrs.registry, abi: REGISTRY_ABI, functionName: 'projectCount' }),
-    ])
+    const projectCount = await client.readContract({
+      address: addrs.registry, abi: REGISTRY_ABI, functionName: 'projectCount'
+    })
     console.log()
     info(`Projects:      ${GREEN}${projectCount.toString()}${RESET}`)
-    info(`Version fee:   ${GREEN}${formatEther(versionFee as bigint)} ETH${RESET}`)
-    info(`Transfer fee:  ${GREEN}${formatEther(transferFee as bigint)} ETH${RESET}`)
   } catch (e) {
     warn(`Could not read on-chain state: ${(e as Error).message}`)
   }
