@@ -88,7 +88,8 @@ export function buildX402Middleware(cfg: X402Config): RequestHandler {
   }
 
   const facilitator = new HTTPFacilitatorClient({ url: cfg.facilitatorUrl })
-  return paymentMiddlewareFromConfig(routes, facilitator)
+  // syncFacilitatorOnStart=false: skip startup validation, scheme handled by facilitator at runtime
+  return paymentMiddlewareFromConfig(routes, facilitator, undefined, undefined, undefined, false)
 }
 
 /**
