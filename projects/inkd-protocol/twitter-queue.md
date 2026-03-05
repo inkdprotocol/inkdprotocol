@@ -372,3 +372,59 @@ Tweets staged for posting. Score threshold: >7/10. Format: one tweet per entry.
 > That's not an AI problem — it's an ownership infrastructure problem. Solvable.
 
 ---
+
+<!-- CYCLE: 2026-03-05 — Ecosystem Research — Thu Mar 5, 2026 -->
+
+### Tweet 1 — Competitor Positioning
+**Score: 8.5/10**
+**Type:** ecosystem
+**Source:** inkd-research-2026-03-05.md — OKX OnchainOS (CoinDesk Mar 3) + AWS Bedrock AgentCore pricing page
+**Suggested slot:** 13:00 UTC
+
+> okx just gave autonomous agents 60 chains, 500+ dexes, 1.2 billion daily api calls.
+>
+> aws just gave them managed memory and identity as a cloud service.
+>
+> what neither gave them: a permanent, on-chain record of what they built.
+>
+> execution rails aren't ownership rails. both need to exist.
+
+*Hook: acknowledges two major infra launches in the same breath, then exposes the same gap in both — Inkd as the missing layer neither OKX nor AWS provides*
+
+---
+
+### Tweet 2 — Narrative / Cultural
+**Score: 9/10**
+**Type:** atomic
+**Source:** inkd-research-2026-03-05.md — Energym AI dystopia viral video (CoinTelegraph Mar 2026) + Olas/Valory CEO Cointelegraph quote
+**Suggested slot:** 17:00 UTC
+
+> the energym video went viral because it's not satire. it's a scenario.
+>
+> centralized platforms own the AI → they own everything the AI produces.
+>
+> the answer isn't "regulate the platforms." it's: agents with on-chain ownership records, registered before anyone can claim the output.
+>
+> infrastructure, not policy.
+
+*Hook: hooks into the biggest cultural moment in AI this week — Energym — and turns it into a clean infrastructure argument, not politics*
+
+---
+
+### Tweet 3 — Data / Market
+**Score: 8.5/10**
+**Type:** atomic
+**Source:** inkd-research-2026-03-05.md — dev.to State of AI Agents March 2026 (HOL Registry Broker, 104,504 agents)
+**Suggested slot:** 13:00 UTC
+
+> 104,504 ai agents are registered across 15 registries right now.
+>
+> AgentVerse. ERC-8004. PulseMCP. Virtuals. x402 Bazaar.
+>
+> all 104,504 have zero on-chain record of what they built.
+>
+> that's not a gap in the data. that's the market.
+
+*Hook: specific, verifiable number from a real source — turns the registry ecosystem narrative into a TAM slide for Inkd*
+
+---
