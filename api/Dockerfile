@@ -7,7 +7,7 @@ WORKDIR /app
 
 # Copy package files
 COPY package.json package-lock.json* ./
-RUN npm ci --ignore-scripts
+RUN npm ci
 
 # Copy source & compile
 COPY tsconfig.json ./
