@@ -15,6 +15,21 @@ _Curated distillation of decisions, lessons, and context. Updated nightly._
 
 ## Active Projects
 
+### Protocol Contracts — Base Mainnet (deployed 2026-03-05) ✅
+
+| Contract | Proxy | Impl |
+|---|---|---|
+| InkdBuyback | `0xcbbf310513228153D981967E96C8A097c3EEd357` | `0x3b13120e670aEBF325a1752E0aa8Ed5048e22E69` |
+| InkdTreasury | `0x23012C3EF1E95aBC0792c03671B9be33C239D449` | `0xAd7175c3c720eda55a1089bbD31eEB85E3BBa442` |
+| InkdRegistry | `0xEd3067dDa601f19A5737babE7Dd3AbfD4a783e5d` | `0xCCC613c5c890722C04B28592879E60f4a7de829b` |
+
+Ownership: Buyback→BUYBACK_SAFE ✅ Treasury→TREASURY_SAFE ✅ Registry→DEV_SAFE ✅
+Deployer: `0xD363864d25446F0db53fb0B7c4e453abeE161928`
+Inkd Signer (Server/Settler): `0x210bDf52ad7afE3Ea7C67323eDcCD699598983C0`
+Gas: ~0.000037 ETH total
+
+---
+
 ### INKD Protocol (`inkdprotocol.com`)
 
 A token/registry protocol on Base (EVM). Key artifacts:
@@ -27,11 +42,14 @@ A token/registry protocol on Base (EVM). Key artifacts:
 - **npm:** `@inkd/sdk@0.9.0` + `@inkd/cli@0.1.0` published
 - **GitHub:** `inkdprotocol/inkd-protocol` — main branch, public, clean
 
-**Test suite (as of 2026-03-03):**
-- Contracts: 170/170 ✅
-- SDK: 323/323 ✅ (100% coverage all metrics)
-- CLI: 318/318 ✅
-- Total: 811 tests
+**Test suite (as of 2026-03-05):**
+- Contracts: 251/251 ✅
+- SDK: 348/348 ✅
+- CLI: 352/352 ✅
+- AgentKit: 69/69 ✅
+- MCP: 33/33 ✅
+- API: 204/204 ✅
+- **Total: 1,257 tests**
 
 **Launch Plan (confirmed 2026-03-04):**
 - $TEST token → Clanker Launch (testnet/erste Version)
@@ -46,16 +64,28 @@ A token/registry protocol on Base (EVM). Key artifacts:
 - ✅ **Treasury refactor** — settle() callable by API server (settler) or Registry, graceful buybackContract notify
 
 **Launch Reihenfolge (confirmed 2026-03-04):**
-1. ❌ **3x Safe Multisig** erstellen (app.safe.global, Base Mainnet, 2-of-2 each): Dev, Buyback, Treasury → Adressen schicken
-2. ❌ **$TEST via Clanker** deployen → kompletter Durchtest (Buyback, Treasury, X402, AgentKit, alles)
+1. 🟡 **3x Safe Multisig** erstellen (app.safe.global, Base Mainnet, 2-of-2 each):
+   - ✅ **INKD DEV 1** → `0x52d288c6697044561F99e433F01cd3d5ed4638A1` (Ethereum + Base)
+   - ✅ **Inkd Buyback 1** → `0x58822722FA012Df30c37b709Fd2f70e0F83d9536` (Ethereum + Base)
+   - ✅ **INKD Treasury** → `0x6f8D6adc77C732972541A89a88ecB76Dfc641d1D` (Ethereum + Base)
+2. ✅ **$TEST via Clanker** deployed → `0xa6f64A0D23e9d6eC918929af53df1C7b0D819B07` (Base Mainnet)
 3. ❌ **$INKD via Clanker** → erst wenn $TEST sauber läuft
-4. ❌ **Protocol Contracts** auf Mainnet deployen mit Safe-Adressen als Owner
+4. ✅ **Protocol Contracts** auf Mainnet deployt — commit `75b0916`
 - ⚠️ **Security Audit** — recommended before full public launch ($INKD)
 
-**Architecture (final):**
-- Agent pays $5 USDC via X402 → Treasury.settle() splits: $1 Arweave / $2 Buyback / $2 Treasury
-- Buyback accumulates USDC, auto-swaps to $INKD at $50 threshold (no ETH, no WETH)
-- inkdToken = address(0) in Buyback until Clanker launch → CA from Hazar → setInkdToken()
+**Post-Deploy TODOs (as of 2026-03-05):**
+- ❌ `setInkdToken($TEST CA)` via Buyback Safe aufrufen
+- ❌ API .env updaten: REGISTRY_ADDRESS + TREASURY_ADDRESS
+- ❌ $INKD via Clanker (erst wenn $TEST sauber läuft)
+- ❌ Security Audit vor Public Launch
+
+**Architecture (final — confirmed 2026-03-05):**
+- Agent pays: Arweave storage cost + 20% markup (DYNAMIC, not fixed fee)
+  - 100% Arweave cost → arweaveWallet (forwarded for actual storage)
+  - 20% markup → split 50/50: 50% → InkdBuyback, 50% → Treasury
+- InkdBuyback accumulates USDC, auto-swaps to $INKD at $50 threshold via Uniswap V3
+- $INKD recipient = owner() of InkdBuyback = Buyback Safe multisig
+- inkdToken = address(0) until Clanker launch → setInkdToken(CA) after deploy
 - Agent stores own credentials via AgentVault (ECIES, wallet-key encrypted, stored on Arweave)
 
 ---
@@ -103,12 +133,32 @@ Hazar hat das am 2026-03-04 klar gemacht. Nicht nochmal vergessen.
 
 ---
 
+## Cron/Agent Rules (PERMANENT)
+
+- **Niemals unnötige Crons/Agents laufen lassen.** Wenn ein Job nix nützt → sofort deaktivieren.
+- **Delivery mode für Background-Jobs = "none"** — Hazar bekommt nur Nachrichten wenn sie wichtig sind.
+- **AGI Holdings Agent** und andere autonome Prozesse außer dem Gateway → killen wenn sie Spam produzieren.
+- **Aktive Crons (nur diese 4):** weekly-deep-review, memory-consolidation, morning-briefing, inkd-tweet-queue
+- Vor dem Erstellen eines neuen Crons fragen: "Braucht Hazar das wirklich?"
+
+---
+
+## Build Rules (PERMANENT — nie wieder vergessen)
+
+- **Jede Build-Session MUSS enden mit `git add -A && git commit && git push`** — kein "done" ohne Push
+- **Vor jeder Session:** `git status` checken — uncommitted work = vorherige Session hat versagt
+- **Autonomous build agents:** immer `git push` am Ende des Prompts einbauen + verify mit `git log --oneline -3`
+- **Keine Arbeit existiert bis sie auf `origin/main` ist.** Lokal = nicht existent.
+
+---
+
 ## Lessons Learned
 
 - **Don't say "done" prematurely.** On 2026-03-03, I told Hazar we were "fertig" when multisig, LP lock, and security audit were still open. That was a failure. Always give a complete status, including what's still blocking.
 - **Hazar expects full honesty on blockers**, not optimistic summaries.
 - **ALWAYS read MEMORY.md from disk at session start** — the injected system prompt version can be stale/outdated. Use `read` tool to load actual file, not the cached inject.
 - **LP Lock / Timelock are NOT tasks** — $INKD launches via Clanker. LP is auto-locked by Clanker. Never mention manual LP lock again. Hazar has had to correct this 10+ times.
+- **forge scripts env vars (2026-03-05):** Never use `nano` to manage .env files I control — it overwrites silently. For forge: use `export` in .env OR pass inline (`KEY=val forge script ...`). Just give Hazar the inline command directly.
 
 ---
 
@@ -120,4 +170,4 @@ Hazar hat das am 2026-03-04 klar gemacht. Nicht nochmal vergessen.
 
 ---
 
-_Last updated: 2026-03-04 00:00 (midnight consolidation)_
+_Last updated: 2026-03-06 00:00 (midnight consolidation)_

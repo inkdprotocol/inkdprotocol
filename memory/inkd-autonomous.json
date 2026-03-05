@@ -1,5 +1,5 @@
 {
-  "lastUpdated": "2026-03-04T23:12:00+04:00",
+  "lastUpdated": "2026-03-05T00:05:00+04:00",
   "version": "0.9.x",
   "tasks": [
     {
@@ -28,6 +28,15 @@
       "completedAt": "2026-03-04T22:24:00+04:00",
       "commit": "aa1da2c2",
       "result": "InkdBuyback: deposit() from Treasury, executeBuyback() via Uniswap V3 exactInputSingle, auto-trigger on receive(), SafeERC20. Contracts: 237→255 (+18). InkdTreasury: settle() callable by settler (API server) or registry; split $1 arweave/$2 buyback/$2 treasury. vault.ts branch 85.71%→100% (+4 tests, SDK 344→348). Total: 1225 tests."
+    },
+    {
+      "id": "test-api-arweave-estimate",
+      "priority": 25,
+      "status": "done",
+      "title": "@inkd/api — arweave.ts 0%→100% + GET /estimate route fix + tests (+36)",
+      "completedAt": "2026-03-05T00:05:00+04:00",
+      "commit": "b115d56d",
+      "result": "arweave.test.ts: 24 tests (calculateCharge×7, formatUsdc×8, getArweaveCostUsdc happy/error×7, AR/USD cache TTL×2) — 100% all metrics. routes.projects.estimate.test.ts: 12 tests (happy path shape, markup math, USD fields, bigint serialization, validation: missing/zero/negative/non-numeric/>500MB bytes, upstream 500). Fix: moved GET /estimate BEFORE GET /:id — Express was shadowing 'estimate' as an id param. API: 168→204 (+36). Total: 1221→1257 tests."
     },
     {
       "id": "docs-changelog-roadmap-http-api-sync",
@@ -218,15 +227,15 @@
       "result": "SDK_REFERENCE.md: +257 lines. AgentVault section: encryption stack overview (ECIES/HKDF/AES-GCM), binary layout diagram, method reference tables (constructor/seal/unseal/store/load), full InkdClient roundtrip example, cross-agent sharing pattern. TOC updated (+8 entries). Changelog table updated 0.1.0→0.10.8. CHANGELOG.md v0.10.8 added. Quality gate: Contracts 237/237 ✅ SDK 344/344 ✅ CLI 352/352 ✅ AgentKit 69/69 ✅ MCP 33/33 ✅ API 168/168 ✅ Total: 1,203 tests."
     }
   ],
-  "notes": "All non-blocked tasks done. Blocked: React hooks (needs jsdom/testing-library). IMPORTANT: contracts refactored to USDC fee model (commit 4a447535) — InkdTreasury.initialize now takes 4 params (owner, usdc, arweaveWallet, buybackWallet). InkdIntegration.t.sol fully rewritten for USDC model. Always check git status before reading counts from JSON. workspace auto-save bot must not run git add -A from builds/inkd-protocol — it deletes tracked test files. Remaining low-coverage items in API: index.ts (0% — module-level server startup) still impractical to unit test. CLI low-coverage: config.ts color branch (requires module re-import with isTTY=true), index.ts main().catch() handler (module-level side effect), agentd.ts humanLine else-if branch (V8 tracking issue). Remaining API gaps: agents.ts lines 49/109/140 and projects.ts lines 156/227/264 are V8 quirks (dead-code ternary + Express req.params ?? '' patterns — untestable via HTTP). 2026-03-04T22:24 build: X402 USDC stack landed (commit aa1da2c2): InkdBuyback deployed (USDC→$INKD at $50 threshold via Uniswap V3, 18 tests), InkdTreasury.settle() + settler role, API x402 $0.001 ETH→$5 USDC, TREASURY_ADDRESS env var, settle() call after x402 verify. Contracts 237→255. vault.ts branch 85.71%→100% (+4). Total: 1225 tests. 2026-03-04T22:33 build: docs sync — CHANGELOG v0.10.9, ROADMAP (updated all counts + new rows), HTTP_API.md ($5 USDC, expanded flow diagram with settle() + revenue split table). Commit 9255b56c. 2026-03-04T23:12 build: fix 2 failing contract tests (commit d3d00f65) — test_journey_feeChanges had missing vm.prank(protocol) before setDefaultFee(3_000_000) call; OwnableUnauthorizedAccount revert. Contracts: 249/251→251/251 ✅. NOTE: actual contract test count is 251 (not 255 as previously recorded — recount: InkdBuyback 18 + InkdFuzz 10 + InkdIntegration 10 + InkdInvariant 4 + InkdRegistry 77 + InkdTestToken 27 + InkdTimelock 41 + InkdToken 19 + InkdTreasury 29 + InkdUpgrade 16 = 251). Total across all packages: 1221.",
+  "notes": "All non-blocked tasks done. 2026-03-05T00:05 build: arweave.ts 0%→100% + estimate route fix (commit b115d56d). Moved GET /estimate BEFORE /:id in projectsRouter — Express bug fix. 24 new arweave tests (calculateCharge, formatUsdc, getArweaveCostUsdc, cache TTL) + 12 estimate route tests. API: 168→204. Total: 1257. Blocked: React hooks (needs jsdom/testing-library). IMPORTANT: contracts refactored to USDC fee model (commit 4a447535) — InkdTreasury.initialize now takes 4 params (owner, usdc, arweaveWallet, buybackWallet). InkdIntegration.t.sol fully rewritten for USDC model. Always check git status before reading counts from JSON. workspace auto-save bot must not run git add -A from builds/inkd-protocol — it deletes tracked test files. Remaining low-coverage items in API: index.ts (0% — module-level server startup) still impractical to unit test. CLI low-coverage: config.ts color branch (requires module re-import with isTTY=true), index.ts main().catch() handler (module-level side effect), agentd.ts humanLine else-if branch (V8 tracking issue). Remaining API gaps: agents.ts lines 49/109/140 and projects.ts lines 156/227/264 are V8 quirks (dead-code ternary + Express req.params ?? '' patterns — untestable via HTTP). 2026-03-04T22:24 build: X402 USDC stack landed (commit aa1da2c2): InkdBuyback deployed (USDC→$INKD at $50 threshold via Uniswap V3, 18 tests), InkdTreasury.settle() + settler role, API x402 $0.001 ETH→$5 USDC, TREASURY_ADDRESS env var, settle() call after x402 verify. Contracts 237→255. vault.ts branch 85.71%→100% (+4). Total: 1225 tests. 2026-03-04T22:33 build: docs sync — CHANGELOG v0.10.9, ROADMAP (updated all counts + new rows), HTTP_API.md ($5 USDC, expanded flow diagram with settle() + revenue split table). Commit 9255b56c. 2026-03-04T23:12 build: fix 2 failing contract tests (commit d3d00f65) — test_journey_feeChanges had missing vm.prank(protocol) before setDefaultFee(3_000_000) call; OwnableUnauthorizedAccount revert. Contracts: 249/251→251/251 ✅. NOTE: actual contract test count is 251 (not 255 as previously recorded — recount: InkdBuyback 18 + InkdFuzz 10 + InkdIntegration 10 + InkdInvariant 4 + InkdRegistry 77 + InkdTestToken 27 + InkdTimelock 41 + InkdToken 19 + InkdTreasury 29 + InkdUpgrade 16 = 251). Total across all packages: 1221.",
   "testCounts": {
     "contracts": 251,
     "sdk": 348,
     "cli": 352,
     "agentkit": 69,
     "mcp": 33,
-    "api": 168,
-    "total": 1221,
-    "asOf": "2026-03-04T23:12:00+04:00"
+    "api": 204,
+    "total": 1257,
+    "asOf": "2026-03-05T00:05:00+04:00"
   }
 }
