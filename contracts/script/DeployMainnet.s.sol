@@ -67,13 +67,13 @@ contract DeployMainnet is Script {
         vm.startBroadcast(deployerKey);
 
         // ─── 1. Deploy InkdBuyback ────────────────────────────────────────
-        // treasury_ set to address(0) here -- linked after Treasury deploy
+        // Use deployer as placeholder treasury -- updated in step 3 after Treasury is live
         InkdBuyback buybackImpl = new InkdBuyback();
         ERC1967Proxy buybackProxy = new ERC1967Proxy(
             address(buybackImpl),
             abi.encodeCall(InkdBuyback.initialize, (
                 deployer,       // owner (temp -- transferred to BUYBACK_SAFE below)
-                address(0),     // treasury (set after Treasury deploy)
+                deployer,       // treasury placeholder -- updated in step 3 after Treasury is live
                 address(0),     // inkdToken (set after Clanker launch via setInkdToken)
                 50_000_000      // threshold = $50 USDC
             ))

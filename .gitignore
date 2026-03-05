@@ -39,3 +39,4 @@ mcp/coverage/
 
 # One-off deployment scripts
 sdk/create-pool.js
+.env.mainnet
