@@ -23,11 +23,13 @@
  * Docs: https://x402.org | https://docs.cdp.coinbase.com/x402
  */
 
-import { paymentMiddlewareFromConfig } from '@x402/express'
-import { HTTPFacilitatorClient }        from '@x402/core/http'
-import type { RoutesConfig }            from '@x402/core/server'
-import type { RequestHandler, Request } from 'express'
-import type { Address }                 from 'viem'
+import { paymentMiddleware, x402ResourceServer } from '@x402/express'
+import { HTTPFacilitatorClient }                  from '@x402/core/http'
+// @ts-ignore — subpath not in package.json exports map but exists in dist
+import { ExactEvmScheme }                         from '@x402/evm/exact/server'
+import type { RoutesConfig }                      from '@x402/core/server'
+import type { RequestHandler, Request }           from 'express'
+import type { Address }                           from 'viem'
 
 // CAIP-2 network identifiers
 export const NETWORK_BASE_MAINNET = 'eip155:8453'
@@ -88,8 +90,9 @@ export function buildX402Middleware(cfg: X402Config): RequestHandler {
   }
 
   const facilitator = new HTTPFacilitatorClient({ url: cfg.facilitatorUrl })
-  // syncFacilitatorOnStart=false: skip startup validation, scheme handled by facilitator at runtime
-  return paymentMiddlewareFromConfig(routes, facilitator, undefined, undefined, undefined, false)
+  const server = new x402ResourceServer(facilitator)
+    .register(networkId as `${string}:${string}`, new ExactEvmScheme())
+  return paymentMiddleware(routes, server)
 }
 
 /**
