@@ -316,7 +316,8 @@ function projectsRouter(cfg) {
                 nextNonceV = await executeUsdcTransfer(req, walletClient, publicClient, cfg.usdcAddress, walletAddress);
             }
             // Step 2: Settle X402 USDC payment → Treasury splits: arweaveCost + 20% markup
-            const settleAmountVersion = paymentAmount ?? x402_js_1.PRICE_PUSH_VERSION;
+            // Dynamic: use what the agent actually paid (from x402), floor at $0.10
+            const settleAmountVersion = paymentAmount ?? x402_js_1.PRICE_PUSH_VERSION_MIN;
             if (cfg.treasuryAddress) {
                 // Calculate arweave cost portion from content size (best-effort)
                 let arweaveCost = 0n;

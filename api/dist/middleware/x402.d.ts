@@ -26,9 +26,12 @@ export declare const NETWORK_BASE_MAINNET = "eip155:8453";
 export declare const NETWORK_BASE_SEPOLIA = "eip155:84532";
 export declare const USDC_BASE_MAINNET: Address;
 export declare const USDC_BASE_SEPOLIA: Address;
-/** Fixed payment amounts per route (USDC, 6 decimals) */
-export declare const PRICE_CREATE_PROJECT = 5000000n;
-export declare const PRICE_PUSH_VERSION = 2000000n;
+/** Minimum / fallback payment amounts per route (USDC, 6 decimals).
+ *  createProject = $0.10 flat (spam prevention + gas coverage)
+ *  pushVersion   = dynamic (Arweave cost + 20% markup), floor $0.10
+ */
+export declare const PRICE_CREATE_PROJECT = 100000n;
+export declare const PRICE_PUSH_VERSION_MIN = 100000n;
 export interface X402Config {
     treasuryAddress: Address;
     facilitatorUrl: string;
@@ -50,4 +53,14 @@ export declare function getPayerAddress(req: Request): Address | undefined;
  * Falls back to route-hardcoded amounts if header absent.
  */
 export declare function getPaymentAmount(req: Request): bigint | undefined;
+/**
+ * Intercepts POST /projects/:id/versions BEFORE x402 middleware.
+ * If no X-PAYMENT header: computes dynamic price (Arweave cost + 20%) from
+ * req.body.contentSize and returns a 402 with the correct amount.
+ * If X-PAYMENT header is present: passes through to x402 for verification.
+ *
+ * This is needed because x402 RoutesConfig only supports static prices,
+ * but Arweave upload cost depends on content size.
+ */
+export declare function buildDynamicVersionPriceMiddleware(cfg: X402Config): RequestHandler;
 //# sourceMappingURL=x402.d.ts.map

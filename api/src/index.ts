@@ -34,7 +34,7 @@ import cors    from 'cors'
 import { loadConfig } from './config.js'
 import { authMiddleware }      from './middleware/auth.js'
 import { rateLimitMiddleware } from './middleware/rateLimit.js'
-import { buildX402Middleware } from './middleware/x402.js'
+import { buildX402Middleware, buildDynamicVersionPriceMiddleware } from './middleware/x402.js'
 import { healthRouter }   from './routes/health.js'
 import { projectsRouter } from './routes/projects.js'
 import { agentsRouter }   from './routes/agents.js'
@@ -77,6 +77,13 @@ if (cfg.x402Enabled && cfg.treasuryAddress) {
     cdpApiKeyId:     cfg.cdpApiKeyId,
     cdpApiKeySecret: cfg.cdpApiKeySecret,
   })
+  // Dynamic pricing for pushVersion: Arweave cost + 20% markup, floor $0.10
+  // Must run BEFORE x402 so the 402 response contains the correct amount
+  app.use('/v1/projects', buildDynamicVersionPriceMiddleware({
+    treasuryAddress: cfg.treasuryAddress!,
+    facilitatorUrl:  cfg.x402FacilitatorUrl,
+    network:         cfg.network,
+  }))
   app.use('/v1', x402)
   console.log(`  [x402] Payment middleware active → Treasury: ${cfg.treasuryAddress}`)
 } else {

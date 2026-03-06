@@ -13,7 +13,7 @@ import { z }      from 'zod'
 import type { Address } from 'viem'
 import { type ApiConfig, ADDRESSES } from '../config.js'
 import { buildPublicClient, buildWalletClient, normalizePrivateKey } from '../clients.js'
-import { getPayerAddress, getPaymentAmount, PRICE_CREATE_PROJECT, PRICE_PUSH_VERSION } from '../middleware/x402.js'
+import { getPayerAddress, getPaymentAmount, PRICE_CREATE_PROJECT, PRICE_PUSH_VERSION_MIN } from '../middleware/x402.js'
 import { decodePaymentSignatureHeader } from '@x402/core/http'
 import { REGISTRY_ABI, TREASURY_ABI, USDC_ABI } from '../abis.js'
 import { getArweaveCostUsdc, calculateCharge } from '../arweave.js'
@@ -388,7 +388,8 @@ export function projectsRouter(cfg: ApiConfig): Router {
       }
 
       // Step 2: Settle X402 USDC payment → Treasury splits: arweaveCost + 20% markup
-      const settleAmountVersion = paymentAmount ?? PRICE_PUSH_VERSION
+      // Dynamic: use what the agent actually paid (from x402), floor at $0.10
+      const settleAmountVersion = paymentAmount ?? PRICE_PUSH_VERSION_MIN
       if (cfg.treasuryAddress) {
         // Calculate arweave cost portion from content size (best-effort)
         let arweaveCost = 0n

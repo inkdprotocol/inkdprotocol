@@ -71,6 +71,13 @@ if (cfg.x402Enabled && cfg.treasuryAddress) {
         cdpApiKeyId: cfg.cdpApiKeyId,
         cdpApiKeySecret: cfg.cdpApiKeySecret,
     });
+    // Dynamic pricing for pushVersion: Arweave cost + 20% markup, floor $0.10
+    // Must run BEFORE x402 so the 402 response contains the correct amount
+    app.use('/v1/projects', (0, x402_js_1.buildDynamicVersionPriceMiddleware)({
+        treasuryAddress: cfg.treasuryAddress,
+        facilitatorUrl: cfg.x402FacilitatorUrl,
+        network: cfg.network,
+    }));
     app.use('/v1', x402);
     console.log(`  [x402] Payment middleware active → Treasury: ${cfg.treasuryAddress}`);
 }

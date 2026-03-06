@@ -22,23 +22,28 @@
  *   $2.00 → Treasury        (protocol revenue)
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.PRICE_PUSH_VERSION = exports.PRICE_CREATE_PROJECT = exports.USDC_BASE_SEPOLIA = exports.USDC_BASE_MAINNET = exports.NETWORK_BASE_SEPOLIA = exports.NETWORK_BASE_MAINNET = void 0;
+exports.PRICE_PUSH_VERSION_MIN = exports.PRICE_CREATE_PROJECT = exports.USDC_BASE_SEPOLIA = exports.USDC_BASE_MAINNET = exports.NETWORK_BASE_SEPOLIA = exports.NETWORK_BASE_MAINNET = void 0;
 exports.buildX402Middleware = buildX402Middleware;
 exports.getPayerAddress = getPayerAddress;
 exports.getPaymentAmount = getPaymentAmount;
+exports.buildDynamicVersionPriceMiddleware = buildDynamicVersionPriceMiddleware;
 const express_1 = require("@x402/express");
 const http_1 = require("@x402/core/http");
 // @ts-ignore — subpath exists in dist
 const server_1 = require("@x402/evm/exact/server");
 const localFacilitator_js_1 = require("./localFacilitator.js");
+const arweave_js_1 = require("../arweave.js");
 // ─── Constants ────────────────────────────────────────────────────────────────
 exports.NETWORK_BASE_MAINNET = 'eip155:8453';
 exports.NETWORK_BASE_SEPOLIA = 'eip155:84532';
 exports.USDC_BASE_MAINNET = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
 exports.USDC_BASE_SEPOLIA = '0x036CbD53842c5426634e7929541eC2318f3dCF7e';
-/** Fixed payment amounts per route (USDC, 6 decimals) */
-exports.PRICE_CREATE_PROJECT = 5000000n; // $5.00
-exports.PRICE_PUSH_VERSION = 2000000n; // $2.00
+/** Minimum / fallback payment amounts per route (USDC, 6 decimals).
+ *  createProject = $0.10 flat (spam prevention + gas coverage)
+ *  pushVersion   = dynamic (Arweave cost + 20% markup), floor $0.10
+ */
+exports.PRICE_CREATE_PROJECT = 100000n; // $0.10
+exports.PRICE_PUSH_VERSION_MIN = 100000n; // $0.10 floor
 // ─── Middleware builder ───────────────────────────────────────────────────────
 /**
  * Build x402 USDC payment middleware.
@@ -55,18 +60,19 @@ function buildX402Middleware(cfg) {
             accepts: {
                 scheme: 'exact',
                 payTo: cfg.treasuryAddress,
-                price: '$5.00',
+                price: '$0.10',
                 network: networkId,
                 // name/version must match USDC's EIP-712 domain exactly (used for EIP-3009 sig)
                 extra: { token: usdcAddr, name: 'USD Coin', version: '2' },
             },
             description: 'Register an AI agent or project on Inkd Protocol',
         },
-        'POST /projects/:id/versions': {
+        // x402 uses [segment] wildcard syntax, NOT Express :param syntax
+        'POST /projects/[id]/versions': {
             accepts: {
                 scheme: 'exact',
                 payTo: cfg.treasuryAddress,
-                price: '$2.00',
+                price: '$0.10',
                 network: networkId,
                 extra: { token: usdcAddr, name: 'USD Coin', version: '2' },
             },
@@ -115,7 +121,63 @@ function getPaymentAmount(req) {
     if (req.method === 'POST' && req.path === '/')
         return exports.PRICE_CREATE_PROJECT;
     if (req.method === 'POST' && req.path.includes('/versions'))
-        return exports.PRICE_PUSH_VERSION;
+        return exports.PRICE_PUSH_VERSION_MIN;
     return undefined;
+}
+// ─── Dynamic price middleware for pushVersion ─────────────────────────────────
+/**
+ * Intercepts POST /projects/:id/versions BEFORE x402 middleware.
+ * If no X-PAYMENT header: computes dynamic price (Arweave cost + 20%) from
+ * req.body.contentSize and returns a 402 with the correct amount.
+ * If X-PAYMENT header is present: passes through to x402 for verification.
+ *
+ * This is needed because x402 RoutesConfig only supports static prices,
+ * but Arweave upload cost depends on content size.
+ */
+function buildDynamicVersionPriceMiddleware(cfg) {
+    const networkId = cfg.network === 'mainnet' ? exports.NETWORK_BASE_MAINNET : exports.NETWORK_BASE_SEPOLIA;
+    const usdcAddr = cfg.network === 'mainnet' ? exports.USDC_BASE_MAINNET : exports.USDC_BASE_SEPOLIA;
+    return async (req, res, next) => {
+        // Only intercept POST /:id/versions
+        if (req.method !== 'POST' || !req.path.match(/^\/\d+\/versions$/)) {
+            next();
+            return;
+        }
+        // If X-PAYMENT header is present → let x402 middleware handle verification
+        const hasPayment = !!(req.header('x-payment') ?? req.header('payment-signature'));
+        if (hasPayment) {
+            next();
+            return;
+        }
+        // No payment yet — compute dynamic price and return 402
+        const contentSize = typeof req.body === 'object' ? (req.body?.contentSize ?? 0) : 0;
+        let price = exports.PRICE_PUSH_VERSION_MIN;
+        if (contentSize > 0) {
+            try {
+                const arweaveCost = await (0, arweave_js_1.getArweaveCostUsdc)(contentSize);
+                const { total } = (0, arweave_js_1.calculateCharge)(arweaveCost);
+                price = total > exports.PRICE_PUSH_VERSION_MIN ? total : exports.PRICE_PUSH_VERSION_MIN;
+            }
+            catch { /* keep minimum */ }
+        }
+        const priceStr = `$${(Number(price) / 1e6).toFixed(6)}`;
+        // Return x402-compatible 402 response
+        res.status(402).json({
+            x402Version: 1,
+            accepts: [{
+                    scheme: 'exact',
+                    network: networkId,
+                    maxAmountRequired: price.toString(),
+                    resource: `${req.protocol}://${req.hostname}${req.originalUrl}`,
+                    description: 'Push a new version (Arweave storage + protocol fee)',
+                    mimeType: 'application/json',
+                    payTo: cfg.treasuryAddress,
+                    maxTimeoutSeconds: 300,
+                    asset: usdcAddr,
+                    extra: { name: 'USD Coin', version: '2', price: priceStr },
+                }],
+            error: 'Payment required',
+        });
+    };
 }
 //# sourceMappingURL=x402.js.map
