@@ -12,6 +12,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Check for secrets
         run: |
@@ -69,3 +71,12 @@ jobs:
           done
           if [ $FAILED -eq 1 ]; then exit 1; fi
           echo "✅ No forbidden files found."
+
+      - name: Notify Telegram on failure
+        if: failure()
+        run: |
+          COMMIT=$(git log -1 --format="%h %s" | head -c 100)
+          AUTHOR=$(git log -1 --format="%an")
+          MSG="🚨 *Repo Guard FAILED*%0A%0ARepo: inkdprotocol/inkd-protocol%0ACommit: \`${COMMIT}\`%0AAuthor: ${AUTHOR}%0A%0ACheck: https://github.com/inkdprotocol/inkd-protocol/actions"
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}&text=${MSG}&parse_mode=Markdown" > /dev/null
