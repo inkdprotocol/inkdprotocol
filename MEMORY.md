@@ -73,11 +73,23 @@ A token/registry protocol on Base (EVM). Key artifacts:
 4. ✅ **Protocol Contracts** auf Mainnet deployt — commit `75b0916`
 - ⚠️ **Security Audit** — recommended before full public launch ($INKD)
 
-**Post-Deploy TODOs (as of 2026-03-05):**
+**x402 Full Stack (deployed 2026-03-06):**
+- ✅ `POST /v1/upload` — Arweave upload via Irys (server wallet), free endpoint
+- ✅ `GET /v1/upload/price?bytes=N` — Kostenabschätzung (1 KB ≈ $0.0018)
+- ✅ `SDK ProjectsClient` — agents zahlen USDC direkt, wallet = identity, kein API-Key nötig
+- ✅ `CLI project create` — x402 flow ($5 USDC)
+- ✅ `CLI version push` — `--file` auto-upload zu Arweave + $2 USDC on-chain
+- **Irys Server Wallet:** `0x210bDf52...` — ~0.0015 ETH, für Prod aufladen
+- **Vercel Deploy:** IMMER von workspace root (`/`) deployen, nicht von `/api/`
+
+**Post-Deploy TODOs (as of 2026-03-06):**
 - ❌ `setInkdToken($TEST CA)` via Buyback Safe aufrufen
 - ✅ API .env updaten: REGISTRY_ADDRESS + TREASURY_ADDRESS
 - ❌ $INKD via Clanker (erst wenn $TEST sauber läuft)
 - ❌ Security Audit vor Public Launch
+- ❌ E2E Test mit echtem Agent-Wallet auf Mainnet laufen lassen
+- ❌ Irys Server Wallet aufladen (ETH auf `0x210bDf52...`) für Prod-Uploads
+- ❌ Docs (Mintlify) updaten: /v1/upload + ProjectsClient
 
 **E2E Test PASSED (2026-03-06):**
 - ✅ createProject ($5 USDC) → TX 0x25642785bb06de399e102e3e943c6e93572fb8b65d3c9cceee45a3e430e413b9
@@ -182,4 +194,4 @@ Hazar hat das am 2026-03-04 klar gemacht. Nicht nochmal vergessen.
 
 ---
 
-_Last updated: 2026-03-06 00:00 (midnight consolidation)_
+_Last updated: 2026-03-06 17:06 (x402 full stack deployed)_
