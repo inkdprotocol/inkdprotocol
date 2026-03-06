@@ -30,7 +30,7 @@ import { ExactEvmScheme }                         from '@x402/evm/exact/server'
 import type { RoutesConfig }                      from '@x402/core/server'
 import type { RequestHandler, Request }           from 'express'
 import type { Address }                           from 'viem'
-import { generateJwt }                            from '@coinbase/cdp-sdk/auth'
+
 
 // CAIP-2 network identifiers
 export const NETWORK_BASE_MAINNET = 'eip155:8453'
@@ -100,6 +100,7 @@ export function buildX402Middleware(cfg: X402Config): RequestHandler {
   const cdpFacilitatorHost = 'api.cdp.coinbase.com'
   const createAuthHeaders = (cfg.cdpApiKeyId && cfg.cdpApiKeySecret)
     ? async () => {
+        const { generateJwt } = await import('@coinbase/cdp-sdk/auth')
         const makeJwt = (path: string) => generateJwt({
           apiKeyId:      cfg.cdpApiKeyId!,
           apiKeySecret:  cfg.cdpApiKeySecret!,

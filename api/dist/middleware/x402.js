@@ -32,7 +32,6 @@ const express_1 = require("@x402/express");
 const http_1 = require("@x402/core/http");
 // @ts-ignore — subpath not in package.json exports map but exists in dist
 const server_1 = require("@x402/evm/exact/server");
-const auth_1 = require("@coinbase/cdp-sdk/auth");
 // CAIP-2 network identifiers
 exports.NETWORK_BASE_MAINNET = 'eip155:8453';
 exports.NETWORK_BASE_SEPOLIA = 'eip155:84532';
@@ -84,7 +83,8 @@ function buildX402Middleware(cfg) {
     const cdpFacilitatorHost = 'api.cdp.coinbase.com';
     const createAuthHeaders = (cfg.cdpApiKeyId && cfg.cdpApiKeySecret)
         ? async () => {
-            const makeJwt = (path) => (0, auth_1.generateJwt)({
+            const { generateJwt } = await import('@coinbase/cdp-sdk/auth');
+            const makeJwt = (path) => generateJwt({
                 apiKeyId: cfg.cdpApiKeyId,
                 apiKeySecret: cfg.cdpApiKeySecret,
                 requestMethod: 'POST',
