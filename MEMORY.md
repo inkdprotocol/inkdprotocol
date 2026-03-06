@@ -82,14 +82,27 @@ A token/registry protocol on Base (EVM). Key artifacts:
 - **Irys Server Wallet:** `0x210bDf52...` — ~0.0015 ETH, für Prod aufladen
 - **Vercel Deploy:** IMMER von workspace root (`/`) deployen, nicht von `/api/`
 
-**Post-Deploy TODOs (as of 2026-03-06):**
+**Post-Deploy TODOs (as of 2026-03-06 EOD):**
 - ❌ `setInkdToken($TEST CA)` via Buyback Safe aufrufen
 - ✅ API .env updaten: REGISTRY_ADDRESS + TREASURY_ADDRESS
 - ❌ $INKD via Clanker (erst wenn $TEST sauber läuft)
 - ❌ Security Audit vor Public Launch
-- ❌ E2E Test mit echtem Agent-Wallet auf Mainnet laufen lassen
-- ❌ Irys Server Wallet aufladen (ETH auf `0x210bDf52...`) für Prod-Uploads
-- ❌ Docs (Mintlify) updaten: /v1/upload + ProjectsClient
+- ✅ E2E Test mit echtem Agent-Wallet auf Mainnet — ALL PASSED
+- ✅ Irys Server Wallet aufladen (0.0128 ETH, reicht für ~500 Uploads)
+- ✅ Docs (Mintlify MDX Dateien in Repo) — Hazar muss Mintlify Account verbinden (heute Abend zuhause)
+
+**Nächste Schritte (Priorität):**
+1. ❌ **Mintlify verbinden** — mintlify.com → GitHub Login → `inkdprotocol/inkd-protocol` → docs folder: `docs`
+2. ❌ **Contract Upgrade** — `accessManifestHash`, `forkOf`, `metadataUri`, Agent-Adresse on-chain, `tagsHash`
+3. ❌ **Metadata Standard** — JSON Schema für `metadataUri` definieren
+4. ❌ **The Graph Subgraph** — Event Indexer für Discovery/Search bei Scale
+5. ❌ **Multi-Wallet Encryption** — AgentVault erweitern, Access Manifest Standard
+
+**Architektur-Lücken (erkannt 2026-03-06):**
+- `pushedBy` on-chain = Server Wallet, nicht Agent — Identität geht verloren
+- Kein Indexer → bei 10k+ Projekten bricht RPC-basiertes Listing zusammen
+- Arweave ist immer öffentlich → Encryption vor Upload für private Inhalte nötig
+- Multi-Wallet Zugriff (wallet A grants wallet B) noch nicht implementiert
 
 **E2E Test PASSED (2026-03-06):**
 - ✅ createProject ($5 USDC) → TX 0x25642785bb06de399e102e3e943c6e93572fb8b65d3c9cceee45a3e430e413b9
@@ -194,4 +207,4 @@ Hazar hat das am 2026-03-04 klar gemacht. Nicht nochmal vergessen.
 
 ---
 
-_Last updated: 2026-03-06 17:06 (x402 full stack deployed)_
+_Last updated: 2026-03-06 19:22 (E2E passed, Architecture gaps identified)_
