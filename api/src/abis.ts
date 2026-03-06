@@ -1,10 +1,11 @@
 /**
  * Inkd Protocol — minimal ABIs for the API server
  * Only the functions/events needed to serve API requests.
+ * Reflects InkdRegistryV2 (UUPS upgraded proxy on Base Mainnet).
  */
 
 export const REGISTRY_ABI = [
-  // ── Read ──────────────────────────────────────────────────────────────────
+  // ── Read: Projects ────────────────────────────────────────────────────────
   {
     name: 'projectCount',
     type: 'function',
@@ -38,38 +39,87 @@ export const REGISTRY_ABI = [
       },
     ],
   },
+  // ── Read: V2 Project Metadata ─────────────────────────────────────────────
   {
-    name: 'getProjectByName',
+    name: 'projectMetadataUri',
     type: 'function',
     stateMutability: 'view',
-    inputs: [{ name: 'name', type: 'string' }],
-    outputs: [{ type: 'uint256' }],  // returns project id
+    inputs: [{ name: 'projectId', type: 'uint256' }],
+    outputs: [{ type: 'string' }],
   },
   {
-    name: 'getProjectVersions',
+    name: 'projectForkOf',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'projectId', type: 'uint256' }],
+    outputs: [{ type: 'uint256' }],
+  },
+  {
+    name: 'projectAccessManifest',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'projectId', type: 'uint256' }],
+    outputs: [{ type: 'string' }],
+  },
+  {
+    name: 'projectTagsHash',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'projectId', type: 'uint256' }],
+    outputs: [{ type: 'bytes32' }],
+  },
+  // ── Read: Versions ────────────────────────────────────────────────────────
+  {
+    name: 'getVersionCount',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'projectId', type: 'uint256' }],
+    outputs: [{ type: 'uint256' }],
+  },
+  {
+    name: 'getVersion',
     type: 'function',
     stateMutability: 'view',
     inputs: [
-      { name: 'projectId', type: 'uint256' },
-      { name: 'offset',    type: 'uint256' },
-      { name: 'limit',     type: 'uint256' },
+      { name: 'projectId',     type: 'uint256' },
+      { name: 'versionIndex',  type: 'uint256' },
     ],
     outputs: [
       {
         name: '',
-        type: 'tuple[]',
+        type: 'tuple',
         components: [
-          { name: 'versionId',    type: 'uint256' },
-          { name: 'projectId',    type: 'uint256' },
-          { name: 'tag',          type: 'string'  },
-          { name: 'contentHash',  type: 'string'  },
-          { name: 'metadataHash', type: 'string'  },
-          { name: 'pushedAt',     type: 'uint256' },
-          { name: 'pusher',       type: 'address' },
+          { name: 'projectId',   type: 'uint256' },
+          { name: 'arweaveHash', type: 'string'  },
+          { name: 'versionTag',  type: 'string'  },
+          { name: 'changelog',   type: 'string'  },
+          { name: 'pushedBy',    type: 'address' },
+          { name: 'pushedAt',    type: 'uint256' },
         ],
       },
     ],
   },
+  {
+    name: 'getVersionAgent',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [
+      { name: 'projectId',    type: 'uint256' },
+      { name: 'versionIndex', type: 'uint256' },
+    ],
+    outputs: [{ type: 'address' }],
+  },
+  {
+    name: 'versionMetaHash',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [
+      { name: 'projectId',    type: 'uint256' },
+      { name: 'versionIndex', type: 'uint256' },
+    ],
+    outputs: [{ type: 'string' }],
+  },
+  // ── Read: Agents ──────────────────────────────────────────────────────────
   {
     name: 'getAgentProjects',
     type: 'function',
@@ -86,16 +136,20 @@ export const REGISTRY_ABI = [
           { name: 'id',            type: 'uint256' },
           { name: 'name',          type: 'string'  },
           { name: 'description',   type: 'string'  },
+          { name: 'license',       type: 'string'  },
+          { name: 'readmeHash',    type: 'string'  },
           { name: 'owner',         type: 'address' },
-          { name: 'agentEndpoint', type: 'string'  },
           { name: 'isPublic',      type: 'bool'    },
-          { name: 'versionCount',  type: 'uint256' },
+          { name: 'isAgent',       type: 'bool'    },
+          { name: 'agentEndpoint', type: 'string'  },
           { name: 'createdAt',     type: 'uint256' },
+          { name: 'versionCount',  type: 'uint256' },
+          { name: 'exists',        type: 'bool'    },
         ],
       },
     ],
   },
-  // ── Write ─────────────────────────────────────────────────────────────────
+  // ── Write: V1 (direct on-chain, fee-pull model) ───────────────────────────
   {
     name: 'createProject',
     type: 'function',
@@ -116,14 +170,14 @@ export const REGISTRY_ABI = [
     type: 'function',
     stateMutability: 'nonpayable',
     inputs: [
-      { name: 'projectId',    type: 'uint256' },
-      { name: 'tag',          type: 'string'  },
-      { name: 'contentHash',  type: 'string'  },
-      { name: 'metadataHash', type: 'string'  },
+      { name: 'projectId',   type: 'uint256' },
+      { name: 'arweaveHash', type: 'string'  },
+      { name: 'versionTag',  type: 'string'  },
+      { name: 'changelog',   type: 'string'  },
     ],
     outputs: [],
   },
-  // ── V2 Write ──────────────────────────────────────────────────────────────
+  // ── Write: V2 (x402 payment pre-verified, settler-only) ───────────────────
   {
     name: 'createProjectV2',
     type: 'function',
@@ -148,36 +202,14 @@ export const REGISTRY_ABI = [
     type: 'function',
     stateMutability: 'nonpayable',
     inputs: [
-      { name: 'projectId',                 type: 'uint256' },
-      { name: 'arweaveHash',               type: 'string'  },
-      { name: 'versionTag',                type: 'string'  },
-      { name: 'changelog',                 type: 'string'  },
-      { name: 'agentAddress',              type: 'address' },
-      { name: 'versionMetadataArweaveHash', type: 'string' },
+      { name: 'projectId',                  type: 'uint256' },
+      { name: 'arweaveHash',                type: 'string'  },
+      { name: 'versionTag',                 type: 'string'  },
+      { name: 'changelog',                  type: 'string'  },
+      { name: 'agentAddress',               type: 'address' },
+      { name: 'versionMetadataArweaveHash', type: 'string'  },
     ],
     outputs: [],
-  },
-  // ── V2 View ───────────────────────────────────────────────────────────────
-  {
-    name: 'projectMetadataUri',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [{ name: 'projectId', type: 'uint256' }],
-    outputs: [{ type: 'string' }],
-  },
-  {
-    name: 'projectForkOf',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [{ name: 'projectId', type: 'uint256' }],
-    outputs: [{ type: 'uint256' }],
-  },
-  {
-    name: 'projectAccessManifest',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [{ name: 'projectId', type: 'uint256' }],
-    outputs: [{ type: 'string' }],
   },
   // ── Events ────────────────────────────────────────────────────────────────
   {
@@ -187,18 +219,7 @@ export const REGISTRY_ABI = [
       { name: 'projectId', type: 'uint256', indexed: true  },
       { name: 'owner',     type: 'address', indexed: true  },
       { name: 'name',      type: 'string',  indexed: false },
-      { name: 'isAgent',   type: 'bool',    indexed: false },
-    ],
-  },
-  {
-    type: 'event',
-    name: 'VersionPushed',
-    inputs: [
-      { name: 'projectId',   type: 'uint256', indexed: true  },
-      { name: 'versionId',   type: 'uint256', indexed: true  },
-      { name: 'tag',         type: 'string',  indexed: false },
-      { name: 'contentHash', type: 'string',  indexed: false },
-      { name: 'pusher',      type: 'address', indexed: true  },
+      { name: 'license',   type: 'string',  indexed: false },
     ],
   },
   {
@@ -214,13 +235,23 @@ export const REGISTRY_ABI = [
   },
   {
     type: 'event',
+    name: 'VersionPushed',
+    inputs: [
+      { name: 'projectId',   type: 'uint256', indexed: true  },
+      { name: 'arweaveHash', type: 'string',  indexed: false },
+      { name: 'versionTag',  type: 'string',  indexed: false },
+      { name: 'pushedBy',    type: 'address', indexed: false },
+    ],
+  },
+  {
+    type: 'event',
     name: 'VersionPushedV2',
     inputs: [
       { name: 'projectId',    type: 'uint256', indexed: true  },
+      { name: 'versionIndex', type: 'uint256', indexed: true  },
       { name: 'arweaveHash',  type: 'string',  indexed: false },
       { name: 'versionTag',   type: 'string',  indexed: false },
       { name: 'agentAddress', type: 'address', indexed: true  },
-      { name: 'relayer',      type: 'address', indexed: false },
     ],
   },
 ] as const
@@ -294,25 +325,5 @@ export const TREASURY_ABI = [
     stateMutability: 'view',
     inputs: [],
     outputs: [{ type: 'uint256' }],
-  },
-] as const
-
-// ─── USDC EIP-3009 ABI (Circle FiatToken v2.x on Base) ───────────────────────
-
-export const USDC_ABI = [
-  {
-    name: 'transferWithAuthorization',
-    type: 'function',
-    stateMutability: 'nonpayable',
-    inputs: [
-      { name: 'from',        type: 'address' },
-      { name: 'to',          type: 'address' },
-      { name: 'value',       type: 'uint256' },
-      { name: 'validAfter',  type: 'uint256' },
-      { name: 'validBefore', type: 'uint256' },
-      { name: 'nonce',       type: 'bytes32' },
-      { name: 'signature',   type: 'bytes'   },
-    ],
-    outputs: [],
   },
 ] as const

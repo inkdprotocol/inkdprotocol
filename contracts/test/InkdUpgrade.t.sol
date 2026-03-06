@@ -2,22 +2,15 @@
 pragma solidity ^0.8.24;
 
 import {Test, console} from "forge-std/Test.sol";
-import {InkdToken}    from "../src/InkdToken.sol";
-import {InkdTreasury} from "../src/InkdTreasury.sol";
-import {InkdRegistry} from "../src/InkdRegistry.sol";
+import {InkdToken}      from "../src/InkdToken.sol";
+import {InkdTreasury}   from "../src/InkdTreasury.sol";
+import {InkdRegistry}   from "../src/InkdRegistry.sol";
+import {InkdRegistryV2} from "../src/InkdRegistryV2.sol";
 import {MockUSDC} from "./helpers/MockUSDC.sol";
 import {ERC1967Proxy}         from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {UUPSUpgradeable}      from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {Initializable}        from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {OwnableUpgradeable}   from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-
-/// @dev Minimal V2 stub — adds a dummy getter to confirm upgrade succeeded.
-contract InkdRegistryV2 is InkdRegistry {
-    /// @notice New function added in V2 — proves upgrade worked.
-    function version() external pure returns (string memory) {
-        return "v2";
-    }
-}
 
 /// @dev Treasury V2 stub with an extra getter.
 contract InkdTreasuryV2 is InkdTreasury {

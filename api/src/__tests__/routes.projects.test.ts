@@ -57,7 +57,7 @@ const baseCfg: ApiConfig = {
   x402FacilitatorUrl: 'https://x402.org/facilitator',
   x402Enabled: false,
   usdcAddress: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' as `0x${string}`,
-    treasuryAddress: null,
+  treasuryAddress: null,
 }
 
 const rawProject = {
@@ -75,14 +75,33 @@ const rawProject = {
   exists:        true,
 }
 
+// V2 contract Version struct field names
 const rawVersion = {
-  versionId:    1n,
-  projectId:    1n,
-  tag:          'v1.0.0',
-  contentHash:  '0xCONTENT',
-  metadataHash: '0xMETA',
-  pushedAt:     1700000100n,
-  pusher:       '0xPUSHER000000000000000000000000000000000' as `0x${string}`,
+  projectId:   1n,
+  arweaveHash: 'ar://abc123',
+  versionTag:  'v1.0.0',
+  changelog:   'Initial release',
+  pushedBy:    '0xPUSHER000000000000000000000000000000000' as `0x${string}`,
+  pushedAt:    1700000100n,
+}
+
+// Helpers to mock V2 project metadata reads (appended after getProject call)
+function mockV2Meta(metadataUri = '', forkOf = 0n, accessManifest = '') {
+  mockReadContract
+    .mockResolvedValueOnce(metadataUri)   // projectMetadataUri
+    .mockResolvedValueOnce(forkOf)        // projectForkOf
+    .mockResolvedValueOnce(accessManifest) // projectAccessManifest
+}
+
+// Helpers to mock version reads (getVersion + getVersionAgent + versionMetaHash per version)
+function mockVersionReads(versions: typeof rawVersion[]) {
+  mockReadContract.mockResolvedValueOnce(BigInt(versions.length)) // getVersionCount
+  versions.forEach(v => {
+    mockReadContract
+      .mockResolvedValueOnce(v)    // getVersion(id, idx)
+      .mockResolvedValueOnce('0x0000000000000000000000000000000000000000') // getVersionAgent
+      .mockResolvedValueOnce('')   // versionMetaHash
+  })
 }
 
 async function makeApp(cfg = baseCfg) {
@@ -93,7 +112,7 @@ async function makeApp(cfg = baseCfg) {
   return app
 }
 
-// ─── Tests ────────────────────────────────────────────────────────────────────
+// ─── GET /v1/projects ─────────────────────────────────────────────────────────
 
 describe('GET /v1/projects', () => {
   beforeEach(() => { mockReadContract.mockReset() })
@@ -136,19 +155,6 @@ describe('GET /v1/projects', () => {
   })
 
   it('returns 503 when registry not configured', async () => {
-    vi.doMock('../config.js', async (importOriginal) => {
-      const orig = await importOriginal<typeof import('../config.js')>()
-      return {
-        ...orig,
-        ADDRESSES: {
-          testnet: { token: '', registry: '', treasury: '' },
-          mainnet: { token: '', registry: '', treasury: '' },
-        },
-      }
-    })
-    // We test this path via the requireRegistry() throw — use a cfg without registry
-    // Actually with the vi.mock at top, ADDRESSES always has values
-    // Test 503 indirectly via RPC error → 502
     mockReadContract.mockRejectedValue(new Error('RPC unreachable'))
     const app = await makeApp()
     const res = await request(app).get('/v1/projects')
@@ -168,15 +174,21 @@ describe('GET /v1/projects', () => {
   })
 })
 
+// ─── GET /v1/projects/:id ─────────────────────────────────────────────────────
+
 describe('GET /v1/projects/:id', () => {
   beforeEach(() => { mockReadContract.mockReset() })
 
   it('returns a project by id', async () => {
-    mockReadContract.mockResolvedValue(rawProject)
+    mockReadContract.mockResolvedValueOnce(rawProject) // getProject
+    mockV2Meta('ar://metadata', 0n, '')
+
     const app = await makeApp()
     const res = await request(app).get('/v1/projects/1')
     expect(res.status).toBe(200)
     expect(res.body.data.name).toBe('test-agent')
+    expect(res.body.data.metadataUri).toBe('ar://metadata')
+    expect(res.body.data.forkOf).toBe('0')
   })
 
   it('returns 404 when project does not exist', async () => {
@@ -206,6 +218,8 @@ describe('GET /v1/projects/:id', () => {
     expect(res.status).toBe(400)
   })
 })
+
+// ─── POST /v1/projects ────────────────────────────────────────────────────────
 
 describe('POST /v1/projects', () => {
   beforeEach(() => {
@@ -298,19 +312,21 @@ describe('POST /v1/projects', () => {
   })
 })
 
+// ─── GET /v1/projects/:id/versions ───────────────────────────────────────────
+
 describe('GET /v1/projects/:id/versions', () => {
   beforeEach(() => { mockReadContract.mockReset() })
 
   it('returns versions for a project', async () => {
-    mockReadContract
-      .mockResolvedValueOnce(rawProject)         // getProject (exists check)
-      .mockResolvedValueOnce([rawVersion])        // getProjectVersions
+    mockReadContract.mockResolvedValueOnce(rawProject) // getProject
+    mockVersionReads([rawVersion])
 
     const app = await makeApp()
     const res = await request(app).get('/v1/projects/1/versions')
     expect(res.status).toBe(200)
     expect(res.body.data).toHaveLength(1)
-    expect(res.body.data[0].tag).toBe('v1.0.0')
+    expect(res.body.data[0].versionTag).toBe('v1.0.0')
+    expect(res.body.data[0].arweaveHash).toBe('ar://abc123')
   })
 
   it('returns 404 when project does not exist', async () => {
@@ -327,9 +343,8 @@ describe('GET /v1/projects/:id/versions', () => {
   })
 
   it('respects offset and limit', async () => {
-    mockReadContract
-      .mockResolvedValueOnce(rawProject)
-      .mockResolvedValueOnce([rawVersion])
+    mockReadContract.mockResolvedValueOnce(rawProject) // getProject
+    mockVersionReads([rawVersion])
     const app = await makeApp()
     const res = await request(app).get('/v1/projects/1/versions?offset=0&limit=5')
     expect(res.status).toBe(200)
@@ -337,26 +352,27 @@ describe('GET /v1/projects/:id/versions', () => {
   })
 
   it('serializes version bigint fields as strings', async () => {
-    mockReadContract
-      .mockResolvedValueOnce(rawProject)
-      .mockResolvedValueOnce([rawVersion])
+    mockReadContract.mockResolvedValueOnce(rawProject) // getProject
+    mockVersionReads([rawVersion])
     const app = await makeApp()
     const res = await request(app).get('/v1/projects/1/versions')
     const v = res.body.data[0]
-    expect(typeof v.versionId).toBe('string')
+    expect(typeof v.versionIndex).toBe('string')
     expect(typeof v.pushedAt).toBe('string')
+    expect(typeof v.projectId).toBe('string')
   })
 
   it('returns empty array for project with no versions', async () => {
-    mockReadContract
-      .mockResolvedValueOnce({ ...rawProject, versionCount: 0n })
-      .mockResolvedValueOnce([])
+    mockReadContract.mockResolvedValueOnce(rawProject) // getProject
+    mockVersionReads([])
     const app = await makeApp()
     const res = await request(app).get('/v1/projects/1/versions')
     expect(res.status).toBe(200)
     expect(res.body.data).toHaveLength(0)
   })
 })
+
+// ─── POST /v1/projects/:id/versions ──────────────────────────────────────────
 
 describe('POST /v1/projects/:id/versions', () => {
   beforeEach(() => {
@@ -365,10 +381,11 @@ describe('POST /v1/projects/:id/versions', () => {
     mockWaitForTx.mockReset()
   })
 
+  // V2 field names: arweaveHash + versionTag instead of contentHash + tag
   const validVersionBody = {
-    tag:          'v2.0.0',
-    contentHash:  '0xABCDEF',
-    metadataHash: '0xMETA',
+    arweaveHash: 'ar://abc123def456',
+    versionTag:  'v2.0.0',
+    changelog:   'Major update',
   }
 
   it('pushes a version and returns 201', async () => {
@@ -381,22 +398,23 @@ describe('POST /v1/projects/:id/versions', () => {
       .send(validVersionBody)
     expect(res.status).toBe(201)
     expect(res.body.txHash).toBe('0xVERSION_TX')
-    expect(res.body.tag).toBe('v2.0.0')
+    expect(res.body.versionTag).toBe('v2.0.0')
+    expect(res.body.arweaveHash).toBe('ar://abc123def456')
   })
 
-  it('returns 400 when tag is empty', async () => {
+  it('returns 400 when versionTag is empty', async () => {
     const app = await makeApp()
     const res = await request(app)
       .post('/v1/projects/1/versions')
-      .send({ ...validVersionBody, tag: '' })
+      .send({ ...validVersionBody, versionTag: '' })
     expect(res.status).toBe(400)
   })
 
-  it('returns 400 when contentHash is empty', async () => {
+  it('returns 400 when arweaveHash is empty', async () => {
     const app = await makeApp()
     const res = await request(app)
       .post('/v1/projects/1/versions')
-      .send({ ...validVersionBody, contentHash: '' })
+      .send({ ...validVersionBody, arweaveHash: '' })
     expect(res.status).toBe(400)
   })
 
@@ -420,13 +438,13 @@ describe('POST /v1/projects/:id/versions', () => {
     expect(res.status).toBe(503)
   })
 
-  it('defaults metadataHash to empty string when omitted', async () => {
+  it('defaults versionMetadataArweaveHash to empty string when omitted', async () => {
     mockWriteContract.mockResolvedValue('0xTX')
     mockWaitForTx.mockResolvedValue({ status: 'success', blockNumber: 1n })
     const app = await makeApp()
     const res = await request(app)
       .post('/v1/projects/1/versions')
-      .send({ tag: 'v1.0.0', contentHash: '0xABC' })
+      .send({ arweaveHash: 'ar://abc', versionTag: 'v1.0.0' })
     expect(res.status).toBe(201)
   })
 

@@ -108,7 +108,7 @@ contract InkdRegistry is Initializable, OwnableUpgradeable, UUPSUpgradeable {
 
     // ───── Core Functions ─────
 
-    /// @notice Create a project. Locks 1 $INKD from the caller.
+    /// @notice Create a project.
     function createProject(
         string calldata name,
         string calldata description,
@@ -117,69 +117,18 @@ contract InkdRegistry is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         string calldata readmeHash,
         bool isAgent,
         string calldata agentEndpoint
-    ) external {
-        if (bytes(name).length == 0) revert EmptyName();
-
-        string memory normalized = _normalizeName(name);
-        if (nameTaken[normalized]) revert NameTaken();
-
-        uint256 id = ++projectCount;
-        projects[id] = Project({
-            id: id,
-            name: normalized,
-            description: description,
-            license: license,
-            readmeHash: readmeHash,
-            owner: msg.sender,
-            isPublic: isPublic,
-            isAgent: isAgent,
-            agentEndpoint: agentEndpoint,
-            createdAt: block.timestamp,
-            versionCount: 0,
-            exists: true
-        });
-
-        nameTaken[normalized] = true;
-        _ownerProjects[msg.sender].push(id);
-
-        emit ProjectCreated(id, msg.sender, normalized, license);
-
-        if (isAgent) {
-            emit AgentRegistered(id, agentEndpoint);
-        }
+    ) external virtual {
+        _createProjectCore(name, description, license, isPublic, readmeHash, isAgent, agentEndpoint);
     }
 
-    /// @notice Push a new version. Charges serviceFee USDC (set in Treasury). Auto-split on receipt.
+    /// @notice Push a new version.
     function pushVersion(
         uint256 projectId,
         string calldata arweaveHash,
         string calldata versionTag,
         string calldata changelog
-    ) external {
-        Project storage p = projects[projectId];
-        if (!p.exists) revert ProjectNotFound();
-        if (p.owner != msg.sender && !isCollaborator[projectId][msg.sender]) {
-            revert NotOwnerOrCollaborator();
-        }
-
-        uint256 fee = treasury.serviceFee();
-        if (fee > 0) {
-            // Pull USDC from caller → treasury, then notify treasury to split
-            usdc.safeTransferFrom(msg.sender, address(treasury), fee);
-            treasury.receivePayment(fee);
-        }
-
-        _versions[projectId].push(Version({
-            projectId: projectId,
-            arweaveHash: arweaveHash,
-            versionTag: versionTag,
-            changelog: changelog,
-            pushedBy: msg.sender,
-            pushedAt: block.timestamp
-        }));
-        p.versionCount++;
-
-        emit VersionPushed(projectId, arweaveHash, versionTag, msg.sender);
+    ) external virtual {
+        _pushVersionCore(projectId, arweaveHash, versionTag, changelog);
     }
 
     /// @notice Add a collaborator to a project. Owner only.
@@ -204,7 +153,7 @@ contract InkdRegistry is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         emit CollaboratorRemoved(projectId, collaborator);
     }
 
-    /// @notice Transfer project ownership. Charges serviceFee USDC.
+    /// @notice Transfer project ownership.
     function transferProject(uint256 projectId, address newOwner) external onlyProjectOwner(projectId) {
         if (newOwner == address(0)) revert ZeroAddress();
 
@@ -296,7 +245,86 @@ contract InkdRegistry is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         return result;
     }
 
-    // ───── Internal ─────
+    /// @notice Returns the protocol version string.
+    function version() external pure virtual returns (string memory) {
+        return "v1";
+    }
+
+    // ───── Internal Helpers ─────
+
+    /// @dev Core project creation logic shared by V1 and V2.
+    function _createProjectCore(
+        string calldata name,
+        string calldata description,
+        string calldata license,
+        bool isPublic,
+        string calldata readmeHash,
+        bool isAgent,
+        string calldata agentEndpoint
+    ) internal returns (uint256 id) {
+        if (bytes(name).length == 0) revert EmptyName();
+
+        string memory normalized = _normalizeName(name);
+        if (nameTaken[normalized]) revert NameTaken();
+
+        id = ++projectCount;
+        projects[id] = Project({
+            id: id,
+            name: normalized,
+            description: description,
+            license: license,
+            readmeHash: readmeHash,
+            owner: msg.sender,
+            isPublic: isPublic,
+            isAgent: isAgent,
+            agentEndpoint: agentEndpoint,
+            createdAt: block.timestamp,
+            versionCount: 0,
+            exists: true
+        });
+
+        nameTaken[normalized] = true;
+        _ownerProjects[msg.sender].push(id);
+
+        emit ProjectCreated(id, msg.sender, normalized, license);
+
+        if (isAgent) {
+            emit AgentRegistered(id, agentEndpoint);
+        }
+    }
+
+    /// @dev Core version push logic shared by V1 and V2. Returns the version index.
+    function _pushVersionCore(
+        uint256 projectId,
+        string calldata arweaveHash,
+        string calldata versionTag,
+        string calldata changelog
+    ) internal returns (uint256 versionIndex) {
+        Project storage p = projects[projectId];
+        if (!p.exists) revert ProjectNotFound();
+        if (p.owner != msg.sender && !isCollaborator[projectId][msg.sender]) {
+            revert NotOwnerOrCollaborator();
+        }
+
+        uint256 fee = treasury.serviceFee();
+        if (fee > 0) {
+            usdc.safeTransferFrom(msg.sender, address(treasury), fee);
+            treasury.receivePayment(fee);
+        }
+
+        versionIndex = _versions[projectId].length;
+        _versions[projectId].push(Version({
+            projectId: projectId,
+            arweaveHash: arweaveHash,
+            versionTag: versionTag,
+            changelog: changelog,
+            pushedBy: msg.sender,
+            pushedAt: block.timestamp
+        }));
+        p.versionCount++;
+
+        emit VersionPushed(projectId, arweaveHash, versionTag, msg.sender);
+    }
 
     /// @notice Convert a string to lowercase (ASCII A-Z only).
     function _normalizeName(string memory name) internal pure returns (string memory) {
@@ -313,7 +341,6 @@ contract InkdRegistry is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         _removeFromUint256Array(_ownerProjects[owner_], projectId);
     }
 
-    /// @dev Swap-and-pop removal from an address array. O(n) search, O(1) delete.
     function _removeFromAddressArray(address[] storage arr, address item) internal {
         uint256 len = arr.length;
         for (uint256 i; i < len; i++) {
@@ -325,7 +352,6 @@ contract InkdRegistry is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         }
     }
 
-    /// @dev Swap-and-pop removal from a uint256 array. O(n) search, O(1) delete.
     function _removeFromUint256Array(uint256[] storage arr, uint256 item) internal {
         uint256 len = arr.length;
         for (uint256 i; i < len; i++) {

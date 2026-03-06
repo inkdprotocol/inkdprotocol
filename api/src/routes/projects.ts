@@ -1,11 +1,12 @@
 /**
  * Inkd API — /v1/projects routes
  *
- * GET  /v1/projects            List all projects (paginated)
- * GET  /v1/projects/:id        Get a single project by id
- * POST /v1/projects            Create a new project
- * GET  /v1/projects/:id/versions       List versions for a project
- * POST /v1/projects/:id/versions       Push a new version
+ * GET  /v1/projects                     List all projects (paginated)
+ * GET  /v1/projects/estimate?bytes=N    Estimate USDC cost for a content upload
+ * GET  /v1/projects/:id                 Get a single project by id (with V2 metadata)
+ * POST /v1/projects                     Create a new project (createProjectV2, fee via x402)
+ * GET  /v1/projects/:id/versions        List versions for a project
+ * POST /v1/projects/:id/versions        Push a new version (pushVersionV2, fee via x402)
  */
 
 import { Router } from 'express'
@@ -13,30 +14,35 @@ import { z }      from 'zod'
 import type { Address } from 'viem'
 import { type ApiConfig, ADDRESSES } from '../config.js'
 import { buildPublicClient, buildWalletClient, normalizePrivateKey } from '../clients.js'
-import { getPayerAddress, getPaymentAmount, PRICE_CREATE_PROJECT, PRICE_PUSH_VERSION_MIN } from '../middleware/x402.js'
-import { decodePaymentSignatureHeader } from '@x402/core/http'
-import { REGISTRY_ABI, TREASURY_ABI, USDC_ABI } from '../abis.js'
+import { getPayerAddress, getPaymentAmount } from '../middleware/x402.js'
+import { REGISTRY_ABI, TREASURY_ABI } from '../abis.js'
 import { getArweaveCostUsdc, calculateCharge } from '../arweave.js'
 import { sendError, NotFoundError, BadRequestError, ServiceUnavailableError } from '../errors.js'
 
 // ─── Zod schemas ──────────────────────────────────────────────────────────────
 
 const CreateProjectBody = z.object({
-  name:          z.string().min(1).max(64),
-  description:   z.string().max(256).default(''),
-  license:       z.string().max(32).default('MIT'),
-  isPublic:      z.boolean().default(true),
-  readmeHash:    z.string().max(128).default(''),
-  isAgent:       z.boolean().default(false),
-  agentEndpoint: z.string().url().or(z.literal('')).default(''),
-  // privateKey removed — server wallet signs, payer address comes from x402 payment
+  name:               z.string().min(1).max(64),
+  description:        z.string().max(256).default(''),
+  license:            z.string().max(32).default('MIT'),
+  isPublic:           z.boolean().default(true),
+  readmeHash:         z.string().max(128).default(''),
+  isAgent:            z.boolean().default(false),
+  agentEndpoint:      z.string().url().or(z.literal('')).default(''),
+  // V2 fields (optional)
+  metadataUri:        z.string().max(256).default(''),
+  forkOf:             z.number().int().min(0).default(0),
+  accessManifestHash: z.string().max(128).default(''),
+  tagsHash:           z.string().regex(/^0x[0-9a-fA-F]{64}$/).or(z.literal('')).default(''),
 })
 
 const PushVersionBody = z.object({
-  tag:          z.string().min(1).max(64),
-  contentHash:  z.string().min(1).max(128),
-  metadataHash: z.string().max(128).default(''),
-  contentSize:  z.number().int().min(0).optional(), // bytes — used for dynamic Arweave pricing
+  arweaveHash:                  z.string().min(1).max(128),
+  versionTag:                   z.string().min(1).max(64),
+  changelog:                    z.string().max(512).default(''),
+  contentSize:                  z.number().int().min(0).optional(),
+  // V2 fields (optional)
+  versionMetadataArweaveHash:   z.string().max(128).default(''),
 })
 
 const PaginationQuery = z.object({
@@ -44,7 +50,7 @@ const PaginationQuery = z.object({
   limit:  z.coerce.number().int().min(1).max(100).default(20),
 })
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 type RawProject = {
   id:            bigint
@@ -62,16 +68,19 @@ type RawProject = {
 }
 
 type RawVersion = {
-  versionId:    bigint
-  projectId:    bigint
-  tag:          string
-  contentHash:  string
-  metadataHash: string
-  pushedAt:     bigint
-  pusher:       Address
+  projectId:   bigint
+  arweaveHash: string
+  versionTag:  string
+  changelog:   string
+  pushedBy:    Address
+  pushedAt:    bigint
 }
 
-function serializeProject(p: RawProject) {
+function serializeProject(p: RawProject, v2?: {
+  metadataUri?: string
+  forkOf?: bigint
+  accessManifest?: string
+}) {
   return {
     id:            p.id.toString(),
     name:          p.name,
@@ -84,18 +93,25 @@ function serializeProject(p: RawProject) {
     agentEndpoint: p.agentEndpoint,
     createdAt:     p.createdAt.toString(),
     versionCount:  p.versionCount.toString(),
+    // V2 fields (may be empty string/zero for V1-created projects)
+    metadataUri:   v2?.metadataUri ?? '',
+    forkOf:        v2?.forkOf?.toString() ?? '0',
+    accessManifest: v2?.accessManifest ?? '',
   }
 }
 
-function serializeVersion(v: RawVersion) {
+function serializeVersion(v: RawVersion, index: number, agentAddress?: Address, metaHash?: string) {
   return {
-    versionId:    v.versionId.toString(),
+    versionIndex: index.toString(),
     projectId:    v.projectId.toString(),
-    tag:          v.tag,
-    contentHash:  v.contentHash,
-    metadataHash: v.metadataHash,
+    arweaveHash:  v.arweaveHash,
+    versionTag:   v.versionTag,
+    changelog:    v.changelog,
+    pushedBy:     v.pushedBy,
     pushedAt:     v.pushedAt.toString(),
-    pusher:       v.pusher,
+    // V2 fields
+    agentAddress: agentAddress ?? null,
+    metaHash:     metaHash ?? '',
   }
 }
 
@@ -128,7 +144,6 @@ export function projectsRouter(cfg: ApiConfig): Router {
 
       const results: ReturnType<typeof serializeProject>[] = []
 
-      // Fetch each project — sequential is fine for <100 items
       for (let i = offset + 1; i <= Math.min(Number(total), offset + limit); i++) {
         const p = await publicClient.readContract({
           address:      registryAddress,
@@ -140,70 +155,13 @@ export function projectsRouter(cfg: ApiConfig): Router {
         if (p.exists) results.push(serializeProject(p))
       }
 
-      res.json({
-        data:   results,
-        total:  total.toString(),
-        offset,
-        limit,
-      })
+      res.json({ data: results, total: total.toString(), offset, limit })
     } catch (err) {
       sendError(res, err)
     }
   })
 
-  // ─── USDC transferWithAuthorization helper ─────────────────────────────────
-  // Executes the EIP-3009 signed transfer from the X-PAYMENT header.
-  // Must be called BEFORE Treasury.settle() so the USDC is in Treasury first.
-  /**
-   * Executes the EIP-3009 USDC transfer from X-PAYMENT header.
-   * Returns the next nonce to use for subsequent txns (avoids stale-nonce RPC issues).
-   */
-  async function executeUsdcTransfer(
-    req:               import('express').Request,
-    walletClientWrap:  ReturnType<typeof buildWalletClient>['client'],
-    publicClientInst:  ReturnType<typeof buildPublicClient>,
-    usdcAddress:       Address,
-    serverAddress:     Address,
-  ): Promise<number | undefined> {
-    const header = req.header('x-payment') ?? req.header('payment-signature')
-    if (!header) return undefined
-    const paymentPayload = decodePaymentSignatureHeader(header)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const auth = (paymentPayload?.payload as any)?.authorization
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sig  = (paymentPayload?.payload as any)?.signature
-    if (!auth || !sig) throw new Error('x402: missing EIP-3009 authorization or signature in X-PAYMENT header')
-
-    // Get current nonce ONCE — track manually to avoid stale RPC responses
-    const nonce = await publicClientInst.getTransactionCount({ address: serverAddress, blockTag: 'pending' })
-
-    const hash = await walletClientWrap.writeContract({
-      address:      usdcAddress,
-      abi:          USDC_ABI,
-      functionName: 'transferWithAuthorization',
-      nonce,
-      args: [
-        auth.from        as Address,
-        auth.to          as Address,
-        BigInt(auth.value),
-        BigInt(auth.validAfter),
-        BigInt(auth.validBefore),
-        auth.nonce       as `0x${string}`,
-        sig              as `0x${string}`,
-      ],
-    })
-
-    // Wait for confirmation — USDC must be in Treasury before settle() is called
-    await publicClientInst.waitForTransactionReceipt({ hash, pollingInterval: 500 })
-
-    // Return next nonce (confirmed, safe to use immediately)
-    return nonce + 1
-  }
-
   // ── GET /v1/projects/estimate?bytes=N ──────────────────────────────────────
-  // NOTE: must be registered BEFORE /:id to avoid Express matching 'estimate' as an id param.
-  // Returns the USDC charge (arweave cost + 20% markup) for a given content size.
-  // Agents call this BEFORE uploading to know how much to approve for X402.
   router.get('/estimate', async (req, res) => {
     try {
       const bytes = parseInt(req.query['bytes'] as string ?? '0', 10)
@@ -215,11 +173,10 @@ export function projectsRouter(cfg: ApiConfig): Router {
 
       res.json({
         bytes,
-        arweaveCost: arweaveCost.toString(),
-        markup:      markup.toString(),
-        total:       total.toString(),
-        markupPct:   '20%',
-        // Human readable
+        arweaveCost:    arweaveCost.toString(),
+        markup:         markup.toString(),
+        total:          total.toString(),
+        markupPct:      '20%',
         arweaveCostUsd: `$${(Number(arweaveCost) / 1e6).toFixed(4)}`,
         totalUsd:       `$${(Number(total)       / 1e6).toFixed(4)}`,
       })
@@ -244,7 +201,23 @@ export function projectsRouter(cfg: ApiConfig): Router {
 
       if (!p.exists) throw new NotFoundError(`Project #${id}`)
 
-      res.json({ data: serializeProject(p) })
+      // Fetch V2 metadata in parallel
+      const [metadataUri, forkOf, accessManifest] = await Promise.all([
+        publicClient.readContract({
+          address: registryAddress, abi: REGISTRY_ABI,
+          functionName: 'projectMetadataUri', args: [BigInt(id)],
+        }) as Promise<string>,
+        publicClient.readContract({
+          address: registryAddress, abi: REGISTRY_ABI,
+          functionName: 'projectForkOf', args: [BigInt(id)],
+        }) as Promise<bigint>,
+        publicClient.readContract({
+          address: registryAddress, abi: REGISTRY_ABI,
+          functionName: 'projectAccessManifest', args: [BigInt(id)],
+        }) as Promise<string>,
+      ])
+
+      res.json({ data: serializeProject(p, { metadataUri, forkOf, accessManifest }) })
     } catch (err) {
       sendError(res, err)
     }
@@ -260,52 +233,46 @@ export function projectsRouter(cfg: ApiConfig): Router {
       const {
         name, description, license, isPublic, readmeHash,
         isAgent, agentEndpoint,
+        metadataUri, forkOf, accessManifestHash, tagsHash,
       } = body.data
 
-      // Use server wallet to sign transactions (payer already paid via x402)
       if (!cfg.serverWalletKey) throw new ServiceUnavailableError(
         'SERVER_WALLET_KEY not configured. Cannot sign transactions.'
       )
 
-      const payerAddress   = getPayerAddress(req)
-      const paymentAmount  = getPaymentAmount(req)
+      const payerAddress  = getPayerAddress(req)
+      const paymentAmount = getPaymentAmount(req)
       const { client: walletClient, address: walletAddress } =
         buildWalletClient(cfg, normalizePrivateKey(cfg.serverWalletKey))
 
-      // Step 1: Execute EIP-3009 USDC transfer → moves funds into Treasury (wait for confirm)
-      let nextNonce: number | undefined
-      if (cfg.usdcAddress && cfg.treasuryAddress) {
-        nextNonce = await executeUsdcTransfer(req, walletClient, publicClient, cfg.usdcAddress, walletAddress)
-      }
-
-      // Step 2: Settle X402 USDC payment → splits revenue (arweaveCost = 0 for createProject)
-      const settleAmountCreate = paymentAmount ?? PRICE_CREATE_PROJECT
-      if (cfg.treasuryAddress) {
-        const settleHash = await walletClient.writeContract({
+      // Settle X402 USDC payment first
+      if (cfg.treasuryAddress && paymentAmount) {
+        await walletClient.writeContract({
           address:      cfg.treasuryAddress,
           abi:          TREASURY_ABI,
           functionName: 'settle',
-          nonce:        nextNonce,
-          args:         [settleAmountCreate, 0n],
+          args:         [paymentAmount, 0n],
         })
-        // Wait for settle to confirm before using next nonce — prevents "replacement tx underpriced"
-        await publicClient.waitForTransactionReceipt({ hash: settleHash, pollingInterval: 500 })
-        if (nextNonce !== undefined) nextNonce++
       }
 
-      // Use createProjectV2 — records payer as agent address on-chain
-      const agentAddress = (payerAddress ?? walletAddress) as `0x${string}`
+      // Encode tagsHash: empty string → zero bytes32, otherwise parse hex
+      const tagsHashBytes: `0x${string}` = (tagsHash && tagsHash.startsWith('0x'))
+        ? tagsHash as `0x${string}`
+        : `0x${'00'.repeat(32)}`
+
+      // Call createProjectV2 (settler-only, fee-free — x402 already settled above)
       const hash = await walletClient.writeContract({
         address:      registryAddress,
         abi:          REGISTRY_ABI,
         functionName: 'createProjectV2',
-        nonce:        nextNonce,
-        args:         [name, description, license, isPublic, readmeHash, isAgent, agentEndpoint,
-                       '', 0n, '', '0x0000000000000000000000000000000000000000000000000000000000000000'],
+        args: [
+          name, description, license, isPublic, readmeHash,
+          isAgent, agentEndpoint,
+          metadataUri, BigInt(forkOf), accessManifestHash, tagsHashBytes,
+        ],
       })
 
-      // Base Mainnet: ~2s block time — poll every 500ms to minimise latency on Vercel
-      const receipt = await publicClient.waitForTransactionReceipt({ hash, pollingInterval: 500 })
+      const receipt = await publicClient.waitForTransactionReceipt({ hash })
 
       const total = await publicClient.readContract({
         address:      registryAddress,
@@ -344,17 +311,49 @@ export function projectsRouter(cfg: ApiConfig): Router {
       }) as unknown as RawProject
       if (!p.exists) throw new NotFoundError(`Project #${id}`)
 
-      const versions = await publicClient.readContract({
+      const totalVersions = await publicClient.readContract({
         address:      registryAddress,
         abi:          REGISTRY_ABI,
-        functionName: 'getProjectVersions',
-        args:         [BigInt(id), BigInt(offset), BigInt(limit)],
-      }) as unknown as RawVersion[]
+        functionName: 'getVersionCount',
+        args:         [BigInt(id)],
+      }) as bigint
+
+      const count = Number(totalVersions)
+      const start = Math.min(offset, count)
+      const end   = Math.min(start + limit, count)
+
+      // Fetch each version with V2 metadata in parallel
+      const versions = await Promise.all(
+        Array.from({ length: end - start }, async (_, i) => {
+          const idx = start + i
+          const [v, agentAddress, metaHash] = await Promise.all([
+            publicClient.readContract({
+              address:      registryAddress,
+              abi:          REGISTRY_ABI,
+              functionName: 'getVersion',
+              args:         [BigInt(id), BigInt(idx)],
+            }) as Promise<RawVersion>,
+            publicClient.readContract({
+              address:      registryAddress,
+              abi:          REGISTRY_ABI,
+              functionName: 'getVersionAgent',
+              args:         [BigInt(id), BigInt(idx)],
+            }) as Promise<Address>,
+            publicClient.readContract({
+              address:      registryAddress,
+              abi:          REGISTRY_ABI,
+              functionName: 'versionMetaHash',
+              args:         [BigInt(id), BigInt(idx)],
+            }) as Promise<string>,
+          ])
+          return serializeVersion(v, idx, agentAddress, metaHash)
+        })
+      )
 
       res.json({
-        data:        versions.map(serializeVersion),
-        total:       p.versionCount.toString(),
-        projectId:   id.toString(),
+        data:      versions,
+        total:     totalVersions.toString(),
+        projectId: id.toString(),
         offset,
         limit,
       })
@@ -373,7 +372,7 @@ export function projectsRouter(cfg: ApiConfig): Router {
       const body = PushVersionBody.safeParse(req.body)
       if (!body.success) throw new BadRequestError(body.error.issues.map(i => i.message).join('; '))
 
-      const { tag, contentHash, metadataHash, contentSize } = body.data
+      const { arweaveHash, versionTag, changelog, contentSize, versionMetadataArweaveHash } = body.data
 
       if (!cfg.serverWalletKey) throw new ServiceUnavailableError(
         'SERVER_WALLET_KEY not configured. Cannot sign transactions.'
@@ -384,56 +383,41 @@ export function projectsRouter(cfg: ApiConfig): Router {
       const { client: walletClient, address: walletAddress } =
         buildWalletClient(cfg, normalizePrivateKey(cfg.serverWalletKey))
 
-      // Step 1: Execute EIP-3009 USDC transfer → moves funds into Treasury (wait for confirm)
-      let nextNonceV: number | undefined
-      if (cfg.usdcAddress && cfg.treasuryAddress) {
-        nextNonceV = await executeUsdcTransfer(req, walletClient, publicClient, cfg.usdcAddress, walletAddress)
-      }
-
-      // Step 2: Settle X402 USDC payment → Treasury splits: arweaveCost + 20% markup
-      // Dynamic: use what the agent actually paid (from x402), floor at $0.10
-      const settleAmountVersion = paymentAmount ?? PRICE_PUSH_VERSION_MIN
-      if (cfg.treasuryAddress) {
-        // Calculate arweave cost portion from content size (best-effort)
+      // Settle X402 USDC payment first
+      if (cfg.treasuryAddress && paymentAmount) {
         let arweaveCost = 0n
         if (contentSize && contentSize > 0) {
-          try {
-            arweaveCost = await getArweaveCostUsdc(contentSize)
-          } catch { /* use 0 if price fetch fails */ }
+          try { arweaveCost = await getArweaveCostUsdc(contentSize) } catch { /* use 0 */ }
         }
-        const settleHashV = await walletClient.writeContract({
+        await walletClient.writeContract({
           address:      cfg.treasuryAddress,
           abi:          TREASURY_ABI,
           functionName: 'settle',
-          nonce:        nextNonceV,
-          args:         [settleAmountVersion, arweaveCost],
+          args:         [paymentAmount, arweaveCost],
         })
-        // Wait for settle to confirm before using next nonce — prevents "replacement tx underpriced"
-        await publicClient.waitForTransactionReceipt({ hash: settleHashV, pollingInterval: 500 })
-        if (nextNonceV !== undefined) nextNonceV++
       }
 
-      // Use pushVersionV2 — records real agent address on-chain
-      const agentAddressV = (payerAddress ?? walletAddress) as `0x${string}`
+      // Use payer address (the agent who paid) as the on-chain agent address for attribution
+      const agentAddress: Address = (payerAddress ?? '0x0000000000000000000000000000000000000000') as Address
+
+      // Call pushVersionV2 (settler-only, fee-free — x402 already settled above)
       const hash = await walletClient.writeContract({
         address:      registryAddress,
         abi:          REGISTRY_ABI,
         functionName: 'pushVersionV2',
-        nonce:        nextNonceV,
-        args:         [BigInt(id), contentHash, tag, metadataHash, agentAddressV, ''],
+        args:         [BigInt(id), arweaveHash, versionTag, changelog, agentAddress, versionMetadataArweaveHash],
       })
 
-      // Base Mainnet: ~2s block time — poll every 500ms to minimise latency on Vercel
-      const receipt = await publicClient.waitForTransactionReceipt({ hash, pollingInterval: 500 })
+      const receipt = await publicClient.waitForTransactionReceipt({ hash })
 
       res.status(201).json({
-        txHash:    hash,
-        projectId: id.toString(),
-        tag,
-        contentHash,
-        pusher:    payerAddress ?? walletAddress,
-        signer:    walletAddress,
-        status:    receipt.status,
+        txHash:      hash,
+        projectId:   id.toString(),
+        versionTag,
+        arweaveHash,
+        agentAddress,
+        pusher:      walletAddress,
+        status:      receipt.status,
         blockNumber: receipt.blockNumber.toString(),
       })
     } catch (err) {

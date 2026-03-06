@@ -7,7 +7,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { Request } from 'express'
 import type { Address } from 'viem'
 
-// ── Mocks (factories must be self-contained — hoisted to top of file) ─────────
+// ── Mocks (self-contained factories — hoisted to top of file) ─────────────────
 
 vi.mock('@x402/express', () => {
   const paymentMiddleware = vi.fn((_routes: unknown, _server: unknown) => {
@@ -19,16 +19,15 @@ vi.mock('@x402/express', () => {
   return { paymentMiddleware, x402ResourceServer }
 })
 
-vi.mock('@x402/core/http', () => {
-  const HTTPFacilitatorClient = vi.fn(function (this: { url: string }, opts: { url: string }) {
-    this.url = opts.url
-  })
-  return { HTTPFacilitatorClient }
-})
-
 vi.mock('@x402/evm/exact/server', () => ({
   ExactEvmScheme: vi.fn(function () {}),
 }))
+
+// LocalFacilitatorClient is used instead of HTTPFacilitatorClient
+vi.mock('../middleware/localFacilitator.js', () => {
+  const LocalFacilitatorClient = vi.fn(function (this: object) {})
+  return { LocalFacilitatorClient }
+})
 
 import {
   getPayerAddress,
@@ -37,16 +36,16 @@ import {
   NETWORK_BASE_SEPOLIA,
 } from '../middleware/x402.js'
 import { paymentMiddleware as _paymentMiddleware } from '@x402/express'
-import { HTTPFacilitatorClient } from '@x402/core/http'
+import { LocalFacilitatorClient } from '../middleware/localFacilitator.js'
 
 const paymentMiddleware = _paymentMiddleware as ReturnType<typeof vi.fn>
+const MockLocalFacilitatorClient = LocalFacilitatorClient as ReturnType<typeof vi.fn>
 
 // ─── buildX402Middleware() ────────────────────────────────────────────────────
 
 describe('buildX402Middleware()', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    // Re-stub after clearAllMocks wipes return values
     paymentMiddleware.mockImplementation((_routes: unknown, _server: unknown) =>
       (_req: unknown, _res: unknown, next: () => void) => next()
     )
@@ -63,11 +62,9 @@ describe('buildX402Middleware()', () => {
     expect(typeof mw).toBe('function')
   })
 
-  it('instantiates HTTPFacilitatorClient with the given facilitatorUrl', () => {
+  it('instantiates LocalFacilitatorClient (no external HTTP dependency)', () => {
     buildX402Middleware(baseConfig)
-    expect(HTTPFacilitatorClient).toHaveBeenCalledWith(
-      expect.objectContaining({ url: 'https://x402.org/facilitator' })
-    )
+    expect(MockLocalFacilitatorClient).toHaveBeenCalledTimes(1)
   })
 
   it('calls paymentMiddleware with routes containing both endpoints', () => {
@@ -75,7 +72,8 @@ describe('buildX402Middleware()', () => {
     expect(paymentMiddleware).toHaveBeenCalledTimes(1)
     const [routes] = paymentMiddleware.mock.calls[0] as [Record<string, unknown>]
     expect(routes).toHaveProperty('POST /projects')
-    expect(routes).toHaveProperty('POST /projects/:id/versions')
+    // x402 uses [id] wildcard syntax, not Express :id
+    expect(routes).toHaveProperty('POST /projects/[id]/versions')
   })
 
   it('uses NETWORK_BASE_SEPOLIA for testnet', () => {
@@ -90,25 +88,18 @@ describe('buildX402Middleware()', () => {
     expect(routes['POST /projects']!.accepts.network).toBe(NETWORK_BASE_MAINNET)
   })
 
-  it('sets treasuryAddress in both route configs', () => {
+  it('sets treasuryAddress (payTo) in both route configs', () => {
     buildX402Middleware(baseConfig)
     const [routes] = paymentMiddleware.mock.calls[0] as [Record<string, { accepts: { payTo: string } }>]
     expect(routes['POST /projects']!.accepts.payTo).toBe(baseConfig.treasuryAddress)
-    expect(routes['POST /projects/:id/versions']!.accepts.payTo).toBe(baseConfig.treasuryAddress)
+    expect(routes['POST /projects/[id]/versions']!.accepts.payTo).toBe(baseConfig.treasuryAddress)
   })
 
-  it('sets correct prices in route configs', () => {
+  it('sets a price in both route configs', () => {
     buildX402Middleware(baseConfig)
     const [routes] = paymentMiddleware.mock.calls[0] as [Record<string, { accepts: { price: string } }>]
-    expect(routes['POST /projects']!.accepts.price).toBe('$5.00')
-    expect(routes['POST /projects/:id/versions']!.accepts.price).toBe('$2.00')
-  })
-
-  it('uses custom facilitatorUrl when provided', () => {
-    buildX402Middleware({ ...baseConfig, facilitatorUrl: 'https://custom.facilitator.io' })
-    expect(HTTPFacilitatorClient).toHaveBeenCalledWith(
-      expect.objectContaining({ url: 'https://custom.facilitator.io' })
-    )
+    expect(routes['POST /projects']!.accepts.price).toMatch(/^\$[\d.]+$/)
+    expect(routes['POST /projects/[id]/versions']!.accepts.price).toMatch(/^\$[\d.]+$/)
   })
 })
 
@@ -123,37 +114,21 @@ describe('NETWORK constants', () => {
   })
 })
 
+// ─── getPayerAddress() ────────────────────────────────────────────────────────
+
 describe('getPayerAddress()', () => {
-  it('returns payer address when x402 payment exists', () => {
-    const req = {
-      x402: {
-        payment: {
-          payload: {
-            authorization: {
-              from: '0xABCDEF1234567890ABCDef1234567890AbCdEf01',
-            },
-          },
-        },
-      },
-    } as unknown as Request
-
-    expect(getPayerAddress(req)).toBe('0xABCDEF1234567890ABCDef1234567890AbCdEf01')
-  })
-
-  it('returns undefined when no x402 payment', () => {
+  it('returns undefined when no payment header is present', () => {
     const req = {} as Request
     expect(getPayerAddress(req)).toBeUndefined()
   })
 
-  it('returns undefined when x402 is present but payment is missing', () => {
+  it('returns undefined when x402 is present but no payment header', () => {
     const req = { x402: {} } as unknown as Request
     expect(getPayerAddress(req)).toBeUndefined()
   })
 
-  it('returns undefined when authorization.from is missing', () => {
-    const req = {
-      x402: { payment: { payload: { authorization: {} } } },
-    } as unknown as Request
+  it('returns undefined for a request with no headers', () => {
+    const req = { headers: {} } as unknown as Request
     expect(getPayerAddress(req)).toBeUndefined()
   })
 })

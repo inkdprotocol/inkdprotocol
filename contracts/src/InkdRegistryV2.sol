@@ -2,38 +2,49 @@
 pragma solidity ^0.8.24;
 
 import {InkdRegistry} from "./InkdRegistry.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-/// @title InkdRegistryV2 — Extensible upgrade of InkdRegistry
-/// @notice Adds metadataUri, forkOf, accessManifest, tagsHash, and on-chain agent identity for versions.
-/// @dev UUPS upgrade. All new state is added via mappings at the end of storage — never modifies V1 struct layout.
+/// @title InkdRegistryV2 — UUPS upgrade of InkdRegistry
+/// @notice Adds rich metadata (metadataUri, forkOf, accessManifest, tagsHash) and
+///         on-chain agent-address attribution for versions.
+///
+/// @dev V2 payment model:
+///      - createProjectV2 / pushVersionV2 are SETTLER-ONLY — no USDC pull from msg.sender.
+///      - Payment was already processed off-chain via x402 (USDC→Treasury→settle()).
+///      - The settler address (API server wallet) is the only one allowed to call V2 write functions.
+///      - V1 functions (createProject/pushVersion) remain for direct on-chain flows with fee pull.
+///
+/// @dev Storage layout:
+///      All V2 fields use separate mappings appended AFTER all V1 state. Never modify V1 structs.
 contract InkdRegistryV2 is InkdRegistry {
-    using SafeERC20 for IERC20;
 
-    // ───── V2 Storage (appended AFTER all V1 state — never reorder) ──────────
+    // ───── V2 Storage ────────────────────────────────────────────────────────
+    // NOTE: Storage order matters for proxy layout. These must always be appended at the end.
 
-    /// @notice Arweave hash of extensible project metadata JSON (inkd/project/v1 schema)
+    /// @notice Authorized settler (API server wallet). Only address allowed to call V2 write functions.
+    address public settler;
+
+    /// @notice Arweave URI for rich off-chain project metadata (inkd/project/v1 JSON schema).
     mapping(uint256 => string) public projectMetadataUri;
 
-    /// @notice Fork lineage: 0 = original, N = forked from project N
+    /// @notice Fork lineage: 0 = original, N = forked from project N.
     mapping(uint256 => uint256) public projectForkOf;
 
-    /// @notice Arweave hash of multi-wallet access control manifest
+    /// @notice Arweave hash of the access control manifest (for private/encrypted projects).
     mapping(uint256 => string) public projectAccessManifest;
 
-    /// @notice keccak256 of tags JSON array for discovery
+    /// @notice keccak256 of comma-separated tags string (for discovery).
     mapping(uint256 => bytes32) public projectTagsHash;
 
-    /// @notice _forks[originalId] = list of fork project IDs
+    /// @notice Fork index: _forks[originalId] = list of fork project IDs.
     mapping(uint256 => uint256[]) internal _forks;
 
-    /// @notice Real agent address that triggered a version push (not relayer)
-    /// @dev versionAgent[projectId][versionIndex] = agentAddress
+    /// @notice Real agent address that triggered a version push (not the relayer/server wallet).
+    /// @dev    versionAgent[projectId][versionIndex] = agentAddress
     mapping(uint256 => mapping(uint256 => address)) public versionAgent;
 
-    /// @notice Arweave hash of per-version metadata JSON
-    mapping(uint256 => mapping(uint256 => string)) public versionMetadataHash;
+    /// @notice Arweave hash of per-version metadata JSON.
+    /// @dev    versionMetaHash[projectId][versionIndex] = arweaveHash
+    mapping(uint256 => mapping(uint256 => string)) public versionMetaHash;
 
     // ───── V2 Events ─────────────────────────────────────────────────────────
 
@@ -47,24 +58,46 @@ contract InkdRegistryV2 is InkdRegistry {
 
     event VersionPushedV2(
         uint256 indexed projectId,
+        uint256 indexed versionIndex,
         string  arweaveHash,
         string  versionTag,
-        address indexed agentAddress,
-        address relayer
+        address indexed agentAddress
     );
 
     event MetadataUriUpdated(uint256 indexed projectId, string uri);
     event AccessManifestUpdated(uint256 indexed projectId, string manifestHash);
     event TagsHashUpdated(uint256 indexed projectId, bytes32 hash);
     event ProjectForked(uint256 indexed newProjectId, uint256 indexed originalProjectId, address indexed owner);
+    event SettlerSet(address indexed settler);
 
     // ───── V2 Errors ─────────────────────────────────────────────────────────
 
-    error OriginalProjectNotFound();
+    error Unauthorized();
+    error InvalidForkTarget();
 
-    // ───── V2 Functions ──────────────────────────────────────────────────────
+    // ───── Modifiers ─────────────────────────────────────────────────────────
 
-    /// @notice Register a project with full V2 metadata. Backward-compatible: original createProject still works.
+    modifier onlySettler() {
+        if (msg.sender != settler && msg.sender != owner()) revert Unauthorized();
+        _;
+    }
+
+    // ───── V2 Admin ──────────────────────────────────────────────────────────
+
+    /// @notice Set the settler address (API server wallet). Owner only.
+    function setSettler(address settler_) external onlyOwner {
+        if (settler_ == address(0)) revert ZeroAddress();
+        settler = settler_;
+        emit SettlerSet(settler_);
+    }
+
+    // ───── V2 Write Functions (settler-only, fee-free) ────────────────────────
+
+    /// @notice Create a project with V2 metadata fields. Fee pre-paid via x402 off-chain.
+    /// @param metadataUri_        Arweave URI for off-chain JSON metadata (optional).
+    /// @param forkOf_             Project ID this forks from, 0 if original.
+    /// @param accessManifestHash_ Arweave hash of access control manifest (optional).
+    /// @param tagsHash_           keccak256 of comma-separated tags (optional).
     function createProjectV2(
         string calldata name,
         string calldata description,
@@ -73,80 +106,44 @@ contract InkdRegistryV2 is InkdRegistry {
         string calldata readmeHash,
         bool isAgent,
         string calldata agentEndpoint,
-        string calldata metadataUri,
-        uint256 forkOf,
-        string calldata accessManifestHash,
-        bytes32 tagsHash
-    ) external {
-        // Validate fork reference
-        if (forkOf != 0 && !projects[forkOf].exists) revert OriginalProjectNotFound();
+        string calldata metadataUri_,
+        uint256 forkOf_,
+        string calldata accessManifestHash_,
+        bytes32 tagsHash_
+    ) external onlySettler {
+        if (forkOf_ != 0 && !projects[forkOf_].exists) revert InvalidForkTarget();
 
-        // Use V1 createProject logic via internal call — but we need the new ID
-        // We replicate the core logic to capture the ID
-        if (bytes(name).length == 0) revert EmptyName();
-        string memory normalized = _normalizeName(name);
-        if (nameTaken[normalized]) revert NameTaken();
+        uint256 id = _createProjectCore(name, description, license, isPublic, readmeHash, isAgent, agentEndpoint);
 
-        uint256 id = ++projectCount;
-        projects[id] = Project({
-            id:            id,
-            name:          normalized,
-            description:   description,
-            license:       license,
-            readmeHash:    readmeHash,
-            owner:         msg.sender,
-            isPublic:      isPublic,
-            isAgent:       isAgent,
-            agentEndpoint: agentEndpoint,
-            createdAt:     block.timestamp,
-            versionCount:  0,
-            exists:        true
-        });
+        // V2 extra state (skip if empty/zero — saves gas)
+        if (bytes(metadataUri_).length > 0)        projectMetadataUri[id]    = metadataUri_;
+        if (forkOf_ != 0)                           projectForkOf[id]         = forkOf_;
+        if (bytes(accessManifestHash_).length > 0)  projectAccessManifest[id] = accessManifestHash_;
+        if (tagsHash_ != bytes32(0))                projectTagsHash[id]       = tagsHash_;
 
-        nameTaken[normalized] = true;
-        _ownerProjects[msg.sender].push(id);
+        emit ProjectCreatedV2(id, msg.sender, projects[id].name, forkOf_, metadataUri_);
 
-        // V2 extra state
-        if (bytes(metadataUri).length > 0)       projectMetadataUri[id]   = metadataUri;
-        if (forkOf != 0)                          projectForkOf[id]        = forkOf;
-        if (bytes(accessManifestHash).length > 0) projectAccessManifest[id] = accessManifestHash;
-        if (tagsHash != bytes32(0))               projectTagsHash[id]      = tagsHash;
-
-        emit ProjectCreated(id, msg.sender, normalized, license);
-        emit ProjectCreatedV2(id, msg.sender, normalized, forkOf, metadataUri);
-
-        if (isAgent) emit AgentRegistered(id, agentEndpoint);
-
-        if (forkOf != 0) {
-            _forks[forkOf].push(id);
-            emit ProjectForked(id, forkOf, msg.sender);
+        if (forkOf_ != 0) {
+            _forks[forkOf_].push(id);
+            emit ProjectForked(id, forkOf_, msg.sender);
         }
     }
 
-    /// @notice Push a version with on-chain agent identity. Backward-compatible: original pushVersion still works.
-    /// @param agentAddress The actual agent/user who initiated the push (not the relayer/server wallet)
-    /// @param versionMetadataArweaveHash Arweave hash of version metadata JSON (optional)
+    /// @notice Push a version with V2 attribution. Fee pre-paid via x402 off-chain.
+    /// @param agentAddress_              Address of the agent that triggered this push.
+    /// @param versionMetadataArweaveHash_ Arweave hash of version metadata JSON (optional).
     function pushVersionV2(
         uint256 projectId,
         string calldata arweaveHash,
         string calldata versionTag,
         string calldata changelog,
-        address agentAddress,
-        string calldata versionMetadataArweaveHash
-    ) external {
+        address agentAddress_,
+        string calldata versionMetadataArweaveHash_
+    ) external onlySettler {
         Project storage p = projects[projectId];
         if (!p.exists) revert ProjectNotFound();
-        if (p.owner != msg.sender && !isCollaborator[projectId][msg.sender]) {
-            revert NotOwnerOrCollaborator();
-        }
 
-        uint256 fee = treasury.serviceFee();
-        if (fee > 0) {
-            usdc.safeTransferFrom(msg.sender, address(treasury), fee);
-            treasury.receivePayment(fee);
-        }
-
-        uint256 versionIndex = p.versionCount;
+        uint256 versionIndex = _versions[projectId].length;
 
         _versions[projectId].push(Version({
             projectId:   projectId,
@@ -158,44 +155,42 @@ contract InkdRegistryV2 is InkdRegistry {
         }));
         p.versionCount++;
 
-        // V2 extra state
-        if (agentAddress != address(0))
-            versionAgent[projectId][versionIndex] = agentAddress;
-        if (bytes(versionMetadataArweaveHash).length > 0)
-            versionMetadataHash[projectId][versionIndex] = versionMetadataArweaveHash;
+        // V2 attribution
+        if (agentAddress_ != address(0))
+            versionAgent[projectId][versionIndex] = agentAddress_;
+        if (bytes(versionMetadataArweaveHash_).length > 0)
+            versionMetaHash[projectId][versionIndex] = versionMetadataArweaveHash_;
 
         emit VersionPushed(projectId, arweaveHash, versionTag, msg.sender);
-        emit VersionPushedV2(projectId, arweaveHash, versionTag, agentAddress, msg.sender);
+        emit VersionPushedV2(projectId, versionIndex, arweaveHash, versionTag, agentAddress_);
     }
 
-    // ───── V2 Setters ─────────────────────────────────────────────────────────
+    // ───── V2 Setters (owner/collaborator) ───────────────────────────────────
 
-    function setMetadataUri(uint256 projectId, string calldata uri)
-        external
-    {
-        if (projects[projectId].owner != msg.sender && !isCollaborator[projectId][msg.sender]) revert NotOwnerOrCollaborator();
+    function setMetadataUri(uint256 projectId, string calldata uri) external {
+        if (projects[projectId].owner != msg.sender && !isCollaborator[projectId][msg.sender])
+            revert NotOwnerOrCollaborator();
         projectMetadataUri[projectId] = uri;
         emit MetadataUriUpdated(projectId, uri);
     }
 
-    function setAccessManifest(uint256 projectId, string calldata manifestHash)
-        external
-    {
-        if (projects[projectId].owner != msg.sender && !isCollaborator[projectId][msg.sender]) revert NotOwnerOrCollaborator();
+    function setAccessManifest(uint256 projectId, string calldata manifestHash) external {
+        if (projects[projectId].owner != msg.sender && !isCollaborator[projectId][msg.sender])
+            revert NotOwnerOrCollaborator();
         projectAccessManifest[projectId] = manifestHash;
         emit AccessManifestUpdated(projectId, manifestHash);
     }
 
-    function setTagsHash(uint256 projectId, bytes32 hash)
-        external
-    {
-        if (projects[projectId].owner != msg.sender && !isCollaborator[projectId][msg.sender]) revert NotOwnerOrCollaborator();
-        projectTagsHash[projectId] = hash;
-        emit TagsHashUpdated(projectId, hash);
+    function setTagsHash(uint256 projectId, bytes32 hash_) external {
+        if (projects[projectId].owner != msg.sender && !isCollaborator[projectId][msg.sender])
+            revert NotOwnerOrCollaborator();
+        projectTagsHash[projectId] = hash_;
+        emit TagsHashUpdated(projectId, hash_);
     }
 
     // ───── V2 View Functions ──────────────────────────────────────────────────
 
+    /// @notice Returns full V2 project metadata.
     function getProjectV2(uint256 projectId)
         external view
         returns (
@@ -216,15 +211,18 @@ contract InkdRegistryV2 is InkdRegistry {
         );
     }
 
-    function getVersionAgent(uint256 projectId, uint256 versionIndex)
-        external view returns (address)
-    {
+    /// @notice Returns the agent address for a given version.
+    function getVersionAgent(uint256 projectId, uint256 versionIndex) external view returns (address) {
         return versionAgent[projectId][versionIndex];
     }
 
-    function getForks(uint256 originalId)
-        external view returns (uint256[] memory)
-    {
+    /// @notice Returns list of fork project IDs for a given original project.
+    function getForks(uint256 originalId) external view returns (uint256[] memory) {
         return _forks[originalId];
+    }
+
+    /// @notice Returns the protocol version string.
+    function version() external pure override returns (string memory) {
+        return "v2";
     }
 }
