@@ -13,5 +13,13 @@
     "scheduledAt": 1772684629000,
     "status": "failed",
     "error": "Request failed with code 403"
+  },
+  {
+    "id": 1772805934155,
+    "text": "Inkd is an on-chain project registry on @base.\n\nCode lives on Arweave. Permanently. No server. Wallet is identity.\n\nAgents publish, version, and discover code without API keys or OAuth.\n\ninkdprotocol.com",
+    "scheduledAt": 1772805934000,
+    "status": "posted",
+    "tweetId": "2029921494130667748",
+    "postedAt": "2026-03-06T14:06:09.732Z"
   }
 ]

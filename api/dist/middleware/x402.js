@@ -160,24 +160,26 @@ function buildDynamicVersionPriceMiddleware(cfg) {
             }
             catch { /* keep minimum */ }
         }
-        const priceStr = `$${(Number(price) / 1e6).toFixed(6)}`;
-        // Return x402-compatible 402 response
-        res.status(402).json({
-            x402Version: 1,
+        // x402 v2 format — payload goes in `payment-required` header as base64 JSON
+        const resource = `${req.protocol}://${req.hostname}${req.originalUrl}`;
+        const payload = {
+            x402Version: 2,
+            error: 'Payment required',
+            resource: { url: resource, description: 'Push a new version (Arweave storage + protocol fee)', mimeType: 'application/json' },
             accepts: [{
                     scheme: 'exact',
                     network: networkId,
-                    maxAmountRequired: price.toString(),
-                    resource: `${req.protocol}://${req.hostname}${req.originalUrl}`,
-                    description: 'Push a new version (Arweave storage + protocol fee)',
-                    mimeType: 'application/json',
+                    amount: price.toString(),
+                    asset: usdcAddr,
                     payTo: cfg.treasuryAddress,
                     maxTimeoutSeconds: 300,
-                    asset: usdcAddr,
-                    extra: { name: 'USD Coin', version: '2', price: priceStr },
+                    extra: { name: 'USD Coin', version: '2', token: usdcAddr },
                 }],
-            error: 'Payment required',
-        });
+        };
+        res
+            .status(402)
+            .set('payment-required', Buffer.from(JSON.stringify(payload)).toString('base64'))
+            .json({});
     };
 }
 //# sourceMappingURL=x402.js.map
