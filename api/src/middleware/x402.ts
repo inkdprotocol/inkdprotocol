@@ -24,11 +24,14 @@
  */
 
 import { paymentMiddlewareFromConfig }  from '@x402/express'
+import type { SchemeRegistration }       from '@x402/express'
 import { HTTPFacilitatorClient }        from '@x402/core/http'
 import { decodePaymentSignatureHeader } from '@x402/core/http'
 import type { RoutesConfig }            from '@x402/core/server'
 import type { RequestHandler, Request } from 'express'
 import type { Address }                 from 'viem'
+// @ts-ignore — subpath exists in dist but not declared in package.json exports map
+import { ExactEvmScheme as ExactEvmSchemeServer } from '@x402/evm/exact/server'
 
 // CAIP-2 network identifiers
 export const NETWORK_BASE_MAINNET = 'eip155:8453'
@@ -93,9 +96,16 @@ export function buildX402Middleware(cfg: X402Config): RequestHandler {
 
   const facilitator = new HTTPFacilitatorClient({ url: cfg.facilitatorUrl })
 
+  // Register ExactEvmScheme server-side so the resource server can build
+  // payment requirements (accepts[]) without needing a facilitator handshake.
+  // This allows syncFacilitatorOnStart=false (no cold-start blocking on Vercel).
+  const schemes: SchemeRegistration[] = [
+    { network: networkId, server: new ExactEvmSchemeServer() },
+  ]
+
   // syncFacilitatorOnStart=false: skip facilitator handshake on startup.
-  // Prevents cold-start timeouts on Vercel and avoids blocking the first request.
-  return paymentMiddlewareFromConfig(routes, facilitator, undefined, undefined, undefined, false)
+  // Scheme server is pre-registered above — accepts[] will be populated correctly.
+  return paymentMiddlewareFromConfig(routes, facilitator, schemes, undefined, undefined, false)
 }
 
 /**

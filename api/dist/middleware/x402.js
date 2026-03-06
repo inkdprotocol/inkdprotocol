@@ -31,6 +31,8 @@ exports.getPaymentAmount = getPaymentAmount;
 const express_1 = require("@x402/express");
 const http_1 = require("@x402/core/http");
 const http_2 = require("@x402/core/http");
+// @ts-ignore — subpath exists in dist but not declared in package.json exports map
+const server_1 = require("@x402/evm/exact/server");
 // CAIP-2 network identifiers
 exports.NETWORK_BASE_MAINNET = 'eip155:8453';
 exports.NETWORK_BASE_SEPOLIA = 'eip155:84532';
@@ -79,9 +81,15 @@ function buildX402Middleware(cfg) {
         },
     };
     const facilitator = new http_1.HTTPFacilitatorClient({ url: cfg.facilitatorUrl });
+    // Register ExactEvmScheme server-side so the resource server can build
+    // payment requirements (accepts[]) without needing a facilitator handshake.
+    // This allows syncFacilitatorOnStart=false (no cold-start blocking on Vercel).
+    const schemes = [
+        { network: networkId, server: new server_1.ExactEvmScheme() },
+    ];
     // syncFacilitatorOnStart=false: skip facilitator handshake on startup.
-    // Prevents cold-start timeouts on Vercel and avoids blocking the first request.
-    return (0, express_1.paymentMiddlewareFromConfig)(routes, facilitator, undefined, undefined, undefined, false);
+    // Scheme server is pre-registered above — accepts[] will be populated correctly.
+    return (0, express_1.paymentMiddlewareFromConfig)(routes, facilitator, schemes, undefined, undefined, false);
 }
 /**
  * Decode the x402 payment payload from the X-PAYMENT request header.
