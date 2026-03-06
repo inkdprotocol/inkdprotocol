@@ -129,4 +129,5 @@ subgraph/src/**/*.d.ts
 examples/**/*.js
 examples/**/*.d.ts
 scripts/*.js
+!scripts/daily-repo-scan.js
 scripts/*.d.ts
