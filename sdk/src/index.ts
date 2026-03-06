@@ -185,12 +185,12 @@ const TOKEN_ABI = [
 
 export const ADDRESSES = {
   mainnet: {
-    token: '' as Address,     // TBD post-launch
-    registry: '' as Address,
-    treasury: '' as Address,
+    token:    '0xa6f64A0D23e9d6eC918929af53df1C7b0D819B07' as Address,  // $TEST (Clanker, Base Mainnet)
+    registry: '0xEd3067dDa601f19A5737babE7Dd3AbfD4a783e5d' as Address,  // InkdRegistry Proxy
+    treasury: '0x23012C3EF1E95aBC0792c03671B9be33C239D449' as Address,  // InkdTreasury Proxy
   },
   testnet: {
-    token: '' as Address,     // TBD post-testnet deploy
+    token:    '' as Address,   // TBD post-testnet deploy
     registry: '' as Address,
     treasury: '' as Address,
   },

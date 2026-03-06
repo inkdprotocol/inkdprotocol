@@ -64,7 +64,7 @@ export function requirePrivateKey(cfg: InkdConfig): `0x${string}` {
 
 export const ADDRESSES = {
   mainnet: {
-    token:    '0x8826344c9b0bcfa860048203431062c555300b07' as Address,
+    token:    '0xa6f64A0D23e9d6eC918929af53df1C7b0D819B07' as Address,  // $TEST (Clanker, Base Mainnet)
     registry: '0xEd3067dDa601f19A5737babE7Dd3AbfD4a783e5d' as Address,
     treasury: '0x23012C3EF1E95aBC0792c03671B9be33C239D449' as Address,
   },
