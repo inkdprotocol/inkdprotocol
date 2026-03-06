@@ -154,14 +154,19 @@ export function projectsRouter(cfg: ApiConfig): Router {
   // ─── USDC transferWithAuthorization helper ─────────────────────────────────
   // Executes the EIP-3009 signed transfer from the X-PAYMENT header.
   // Must be called BEFORE Treasury.settle() so the USDC is in Treasury first.
+  /**
+   * Executes the EIP-3009 USDC transfer from X-PAYMENT header.
+   * Returns the next nonce to use for subsequent txns (avoids stale-nonce RPC issues).
+   */
   async function executeUsdcTransfer(
     req:               import('express').Request,
     walletClientWrap:  ReturnType<typeof buildWalletClient>['client'],
     publicClientInst:  ReturnType<typeof buildPublicClient>,
     usdcAddress:       Address,
-  ) {
+    serverAddress:     Address,
+  ): Promise<number | undefined> {
     const header = req.header('x-payment') ?? req.header('payment-signature')
-    if (!header) return
+    if (!header) return undefined
     const paymentPayload = decodePaymentSignatureHeader(header)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const auth = (paymentPayload?.payload as any)?.authorization
@@ -169,10 +174,14 @@ export function projectsRouter(cfg: ApiConfig): Router {
     const sig  = (paymentPayload?.payload as any)?.signature
     if (!auth || !sig) throw new Error('x402: missing EIP-3009 authorization or signature in X-PAYMENT header')
 
+    // Get current nonce ONCE — track manually to avoid stale RPC responses
+    const nonce = await publicClientInst.getTransactionCount({ address: serverAddress, blockTag: 'pending' })
+
     const hash = await walletClientWrap.writeContract({
       address:      usdcAddress,
       abi:          USDC_ABI,
       functionName: 'transferWithAuthorization',
+      nonce,
       args: [
         auth.from        as Address,
         auth.to          as Address,
@@ -186,6 +195,9 @@ export function projectsRouter(cfg: ApiConfig): Router {
 
     // Wait for confirmation — USDC must be in Treasury before settle() is called
     await publicClientInst.waitForTransactionReceipt({ hash, pollingInterval: 500 })
+
+    // Return next nonce (confirmed, safe to use immediately)
+    return nonce + 1
   }
 
   // ── GET /v1/projects/estimate?bytes=N ──────────────────────────────────────
@@ -261,8 +273,9 @@ export function projectsRouter(cfg: ApiConfig): Router {
         buildWalletClient(cfg, normalizePrivateKey(cfg.serverWalletKey))
 
       // Step 1: Execute EIP-3009 USDC transfer → moves funds into Treasury (wait for confirm)
+      let nextNonce: number | undefined
       if (cfg.usdcAddress && cfg.treasuryAddress) {
-        await executeUsdcTransfer(req, walletClient, publicClient, cfg.usdcAddress)
+        nextNonce = await executeUsdcTransfer(req, walletClient, publicClient, cfg.usdcAddress, walletAddress)
       }
 
       // Step 2: Settle X402 USDC payment → splits revenue (arweaveCost = 0 for createProject)
@@ -272,14 +285,17 @@ export function projectsRouter(cfg: ApiConfig): Router {
           address:      cfg.treasuryAddress,
           abi:          TREASURY_ABI,
           functionName: 'settle',
+          nonce:        nextNonce,
           args:         [settleAmountCreate, 0n],
         })
+        if (nextNonce !== undefined) nextNonce++
       }
 
       const hash = await walletClient.writeContract({
         address:      registryAddress,
         abi:          REGISTRY_ABI,
         functionName: 'createProject',
+        nonce:        nextNonce,
         args:         [name, description, license, isPublic, readmeHash, isAgent, agentEndpoint],
       })
 
@@ -364,8 +380,9 @@ export function projectsRouter(cfg: ApiConfig): Router {
         buildWalletClient(cfg, normalizePrivateKey(cfg.serverWalletKey))
 
       // Step 1: Execute EIP-3009 USDC transfer → moves funds into Treasury (wait for confirm)
+      let nextNonceV: number | undefined
       if (cfg.usdcAddress && cfg.treasuryAddress) {
-        await executeUsdcTransfer(req, walletClient, publicClient, cfg.usdcAddress)
+        nextNonceV = await executeUsdcTransfer(req, walletClient, publicClient, cfg.usdcAddress, walletAddress)
       }
 
       // Step 2: Settle X402 USDC payment → Treasury splits: arweaveCost + 20% markup
@@ -382,14 +399,17 @@ export function projectsRouter(cfg: ApiConfig): Router {
           address:      cfg.treasuryAddress,
           abi:          TREASURY_ABI,
           functionName: 'settle',
+          nonce:        nextNonceV,
           args:         [settleAmountVersion, arweaveCost],
         })
+        if (nextNonceV !== undefined) nextNonceV++
       }
 
       const hash = await walletClient.writeContract({
         address:      registryAddress,
         abi:          REGISTRY_ABI,
         functionName: 'pushVersion',
+        nonce:        nextNonceV,
         args:         [BigInt(id), tag, contentHash, metadataHash],
       })
 

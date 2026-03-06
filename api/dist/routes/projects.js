@@ -112,10 +112,14 @@ function projectsRouter(cfg) {
     // ─── USDC transferWithAuthorization helper ─────────────────────────────────
     // Executes the EIP-3009 signed transfer from the X-PAYMENT header.
     // Must be called BEFORE Treasury.settle() so the USDC is in Treasury first.
-    async function executeUsdcTransfer(req, walletClientWrap, publicClientInst, usdcAddress) {
+    /**
+     * Executes the EIP-3009 USDC transfer from X-PAYMENT header.
+     * Returns the next nonce to use for subsequent txns (avoids stale-nonce RPC issues).
+     */
+    async function executeUsdcTransfer(req, walletClientWrap, publicClientInst, usdcAddress, serverAddress) {
         const header = req.header('x-payment') ?? req.header('payment-signature');
         if (!header)
-            return;
+            return undefined;
         const paymentPayload = (0, http_1.decodePaymentSignatureHeader)(header);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const auth = paymentPayload?.payload?.authorization;
@@ -123,10 +127,13 @@ function projectsRouter(cfg) {
         const sig = paymentPayload?.payload?.signature;
         if (!auth || !sig)
             throw new Error('x402: missing EIP-3009 authorization or signature in X-PAYMENT header');
+        // Get current nonce ONCE — track manually to avoid stale RPC responses
+        const nonce = await publicClientInst.getTransactionCount({ address: serverAddress, blockTag: 'pending' });
         const hash = await walletClientWrap.writeContract({
             address: usdcAddress,
             abi: abis_js_1.USDC_ABI,
             functionName: 'transferWithAuthorization',
+            nonce,
             args: [
                 auth.from,
                 auth.to,
@@ -139,6 +146,8 @@ function projectsRouter(cfg) {
         });
         // Wait for confirmation — USDC must be in Treasury before settle() is called
         await publicClientInst.waitForTransactionReceipt({ hash, pollingInterval: 500 });
+        // Return next nonce (confirmed, safe to use immediately)
+        return nonce + 1;
     }
     // ── GET /v1/projects/estimate?bytes=N ──────────────────────────────────────
     // NOTE: must be registered BEFORE /:id to avoid Express matching 'estimate' as an id param.
@@ -204,8 +213,9 @@ function projectsRouter(cfg) {
             const paymentAmount = (0, x402_js_1.getPaymentAmount)(req);
             const { client: walletClient, address: walletAddress } = (0, clients_js_1.buildWalletClient)(cfg, (0, clients_js_1.normalizePrivateKey)(cfg.serverWalletKey));
             // Step 1: Execute EIP-3009 USDC transfer → moves funds into Treasury (wait for confirm)
+            let nextNonce;
             if (cfg.usdcAddress && cfg.treasuryAddress) {
-                await executeUsdcTransfer(req, walletClient, publicClient, cfg.usdcAddress);
+                nextNonce = await executeUsdcTransfer(req, walletClient, publicClient, cfg.usdcAddress, walletAddress);
             }
             // Step 2: Settle X402 USDC payment → splits revenue (arweaveCost = 0 for createProject)
             const settleAmountCreate = paymentAmount ?? x402_js_1.PRICE_CREATE_PROJECT;
@@ -214,13 +224,17 @@ function projectsRouter(cfg) {
                     address: cfg.treasuryAddress,
                     abi: abis_js_1.TREASURY_ABI,
                     functionName: 'settle',
+                    nonce: nextNonce,
                     args: [settleAmountCreate, 0n],
                 });
+                if (nextNonce !== undefined)
+                    nextNonce++;
             }
             const hash = await walletClient.writeContract({
                 address: registryAddress,
                 abi: abis_js_1.REGISTRY_ABI,
                 functionName: 'createProject',
+                nonce: nextNonce,
                 args: [name, description, license, isPublic, readmeHash, isAgent, agentEndpoint],
             });
             // Base Mainnet: ~2s block time — poll every 500ms to minimise latency on Vercel
@@ -295,8 +309,9 @@ function projectsRouter(cfg) {
             const paymentAmount = (0, x402_js_1.getPaymentAmount)(req);
             const { client: walletClient, address: walletAddress } = (0, clients_js_1.buildWalletClient)(cfg, (0, clients_js_1.normalizePrivateKey)(cfg.serverWalletKey));
             // Step 1: Execute EIP-3009 USDC transfer → moves funds into Treasury (wait for confirm)
+            let nextNonceV;
             if (cfg.usdcAddress && cfg.treasuryAddress) {
-                await executeUsdcTransfer(req, walletClient, publicClient, cfg.usdcAddress);
+                nextNonceV = await executeUsdcTransfer(req, walletClient, publicClient, cfg.usdcAddress, walletAddress);
             }
             // Step 2: Settle X402 USDC payment → Treasury splits: arweaveCost + 20% markup
             const settleAmountVersion = paymentAmount ?? x402_js_1.PRICE_PUSH_VERSION;
@@ -313,13 +328,17 @@ function projectsRouter(cfg) {
                     address: cfg.treasuryAddress,
                     abi: abis_js_1.TREASURY_ABI,
                     functionName: 'settle',
+                    nonce: nextNonceV,
                     args: [settleAmountVersion, arweaveCost],
                 });
+                if (nextNonceV !== undefined)
+                    nextNonceV++;
             }
             const hash = await walletClient.writeContract({
                 address: registryAddress,
                 abi: abis_js_1.REGISTRY_ABI,
                 functionName: 'pushVersion',
+                nonce: nextNonceV,
                 args: [BigInt(id), tag, contentHash, metadataHash],
             });
             // Base Mainnet: ~2s block time — poll every 500ms to minimise latency on Vercel
