@@ -98,3 +98,7 @@ scripts/generate-whitepaper-pdf.js
 
 # Old token hooks
 sdk/src/hooks/
+
+# Old markdown docs (superseded by Mintlify .mdx)
+docs/*.md
+docs/mint.json
