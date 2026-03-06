@@ -32,6 +32,33 @@ const express_1 = require("@x402/express");
 const http_1 = require("@x402/core/http");
 // @ts-ignore — subpath not in package.json exports map but exists in dist
 const server_1 = require("@x402/evm/exact/server");
+const crypto_1 = require("crypto");
+// ─── CDP JWT (pure Node.js crypto — no jose/cdp-sdk to avoid ESM issues) ──────
+function b64url(buf) {
+    return buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+}
+function buildCdpJwt(apiKeyId, apiKeySecret, method, host, path) {
+    const now = Math.floor(Date.now() / 1000);
+    const nonce = (0, crypto_1.randomBytes)(16).toString('hex');
+    // CDP Ed25519 secret: base64-encoded 64 bytes (first 32 = seed, last 32 = public key)
+    const decoded = Buffer.from(apiKeySecret, 'base64');
+    if (decoded.length !== 64)
+        throw new Error(`CDP key must be 64 bytes, got ${decoded.length}`);
+    const seed = decoded.subarray(0, 32);
+    // Build PKCS8 DER for Ed25519 private key
+    // ASN.1: SEQUENCE { version 0, AlgorithmIdentifier { OID 1.3.101.112 }, OCTET STRING { OCTET STRING { seed } } }
+    const pkcs8 = Buffer.concat([Buffer.from('302e020100300506032b657004220420', 'hex'), seed]);
+    const privateKey = (0, crypto_1.createPrivateKey)({ key: pkcs8, format: 'der', type: 'pkcs8' });
+    const header = b64url(Buffer.from(JSON.stringify({ alg: 'EdDSA', kid: apiKeyId, typ: 'JWT', nonce })));
+    const payload = b64url(Buffer.from(JSON.stringify({
+        sub: apiKeyId, iss: 'cdp',
+        nbf: now, iat: now, exp: now + 120,
+        uris: [`${method} ${host}${path}`],
+    })));
+    const signingInput = `${header}.${payload}`;
+    const signature = (0, crypto_1.sign)(null, Buffer.from(signingInput), privateKey);
+    return `${signingInput}.${b64url(signature)}`;
+}
 // CAIP-2 network identifiers
 exports.NETWORK_BASE_MAINNET = 'eip155:8453';
 exports.NETWORK_BASE_SEPOLIA = 'eip155:84532';
@@ -78,29 +105,16 @@ function buildX402Middleware(cfg) {
         },
     };
     // Build CDP JWT auth if credentials provided (required for Mainnet facilitator)
-    // The HTTPFacilitatorClient expects: () => Promise<{ verify, settle, supported }>
-    // where each key is a Record<string, string> of headers for that endpoint.
+    // Uses pure Node.js crypto — no jose/cdp-sdk dependency (avoids ESM/CJS conflicts)
     const cdpFacilitatorHost = 'api.cdp.coinbase.com';
     const createAuthHeaders = (cfg.cdpApiKeyId && cfg.cdpApiKeySecret)
-        ? async () => {
-            const { generateJwt } = await import('@coinbase/cdp-sdk/auth');
-            const makeJwt = (path) => generateJwt({
-                apiKeyId: cfg.cdpApiKeyId,
-                apiKeySecret: cfg.cdpApiKeySecret,
-                requestMethod: 'POST',
-                requestHost: cdpFacilitatorHost,
-                requestPath: `/platform/v2/x402/${path}`,
+        ? () => {
+            const makeBearer = (path) => `Bearer ${buildCdpJwt(cfg.cdpApiKeyId, cfg.cdpApiKeySecret, 'POST', cdpFacilitatorHost, `/platform/v2/x402/${path}`)}`;
+            return Promise.resolve({
+                verify: { Authorization: makeBearer('verify') },
+                settle: { Authorization: makeBearer('settle') },
+                supported: { Authorization: makeBearer('supported') },
             });
-            const [verifyJwt, settleJwt, supportedJwt] = await Promise.all([
-                makeJwt('verify'),
-                makeJwt('settle'),
-                makeJwt('supported'),
-            ]);
-            return {
-                verify: { Authorization: `Bearer ${verifyJwt}` },
-                settle: { Authorization: `Bearer ${settleJwt}` },
-                supported: { Authorization: `Bearer ${supportedJwt}` },
-            };
         }
         : undefined;
     const facilitator = new http_1.HTTPFacilitatorClient({ url: cfg.facilitatorUrl, createAuthHeaders });
