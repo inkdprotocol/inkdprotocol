@@ -354,3 +354,21 @@ export class InkdClient {
     }) as Promise<readonly bigint[]>
   }
 }
+
+// ── Encryption ──────────────────────────────────────────────────────────────
+export {
+  generateContentKey,
+  encryptContent,
+  decryptContent,
+  wrapKey,
+  unwrapKey,
+  privateKeyToCompressedPublicKey,
+  buildAccessManifest,
+  addRecipientToManifest,
+} from "./crypto.js";
+export type {
+  AccessManifest,
+  AccessManifestRecipient,
+  EncryptedContent,
+  WrappedKey,
+} from "./crypto.js";

@@ -32,6 +32,15 @@
  */
 
 import type { WalletClient, PublicClient, Account, Transport, Chain } from "viem";
+import {
+  generateContentKey,
+  encryptContent,
+  decryptContent,
+  privateKeyToCompressedPublicKey,
+  buildAccessManifest,
+  addRecipientToManifest,
+  type AccessManifest,
+} from "./crypto.js";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { wrapFetchWithPayment, x402Client } = require("@x402/fetch") as {
   wrapFetchWithPayment: (f: typeof fetch, c: unknown) => typeof fetch;
@@ -55,6 +64,11 @@ export interface ProjectsClientConfig {
   publicClient: PublicClient;
   /** Override the API base URL (default: https://api.inkdprotocol.com). */
   apiUrl?: string;
+  /**
+   * Private key (hex) for encrypting private projects.
+   * Required for createPrivateProject() and decryptVersion().
+   */
+  privateKey?: `0x${string}`;
 }
 
 export interface CreateProjectParams {
@@ -117,11 +131,13 @@ export interface UploadOptions {
 // ─── ProjectsClient ───────────────────────────────────────────────────────────
 
 export class ProjectsClient {
-  private readonly fetchPay: typeof fetch;
-  private readonly apiUrl:   string;
+  private readonly fetchPay:   typeof fetch;
+  private readonly apiUrl:     string;
+  private readonly privateKey: `0x${string}` | undefined;
 
   constructor(config: ProjectsClientConfig) {
-    const { wallet, publicClient, apiUrl = DEFAULT_API_URL } = config;
+    const { wallet, publicClient, apiUrl = DEFAULT_API_URL, privateKey } = config;
+    this.privateKey = privateKey;
     this.apiUrl = apiUrl;
 
     // Build a ClientEvmSigner with .address at top level (required by @x402/evm)
@@ -228,6 +244,126 @@ export class ProjectsClient {
   }
 
   // ─── Upload ──────────────────────────────────────────────────────────────────
+
+  // ─── Private Projects ────────────────────────────────────────────────────────
+
+  /**
+   * Create a private project. Encrypts content with AES-256-GCM + ECIES key wrapping.
+   * Only the owner (and collaborators added later) can decrypt.
+   * Requires `privateKey` in ProjectsClientConfig.
+   */
+  async createPrivateProject(
+    params: CreateProjectParams & { content: Buffer | Uint8Array; contentType?: string }
+  ): Promise<CreateProjectResult & { accessManifestHash: string }> {
+    if (!this.privateKey) throw new Error("privateKey required for private projects")
+
+    const privKeyHex  = this.privateKey.replace("0x", "")
+    const ownerPubKey = privateKeyToCompressedPublicKey(privKeyHex)
+    const ownerAddress = params.name // will be overridden below — we get from wallet
+
+    // 1. Generate AES key + encrypt content
+    const aesKey   = generateContentKey()
+    const content  = Buffer.from(params.content)
+    const encrypted = encryptContent(content, aesKey)
+
+    // 2. Upload encrypted blob to Arweave
+    const encryptedBlob = JSON.stringify(encrypted)
+    const contentUpload = await this.upload(Buffer.from(encryptedBlob), {
+      contentType: "application/inkd-encrypted",
+      filename:    `${params.name}.enc`,
+    })
+
+    // 3. Build access manifest (owner only — collaborators added via addCollaborator)
+    // We'll use a placeholder projectId until we get it from createProject
+    const tempManifest = buildAccessManifest(
+      0, // placeholder — updated after project creation
+      aesKey,
+      [{ address: "0x0000000000000000000000000000000000000000" as `0x${string}`, compressedPublicKey: ownerPubKey }]
+    )
+
+    // 4. Create project on-chain via API (isPublic: false)
+    const result = await this.createProject({ ...params, isPublic: false })
+
+    // 5. Rebuild manifest with real projectId + real owner address
+    const manifest = buildAccessManifest(
+      result.projectId,
+      aesKey,
+      [{ address: result.owner as `0x${string}`, compressedPublicKey: ownerPubKey }]
+    )
+
+    // 6. Upload access manifest to Arweave
+    const manifestUpload = await this.upload(Buffer.from(JSON.stringify(manifest)), {
+      contentType: "application/inkd-access-manifest",
+      filename:    `project-${result.projectId}-manifest.json`,
+    })
+
+    return {
+      ...result,
+      accessManifestHash: manifestUpload.hash,
+    }
+  }
+
+  /**
+   * Decrypt content from a private project version.
+   * Requires `privateKey` in ProjectsClientConfig.
+   */
+  async decryptVersion(
+    encryptedArweaveHash: string,
+    manifestArweaveHash:  string
+  ): Promise<Buffer> {
+    if (!this.privateKey) throw new Error("privateKey required for decryption")
+
+    const privKeyHex = this.privateKey.replace("0x", "")
+    const ownerPubKey = privateKeyToCompressedPublicKey(privKeyHex)
+
+    // Fetch encrypted content
+    const txId           = encryptedArweaveHash.replace("ar://", "")
+    const contentRes     = await fetch(`https://arweave.net/${txId}`)
+    const encryptedBlob  = await contentRes.json() as Parameters<typeof decryptContent>[0]
+
+    // Fetch access manifest
+    const manifestTxId  = manifestArweaveHash.replace("ar://", "")
+    const manifestRes   = await fetch(`https://arweave.net/${manifestTxId}`)
+    const manifest      = await manifestRes.json() as AccessManifest
+
+    // Find our entry in the manifest
+    const entry = manifest.contentKey.recipients.find(r => r.publicKey === ownerPubKey)
+    if (!entry) throw new Error("No access: wallet not in access manifest")
+
+    // Unwrap AES key and decrypt
+    const { unwrapKey } = await import("./crypto.js")
+    const aesKey = unwrapKey(entry.wrappedKey, privKeyHex)
+    return decryptContent(encryptedBlob, aesKey)
+  }
+
+  /**
+   * Add a collaborator to a private project.
+   * Owner fetches and re-encrypts the manifest with the new wallet's public key.
+   */
+  async addCollaborator(
+    manifestArweaveHash: string,
+    collaborator: { address: `0x${string}`; compressedPublicKey: string }
+  ): Promise<{ newManifestHash: string }> {
+    if (!this.privateKey) throw new Error("privateKey required")
+
+    const privKeyHex = this.privateKey.replace("0x", "")
+
+    // Fetch current manifest
+    const txId = manifestArweaveHash.replace("ar://", "")
+    const res  = await fetch(`https://arweave.net/${txId}`)
+    const manifest = await res.json() as AccessManifest
+
+    // Add new recipient
+    const newManifest = addRecipientToManifest(manifest, privKeyHex, collaborator)
+
+    // Upload updated manifest
+    const upload = await this.upload(Buffer.from(JSON.stringify(newManifest)), {
+      contentType: "application/inkd-access-manifest",
+      filename:    `project-${manifest.projectId}-manifest.json`,
+    })
+
+    return { newManifestHash: upload.hash }
+  }
 
   /**
    * Upload content to Arweave via the Inkd API.
