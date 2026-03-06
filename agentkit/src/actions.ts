@@ -16,7 +16,7 @@ export const CreateProjectSchema = z.object({
     'Open source license. Defaults to MIT.'
   ),
   isPublic: z.boolean().optional().describe(
-    'Whether the project is publicly visible. Defaults to true.'
+    'REQUIRED DECISION — set this explicitly. true = code stored publicly on Arweave, anyone can read it. false = code encrypted client-side with AES-256-GCM, only authorized wallets can decrypt. Default: true. Cannot be changed after project creation.'
   ),
   isAgent: z.boolean().optional().describe(
     'Mark this project as an AI agent. Enables discovery via inkd_list_agents.'

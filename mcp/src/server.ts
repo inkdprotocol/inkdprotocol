@@ -53,7 +53,8 @@ async function buildFetch() {
 
     const account = privateKeyToAccount(PRIVATE_KEY)
     const chain   = NETWORK === 'mainnet' ? base : baseSepolia
-    const payFetch = wrapFetchWithPayment(account, chain)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const payFetch = (wrapFetchWithPayment as any)(account, chain)
 
     return {
       fetch:   payFetch as typeof globalThis.fetch,
@@ -70,23 +71,23 @@ async function buildFetch() {
 const TOOLS = [
   {
     name:        'inkd_create_project',
-    description: 'Register a new project on inkd Protocol on-chain. The wallet address becomes the on-chain owner. Locks 1 $INKD permanently. Returns projectId and transaction hash.',
+    description: 'Register a new project on inkd Protocol on-chain. The wallet address becomes the permanent on-chain owner. Pay $0.10 USDC via x402. IMPORTANT: You MUST decide upfront if the project is public or private — this cannot be changed after creation. Public projects: code visible to everyone on Arweave. Private projects: code encrypted client-side with AES-256-GCM, only authorized wallets can decrypt.',
     inputSchema: {
       type: 'object',
       properties: {
-        name:          { type: 'string', description: 'Unique project name (1-64 chars)' },
+        name:          { type: 'string', description: 'Unique project name (1-64 chars, lowercase, no spaces)' },
         description:   { type: 'string', description: 'Short description (max 256 chars)' },
         license:       { type: 'string', description: 'License: MIT, Apache-2.0, GPL-3.0, Proprietary', default: 'MIT' },
-        isPublic:      { type: 'boolean', description: 'Public visibility', default: true },
-        isAgent:       { type: 'boolean', description: 'Mark as AI agent for discovery', default: false },
-        agentEndpoint: { type: 'string', description: 'Agent API endpoint URL (if isAgent=true)' },
+        isPublic:      { type: 'boolean', description: 'REQUIRED DECISION: true = anyone can read code on Arweave. false = code encrypted, only authorized wallets can decrypt. Default: true. Cannot be changed after creation.' },
+        isAgent:       { type: 'boolean', description: 'Mark as AI agent project for discovery in the agent registry', default: false },
+        agentEndpoint: { type: 'string', description: 'Agent API endpoint URL (required if isAgent=true)' },
       },
       required: ['name'],
     },
   },
   {
     name:        'inkd_push_version',
-    description: 'Push a new version to an inkd project. Content referenced by Arweave hash. Costs 0.001 ETH. Returns transaction hash.',
+    description: 'Push a new version to an inkd project. Upload content to Arweave first via inkd_upload, then pass the returned hash. For PRIVATE projects: encrypt content before uploading using inkd_encrypt_content. Costs dynamic USDC (Arweave cost + 20% markup, min $0.10).',
     inputSchema: {
       type: 'object',
       properties: {
@@ -131,6 +132,32 @@ const TOOLS = [
         limit:  { type: 'number', description: 'Max results (default 20)' },
         offset: { type: 'number', description: 'Pagination offset (default 0)' },
       },
+    },
+  },
+  {
+    name:        'inkd_upload',
+    description: 'Upload content to Arweave via Inkd. Returns an ar:// hash. Use this BEFORE inkd_push_version. For public projects: upload raw content. For private projects: encrypt first with inkd_encrypt_content, then upload the encrypted blob.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        content:     { type: 'string', description: 'Content to upload (text, JSON, code, etc.)' },
+        contentType: { type: 'string', description: 'MIME type (default: text/plain)', default: 'text/plain' },
+        filename:    { type: 'string', description: 'Optional filename for the upload' },
+      },
+      required: ['content'],
+    },
+  },
+  {
+    name:        'inkd_add_collaborator',
+    description: 'Add a collaborator wallet to a PRIVATE project. The collaborator can then decrypt the project content. Requires the access manifest hash from project creation and the collaborator\'s compressed secp256k1 public key.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        manifestHash:      { type: 'string', description: 'ar:// hash of the current access manifest (returned by inkd_create_project for private projects)' },
+        collaboratorAddress: { type: 'string', description: 'Ethereum address of the collaborator (0x...)' },
+        collaboratorPublicKey: { type: 'string', description: 'Compressed secp256k1 public key of collaborator (66 hex chars, starts with 02 or 03)' },
+      },
+      required: ['manifestHash', 'collaboratorAddress', 'collaboratorPublicKey'],
     },
   },
 ]
@@ -267,6 +294,73 @@ async function main() {
           }
 
           return { content: [{ type: 'text', text: lines.join('\n') }] }
+        }
+
+        case 'inkd_upload': {
+          const { content, contentType = 'text/plain', filename } = args as any
+          const buf = Buffer.from(content)
+          const body: Record<string, unknown> = {
+            data:        buf.toString('base64'),
+            contentType,
+          }
+          if (filename) body['filename'] = filename
+
+          const res = await inkdFetch(`${API_URL}/v1/upload`, {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify(body),
+          })
+
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}))
+            return { content: [{ type: 'text', text: `Upload error: ${JSON.stringify(err)}` }], isError: true }
+          }
+
+          const result = await res.json()
+          return {
+            content: [{
+              type: 'text',
+              text: `✅ Uploaded to Arweave\n\nHash: ${result.hash}\nURL: ${result.url}\nSize: ${result.bytes} bytes\n\nUse this hash in inkd_push_version as contentHash.`,
+            }],
+          }
+        }
+
+        case 'inkd_add_collaborator': {
+          if (!PRIVATE_KEY) {
+            return { content: [{ type: 'text', text: 'INKD_PRIVATE_KEY required to add collaborators.' }], isError: true }
+          }
+
+          const { manifestHash, collaboratorAddress, collaboratorPublicKey } = args as any
+
+          // Fetch current manifest from Arweave
+          const txId      = manifestHash.replace('ar://', '')
+          const manifestRes = await globalThis.fetch(`https://arweave.net/${txId}`)
+          const manifest  = await manifestRes.json()
+
+          // Re-encrypt for new collaborator
+          const { addRecipientToManifest } = await import('@inkd/sdk' as any)
+          const newManifest = addRecipientToManifest(manifest, PRIVATE_KEY.replace('0x', ''), {
+            address: collaboratorAddress,
+            compressedPublicKey: collaboratorPublicKey,
+          })
+
+          // Upload new manifest
+          const uploadRes = await inkdFetch(`${API_URL}/v1/upload`, {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({
+              data:        Buffer.from(JSON.stringify(newManifest)).toString('base64'),
+              contentType: 'application/inkd-access-manifest',
+            }),
+          })
+          const uploadResult = await uploadRes.json()
+
+          return {
+            content: [{
+              type: 'text',
+              text: `✅ Collaborator added!\n\nNew manifest hash: ${uploadResult.hash}\n\nUpdate your on-chain access manifest with setAccessManifest(projectId, "${uploadResult.hash}").`,
+            }],
+          }
         }
 
         default:
