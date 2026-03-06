@@ -68,3 +68,25 @@ file_*/
 *.log
 contracts/.env.mainnet
 contracts/.env.local
+
+# Internal docs (not for public)
+docs/X-*.md
+docs/twitter-queue.md
+docs/x-strategy.md
+docs/AUDIT_PREP.md
+docs/DISCORD_SETUP.md
+docs/tokenomics.md
+docs/whitepaper.pdf
+POST_DEPLOY.md
+SECURITY_REVIEW.md
+VOICE.md
+file_*
+
+# Build artifacts
+api/dist/
+
+# Env files with secrets
+contracts/.env.mainnet
+contracts/.env.local
+.env.local
+.env.*.local
