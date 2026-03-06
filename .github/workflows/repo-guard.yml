@@ -1,0 +1,71 @@
+name: Repo Guard
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  guard:
+    name: Check for forbidden content
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for secrets
+        run: |
+          echo "Scanning for secrets and sensitive content..."
+          FAILED=0
+
+          # Private keys
+          if grep -rE "PRIVATE_KEY=0x[0-9a-fA-F]{64}" --include="*.ts" --include="*.js" --include="*.env" --include="*.sh" . 2>/dev/null | grep -v ".env.example" | grep -v "YOUR_\|0x\.\.\." | grep -q .; then
+            echo "❌ Hardcoded private key detected"
+            FAILED=1
+          fi
+
+          # Known bad patterns
+          if grep -rE "BLOCKED_PATTERN_SEE_DOCS" . --include="*.ts" --include="*.js" 2>/dev/null | grep -q .; then
+            echo "❌ Known sensitive value detected"
+            FAILED=1
+          fi
+
+          # AGI Holdings references
+          if grep -rl "agi.holdings\|AGIHoldings\|agi_holdings" . --include="*.ts" --include="*.js" --include="*.md" --include="*.json" 2>/dev/null | grep -v ".git" | grep -q .; then
+            echo "❌ AGI Holdings reference detected"
+            FAILED=1
+          fi
+
+          if [ $FAILED -eq 1 ]; then
+            echo ""
+            echo "Repo guard blocked this push. Fix the issues above."
+            exit 1
+          fi
+
+          echo "✅ No forbidden content found."
+
+      - name: Check git author
+        run: |
+          AUTHOR=$(git log -1 --format="%an")
+          FORBIDDEN="AGI Holdings|NanoHermano|johnagent|AGIHoldings"
+          if echo "$AUTHOR" | grep -qiE "$FORBIDDEN"; then
+            echo "❌ Forbidden commit author: $AUTHOR"
+            exit 1
+          fi
+          echo "✅ Author OK: $AUTHOR"
+
+      - name: Check forbidden files
+        run: |
+          FAILED=0
+          FORBIDDEN_PATTERNS=(
+            "agi-holdings" "agi_holdings" "opencock" "percolator"
+            "poke-trader" "pumpfun" "SOUL.md" "MEMORY.md" "HEARTBEAT.md"
+          )
+          for pattern in "${FORBIDDEN_PATTERNS[@]}"; do
+            if find . -name "*${pattern}*" -not -path "./.git/*" 2>/dev/null | grep -q .; then
+              echo "❌ Forbidden file/folder pattern found: $pattern"
+              FAILED=1
+            fi
+          done
+          if [ $FAILED -eq 1 ]; then exit 1; fi
+          echo "✅ No forbidden files found."
