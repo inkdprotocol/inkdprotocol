@@ -67,6 +67,8 @@ if (cfg.x402Enabled && cfg.treasuryAddress) {
         treasuryAddress: cfg.treasuryAddress,
         facilitatorUrl: cfg.x402FacilitatorUrl,
         network: cfg.network,
+        cdpApiKeyId: cfg.cdpApiKeyId,
+        cdpApiKeySecret: cfg.cdpApiKeySecret,
     });
     app.use('/v1', x402);
     console.log(`  [x402] Payment middleware active → Treasury: ${cfg.treasuryAddress}`);

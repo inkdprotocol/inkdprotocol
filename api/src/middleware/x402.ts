@@ -7,7 +7,7 @@
  *   1. Agent sends POST /v1/projects (no payment yet)
  *   2. Server returns 402 with payment details ($5 USDC → Treasury Contract)
  *   3. Agent auto-pays via @x402/fetch (EIP-3009 signed transfer)
- *   4. Coinbase facilitator verifies USDC landed in Treasury
+ *   4. LocalFacilitator verifies the payment signature + amount
  *   5. Request proceeds — server calls Treasury.settle() to split revenue
  *   6. Registry transaction goes on-chain — payer address = owner
  *
@@ -19,63 +19,60 @@
  *   $1.00 → arweaveWallet   (Arweave storage)
  *   $2.00 → InkdBuyback     (auto-buys $INKD at $50 threshold)
  *   $2.00 → Treasury        (protocol revenue)
- *
- * Docs: https://x402.org | https://docs.cdp.coinbase.com/x402
  */
 
-import { paymentMiddlewareFromConfig }  from '@x402/express'
-import type { SchemeRegistration }       from '@x402/express'
-import { HTTPFacilitatorClient }        from '@x402/core/http'
-import { decodePaymentSignatureHeader } from '@x402/core/http'
-import type { RoutesConfig }            from '@x402/core/server'
-import type { RequestHandler, Request } from 'express'
-import type { Address }                 from 'viem'
-// @ts-ignore — subpath exists in dist but not declared in package.json exports map
-import { ExactEvmScheme as ExactEvmSchemeServer } from '@x402/evm/exact/server'
+import { paymentMiddleware, x402ResourceServer } from '@x402/express'
+import { decodePaymentSignatureHeader }           from '@x402/core/http'
+// @ts-ignore — subpath exists in dist
+import { ExactEvmScheme }                         from '@x402/evm/exact/server'
+import type { RoutesConfig }                      from '@x402/core/server'
+import type { RequestHandler, Request }           from 'express'
+import type { Address }                           from 'viem'
+import { LocalFacilitatorClient }                 from './localFacilitator.js'
 
-// CAIP-2 network identifiers
+// ─── Constants ────────────────────────────────────────────────────────────────
+
 export const NETWORK_BASE_MAINNET = 'eip155:8453'
 export const NETWORK_BASE_SEPOLIA = 'eip155:84532'
 
-// USDC contract addresses
 export const USDC_BASE_MAINNET = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' as Address
 export const USDC_BASE_SEPOLIA = '0x036CbD53842c5426634e7929541eC2318f3dCF7e' as Address
 
-// Fixed payment amounts per route (USDC, 6 decimals)
+/** Fixed payment amounts per route (USDC, 6 decimals) */
 export const PRICE_CREATE_PROJECT = 5_000_000n  // $5.00
 export const PRICE_PUSH_VERSION   = 2_000_000n  // $2.00
 
+// ─── Config ──────────────────────────────────────────────────────────────────
+
 export interface X402Config {
-  /** InkdTreasury contract address — receives all USDC payments */
-  treasuryAddress: Address
-  /** Coinbase facilitator URL. Default: https://x402.org/facilitator */
-  facilitatorUrl:  string
-  /** Network to accept payments on */
-  network:         'mainnet' | 'testnet'
+  treasuryAddress:  Address
+  facilitatorUrl:   string
+  network:          'mainnet' | 'testnet'
+  cdpApiKeyId?:     string | null
+  cdpApiKeySecret?: string | null
 }
 
+// ─── Middleware builder ───────────────────────────────────────────────────────
+
 /**
- * Build x402 USDC payment middleware for Inkd write endpoints.
+ * Build x402 USDC payment middleware.
+ * Uses LocalFacilitatorClient — no CDP dependency, no external HTTP calls on startup.
  *
- * NOTE: Routes are relative to /v1 mount point — no /v1 prefix here.
- * NOTE: syncFacilitatorOnStart=false — avoids blocking cold starts on Vercel.
+ * Routes are relative to /v1 mount point (app.use('/v1', x402)).
  */
 export function buildX402Middleware(cfg: X402Config): RequestHandler {
-  const networkId  = cfg.network === 'mainnet' ? NETWORK_BASE_MAINNET : NETWORK_BASE_SEPOLIA
-  const usdcAddr   = cfg.network === 'mainnet' ? USDC_BASE_MAINNET    : USDC_BASE_SEPOLIA
+  const networkId = cfg.network === 'mainnet' ? NETWORK_BASE_MAINNET : NETWORK_BASE_SEPOLIA
+  const usdcAddr  = cfg.network === 'mainnet' ? USDC_BASE_MAINNET    : USDC_BASE_SEPOLIA
 
   const routes: RoutesConfig = {
-    // Routes are relative to /v1 mount (app.use('/v1', x402))
+    // Paths relative to /v1 mount point
     'POST /projects': {
       accepts: {
         scheme:  'exact',
         payTo:   cfg.treasuryAddress,
         price:   '$5.00',
         network: networkId,
-        extra: {
-          token: usdcAddr,
-          name:  'USDC',
-        },
+        extra:   { token: usdcAddr, name: 'USDC' },
       },
       description: 'Register an AI agent or project on Inkd Protocol',
     },
@@ -85,33 +82,24 @@ export function buildX402Middleware(cfg: X402Config): RequestHandler {
         payTo:   cfg.treasuryAddress,
         price:   '$2.00',
         network: networkId,
-        extra: {
-          token: usdcAddr,
-          name:  'USDC',
-        },
+        extra:   { token: usdcAddr, name: 'USDC' },
       },
-      description: 'Push a new version to an Inkd project (permanent Arweave + on-chain)',
+      description: 'Push a new version to an Inkd project (Arweave + on-chain)',
     },
   }
 
-  const facilitator = new HTTPFacilitatorClient({ url: cfg.facilitatorUrl })
+  // Local facilitator — no CDP, no external HTTP calls, no JWT auth issues.
+  // Verifies EIP-3009 signatures locally. Settlement handled by Treasury contract.
+  const facilitator = new LocalFacilitatorClient(cfg.network, usdcAddr, cfg.treasuryAddress)
 
-  // Register ExactEvmScheme server-side so the resource server can build
-  // payment requirements (accepts[]) without needing a facilitator handshake.
-  // This allows syncFacilitatorOnStart=false (no cold-start blocking on Vercel).
-  const schemes: SchemeRegistration[] = [
-    { network: networkId, server: new ExactEvmSchemeServer() },
-  ]
+  const server = new x402ResourceServer(facilitator as any)
+    .register(networkId as `${string}:${string}`, new ExactEvmScheme())
 
-  // syncFacilitatorOnStart=false: skip facilitator handshake on startup.
-  // Scheme server is pre-registered above — accepts[] will be populated correctly.
-  return paymentMiddlewareFromConfig(routes, facilitator, schemes, undefined, undefined, false)
+  return paymentMiddleware(routes, server)
 }
 
-/**
- * Decode the x402 payment payload from the X-PAYMENT request header.
- * Returns null if header is absent or malformed.
- */
+// ─── Payment info helpers ─────────────────────────────────────────────────────
+
 function decodePaymentHeader(req: Request) {
   try {
     const header = req.header('x-payment') ?? req.header('payment-signature')
@@ -122,25 +110,16 @@ function decodePaymentHeader(req: Request) {
   }
 }
 
-/**
- * Extract the payer's wallet address from x402 payment headers.
- * This address becomes the on-chain owner of the project/version.
- *
- * EIP-3009 exact scheme: payload.authorization.from
- */
+/** Extract payer address — becomes on-chain owner of the project/version. */
 export function getPayerAddress(req: Request): Address | undefined {
   const payload = decodePaymentHeader(req)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const from = (payload?.payload as any)?.authorization?.from
-  return from as Address | undefined
+  return (payload?.payload as any)?.authorization?.from as Address | undefined
 }
 
 /**
- * Extract the amount paid (in USDC base units, 6 decimals).
- *
- * Falls back to route-hardcoded amounts if header is absent:
- *   POST /projects          → 5_000_000 ($5.00)
- *   POST /projects/.../versions → 2_000_000 ($2.00)
+ * Extract USDC amount paid (6 decimals).
+ * Falls back to route-hardcoded amounts if header absent.
  */
 export function getPaymentAmount(req: Request): bigint | undefined {
   const payload = decodePaymentHeader(req)
@@ -149,8 +128,6 @@ export function getPaymentAmount(req: Request): bigint | undefined {
   if (raw) {
     try { return BigInt(raw) } catch { /* fall through */ }
   }
-
-  // Fallback: derive amount from route shape
   if (req.method === 'POST' && req.path === '/') return PRICE_CREATE_PROJECT
   if (req.method === 'POST' && req.path.includes('/versions')) return PRICE_PUSH_VERSION
   return undefined
