@@ -93,7 +93,7 @@ Make inkd the standard code registry for AI agents. x402 + ERC-8004 + inkd = ful
 
 | Item | Status | Notes |
 |------|--------|-------|
-| **x402 Payment Layer** — `@inkd/api` protected by x402, wallet = identity | ✅ | `api/src/middleware/x402.ts` — $5 USDC/request; auto-settles to InkdTreasury, triggers $INKD buyback |
+| **x402 Payment Layer** — `@inkd/api` protected by x402, wallet = identity | ✅ | `api/src/middleware/x402.ts` — dynamic USDC pricing via x402; auto-settles to InkdTreasury |
 | **`InkdBuyback.sol`** — automated $INKD buyback funded by USDC revenue | ✅ | `deposit()` called by Treasury; swaps USDC→$INKD via Uniswap V3 at $50 threshold; 18 tests |
 | **`@inkd/agentkit`** — Coinbase AgentKit action provider | ✅ | 69 tests; inkd_create_project, inkd_push_version, inkd_list_agents, inkd_get_project; full docs: `docs/AGENTKIT.md` |
 | **`@inkd/mcp`** — Model Context Protocol server | ✅ | 33 tests; Claude Desktop + Cursor native integration; full docs: `docs/MCP.md` |

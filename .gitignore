@@ -90,3 +90,11 @@ contracts/.env.mainnet
 contracts/.env.local
 .env.local
 .env.*.local
+
+# Internal ops scripts
+scripts/inkd-tweet*.js
+scripts/clanker-launch.ts
+scripts/generate-whitepaper-pdf.js
+
+# Old token hooks
+sdk/src/hooks/
