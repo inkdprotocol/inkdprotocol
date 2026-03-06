@@ -1,0 +1,113 @@
+#!/bin/bash
+# Inkd Protocol — Pre-commit Guard
+# Blocks commits that contain secrets, wrong authors, or forbidden content.
+
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+ERRORS=0
+
+fail() { echo -e "${RED}[BLOCKED]${NC} $1"; ERRORS=$((ERRORS+1)); }
+warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
+
+# ── 1. Author identity ────────────────────────────────────────────────────────
+AUTHOR=$(git config user.name)
+EMAIL=$(git config user.email)
+FORBIDDEN_AUTHORS=("AGI Holdings" "AGIHoldings" "agi-holdings" "NanoHermano" "johnagent" "JohnAgent")
+for name in "${FORBIDDEN_AUTHORS[@]}"; do
+  if echo "$AUTHOR" | grep -qi "$name"; then
+    fail "Forbidden author name: '$AUTHOR'. Use 'Inkd Protocol' or your real name."
+  fi
+done
+
+# ── 2. Forbidden files ────────────────────────────────────────────────────────
+FORBIDDEN_PATTERNS=(
+  "\.env$"
+  "\.env\.mainnet"
+  "\.env\.local"
+  "\.env\.production"
+  "agi-holdings"
+  "agi_holdings"
+  "AGIHoldings"
+  "file_[0-9a-f].*\.(json|srt|vtt|tsv|txt)$"
+  "\.log$"
+  "api/dist/"
+  "SOUL\.md"
+  "USER\.md"
+  "MEMORY\.md"
+  "HEARTBEAT\.md"
+  "AGENTS\.md"
+  "IDENTITY\.md"
+  "TOOLS\.md"
+  "memory/"
+  "opencock"
+  "percolator"
+  "poke-trader"
+  "pumpfun"
+  "command-center"
+)
+STAGED=$(git diff --cached --name-only)
+for pattern in "${FORBIDDEN_PATTERNS[@]}"; do
+  matches=$(echo "$STAGED" | grep -iE "$pattern" || true)
+  if [ -n "$matches" ]; then
+    fail "Forbidden file pattern '$pattern' in staged files: $matches"
+  fi
+done
+
+# ── 3. Secret detection ───────────────────────────────────────────────────────
+SECRET_PATTERNS=(
+  "PRIVATE_KEY=0x[0-9a-fA-F]{64}"
+  "sk-ant-api[0-9A-Za-z-]+"
+  "sk-proj-[0-9A-Za-z]+"
+  "github_pat_[0-9A-Za-z]+"
+  "ghp_[0-9A-Za-z]{36}"
+  "Bearer [0-9A-Za-z+/]{40}"
+  "xC86" "seVw"
+  "0xdbdc" "8fcd"
+  "0xf42e" "cab7"
+)
+for file in $STAGED; do
+  # Skip hook files themselves
+  [[ "$file" == .githooks/* ]] && continue
+  [ -f "$file" ] || continue
+  for pattern in "${SECRET_PATTERNS[@]}"; do
+    if git show ":$file" 2>/dev/null | grep -qE "$pattern"; then
+      fail "Possible secret ($pattern) detected in: $file"
+    fi
+  done
+done
+
+# ── 4. Non-Inkd project folders ──────────────────────────────────────────────
+ALLOWED_ROOTS=(
+  "api/" "sdk/" "cli/" "contracts/" "docs/" "mcp/" "agentkit/"
+  "subgraph/" "specs/" "examples/" "scripts/" "assets/" ".github/" ".githooks/"
+  ".gitignore" ".gitmodules" ".env.example" "package" "tsconfig"
+  "vercel.json" "Makefile" "LICENSE" "README.md" "CHANGELOG"
+  "CONTRIBUTING" "CODE_OF_CONDUCT" "SECURITY.md" "ROADMAP" "SUBGRAPH"
+)
+for file in $STAGED; do
+  # Skip hook files themselves
+  [[ "$file" == .githooks/* ]] && continue
+  ALLOWED=false
+  for root in "${ALLOWED_ROOTS[@]}"; do
+    if echo "$file" | grep -q "^$root"; then
+      ALLOWED=true
+      break
+    fi
+  done
+  if [ "$ALLOWED" = false ]; then
+    fail "File '$file' is outside allowed Inkd project structure. Add to .gitignore or move to correct folder."
+  fi
+done
+
+# ── Result ────────────────────────────────────────────────────────────────────
+if [ $ERRORS -gt 0 ]; then
+  echo ""
+  echo -e "${RED}Commit blocked: $ERRORS issue(s) found.${NC}"
+  echo "Fix the issues above, then try again."
+  exit 1
+fi
+
+echo "✅ Pre-commit checks passed."
+exit 0
