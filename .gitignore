@@ -40,3 +40,29 @@ mcp/coverage/
 # One-off deployment scripts
 sdk/create-pool.js
 .env.mainnet
+
+# OpenClaw workspace internals (not part of inkd-protocol)
+.openclaw/
+AGENTS.md
+HEARTBEAT.md
+IDENTITY.md
+MEMORY.md
+SOUL.md
+TOOLS.md
+USER.md
+memory/
+memory-system/
+logs/
+builds/
+data/
+skills/
+system/
+projects/
+command-center/
+opencock/
+percolator-*/
+poke-trader/
+pumpfun-analytics/
+inkd-protocol/
+file_*/
+*.log
