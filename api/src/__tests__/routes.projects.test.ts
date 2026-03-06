@@ -56,6 +56,7 @@ const baseCfg: ApiConfig = {
   serverWalletAddress: '0xSERVER000000000000000000000000000000000A' as `0x${string}`,
   x402FacilitatorUrl: 'https://x402.org/facilitator',
   x402Enabled: false,
+  usdcAddress: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' as `0x${string}`,
     treasuryAddress: null,
 }
 

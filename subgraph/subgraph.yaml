@@ -67,6 +67,16 @@ dataSources:
           handler: handleReadmeUpdated
         - event: AgentRegistered(indexed uint256,string)
           handler: handleAgentRegistered
+        - event: ProjectCreatedV2(indexed uint256,indexed address,string,uint256,string)
+          handler: handleProjectCreatedV2
+        - event: VersionPushedV2(indexed uint256,string,string,indexed address,address)
+          handler: handleVersionPushedV2
+        - event: MetadataUriUpdated(indexed uint256,string)
+          handler: handleMetadataUriUpdated
+        - event: AccessManifestUpdated(indexed uint256,string)
+          handler: handleAccessManifestUpdated
+        - event: ProjectForked(indexed uint256,indexed uint256,indexed address)
+          handler: handleProjectForked
       file: ./src/registry.ts
 
   # ── InkdTreasury ────────────────────────────────────────────────────────────

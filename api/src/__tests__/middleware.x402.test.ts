@@ -1,25 +1,24 @@
 /**
  * @inkd/api — middleware/x402.ts unit tests
- *
  * Tests buildX402Middleware(), getPayerAddress(), and NETWORK_BASE_* constants.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { Request } from 'express'
 import type { Address } from 'viem'
 
-// Mock @x402/express and @x402/core/http BEFORE importing the module under test
+const mockRegister   = vi.fn().mockReturnThis()
+const mockPaymentMw  = vi.fn(() => (_req: unknown, _res: unknown, next: () => void) => next())
+
 vi.mock('@x402/express', () => ({
-  paymentMiddlewareFromConfig: vi.fn((_routes: unknown, _client: unknown) => {
-    return (_req: unknown, _res: unknown, next: () => void) => next()
+  paymentMiddleware: mockPaymentMw,
+  x402ResourceServer: vi.fn(function (this: Record<string, unknown>) {
+    this.register = mockRegister
   }),
 }))
 
-vi.mock('@x402/core/http', () => {
-  const MockHTTPFacilitatorClient = vi.fn(function (this: { url: string }, opts: { url: string }) {
-    this.url = opts.url
-  })
-  return { HTTPFacilitatorClient: MockHTTPFacilitatorClient }
-})
+vi.mock('../middleware/localFacilitator.js', () => ({
+  LocalFacilitatorClient: vi.fn(function (this: Record<string, unknown>) {}),
+}))
 
 import {
   getPayerAddress,
@@ -27,20 +26,17 @@ import {
   NETWORK_BASE_MAINNET,
   NETWORK_BASE_SEPOLIA,
 } from '../middleware/x402.js'
-import { paymentMiddlewareFromConfig } from '@x402/express'
-import { HTTPFacilitatorClient }       from '@x402/core/http'
 
 // ─── buildX402Middleware() ────────────────────────────────────────────────────
 
 describe('buildX402Middleware()', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-  })
+  beforeEach(() => { vi.clearAllMocks() })
 
   const baseConfig = {
-    treasuryAddress:          '0xABCDEF1234567890ABCDef1234567890AbCdEf01' as Address,
-    facilitatorUrl: 'https://x402.org/facilitator',
-    network:        'testnet' as const,
+    treasuryAddress: '0xABCDEF1234567890ABCDef1234567890AbCdEf01' as Address,
+    facilitatorUrl:  'https://x402.org/facilitator',
+    network:         'testnet' as const,
+    usdcAddress:     '0x036CbD53842c5426634e7929541eC2318f3dCF7e' as Address,
   }
 
   it('returns a middleware function', () => {
@@ -48,53 +44,32 @@ describe('buildX402Middleware()', () => {
     expect(typeof mw).toBe('function')
   })
 
-  it('instantiates HTTPFacilitatorClient with the given facilitatorUrl', () => {
+  it('calls paymentMiddleware once', () => {
     buildX402Middleware(baseConfig)
-    expect(HTTPFacilitatorClient).toHaveBeenCalledWith({
-      url: 'https://x402.org/facilitator',
-    })
+    expect(mockPaymentMw).toHaveBeenCalledTimes(1)
   })
 
-  it('calls paymentMiddlewareFromConfig with routes and facilitator', () => {
+  it('passes routes for POST /v1/projects and POST /v1/projects/:id/versions', () => {
     buildX402Middleware(baseConfig)
-    expect(paymentMiddlewareFromConfig).toHaveBeenCalledTimes(1)
-    const [routes] = (paymentMiddlewareFromConfig as ReturnType<typeof vi.fn>).mock.calls[0] as [Record<string, unknown>]
+    const [routes] = mockPaymentMw.mock.calls[0] as [Record<string, unknown>]
     expect(routes).toHaveProperty('POST /v1/projects')
     expect(routes).toHaveProperty('POST /v1/projects/:id/versions')
   })
 
-  it('uses NETWORK_BASE_SEPOLIA for testnet', () => {
+  it('registers correct network for testnet', () => {
     buildX402Middleware({ ...baseConfig, network: 'testnet' })
-    const [routes] = (paymentMiddlewareFromConfig as ReturnType<typeof vi.fn>).mock.calls[0] as [Record<string, { accepts: { network: string } }>]
-    expect(routes['POST /v1/projects'].accepts.network).toBe(NETWORK_BASE_SEPOLIA)
+    expect(mockRegister).toHaveBeenCalledWith(NETWORK_BASE_SEPOLIA, expect.anything())
   })
 
-  it('uses NETWORK_BASE_MAINNET for mainnet', () => {
+  it('registers correct network for mainnet', () => {
     buildX402Middleware({ ...baseConfig, network: 'mainnet' })
-    const [routes] = (paymentMiddlewareFromConfig as ReturnType<typeof vi.fn>).mock.calls[0] as [Record<string, { accepts: { network: string } }>]
-    expect(routes['POST /v1/projects'].accepts.network).toBe(NETWORK_BASE_MAINNET)
+    expect(mockRegister).toHaveBeenCalledWith(NETWORK_BASE_MAINNET, expect.anything())
   })
 
-  it('sets treasuryAddress in both route configs', () => {
+  it('sets payTo to treasuryAddress in route configs', () => {
     buildX402Middleware(baseConfig)
-    const [routes] = (paymentMiddlewareFromConfig as ReturnType<typeof vi.fn>).mock.calls[0] as [Record<string, { accepts: { payTo: string } }>]
-    const routeKeys = Object.keys(routes)
-    expect(routes[routeKeys[0]]!.accepts.payTo).toBe(baseConfig.treasuryAddress)
-    expect(routes[routeKeys[1]]!.accepts.payTo).toBe(baseConfig.treasuryAddress)
-  })
-
-  it('sets price to $0.001 in both route configs', () => {
-    buildX402Middleware(baseConfig)
-    const [routes] = (paymentMiddlewareFromConfig as ReturnType<typeof vi.fn>).mock.calls[0] as [Record<string, { accepts: { price: string } }>]
-    expect(routes['POST /v1/projects'].accepts.price).toBe('$5.00') // create project
-    expect(routes['POST /v1/projects/:id/versions'].accepts.price).toBe('$2.00') // push version
-  })
-
-  it('uses custom facilitatorUrl when provided', () => {
-    buildX402Middleware({ ...baseConfig, facilitatorUrl: 'https://custom.facilitator.io' })
-    expect(HTTPFacilitatorClient).toHaveBeenCalledWith({
-      url: 'https://custom.facilitator.io',
-    })
+    const [routes] = mockPaymentMw.mock.calls[0] as [Record<string, { accepts: { payTo: string } }>]
+    expect(routes['POST /v1/projects']!.accepts.payTo).toBe(baseConfig.treasuryAddress)
   })
 })
 
@@ -109,37 +84,26 @@ describe('NETWORK constants', () => {
   })
 })
 
+// ─── getPayerAddress() ────────────────────────────────────────────────────────
+
 describe('getPayerAddress()', () => {
   it('returns payer address when x402 payment exists', () => {
     const req = {
-      x402: {
-        payment: {
-          payload: {
-            authorization: {
-              from: '0xABCDEF1234567890ABCDef1234567890AbCdEf01',
-            },
-          },
-        },
-      },
+      x402Payment: {
+        payload: { authorization: { from: '0xABCDEF1234567890ABCDef1234567890AbCdEf01' } }
+      }
     } as unknown as Request
-
-    expect(getPayerAddress(req)).toBe('0xABCDEF1234567890ABCDef1234567890AbCdEf01')
+    const addr = getPayerAddress(req)
+    expect(addr).toBe('0xABCDEF1234567890ABCDef1234567890AbCdEf01')
   })
 
-  it('returns undefined when no x402 payment', () => {
+  it('returns undefined when no x402Payment header', () => {
     const req = {} as Request
     expect(getPayerAddress(req)).toBeUndefined()
   })
 
-  it('returns undefined when x402 is present but payment is missing', () => {
-    const req = { x402: {} } as unknown as Request
-    expect(getPayerAddress(req)).toBeUndefined()
-  })
-
-  it('returns undefined when authorization.from is missing', () => {
-    const req = {
-      x402: { payment: { payload: { authorization: {} } } },
-    } as unknown as Request
+  it('returns undefined when payment is malformed', () => {
+    const req = { x402Payment: {} } as unknown as Request
     expect(getPayerAddress(req)).toBeUndefined()
   })
 })

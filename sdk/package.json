@@ -1,20 +1,15 @@
 {
   "name": "@inkd/sdk",
   "version": "0.9.0",
-  "description": "TypeScript SDK for Inkd Protocol — permanent on-chain file ownership on Base",
+  "description": "TypeScript SDK for Inkd Protocol \u2014 permanent on-chain file ownership on Base",
   "main": "dist/index.js",
-  "module": "dist/index.mjs",
+  "module": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.mjs",
+      "import": "./dist/index.js",
       "require": "./dist/index.js",
       "types": "./dist/index.d.ts"
-    },
-    "./hooks": {
-      "import": "./dist/hooks/index.mjs",
-      "require": "./dist/hooks/index.js",
-      "types": "./dist/hooks/index.d.ts"
     }
   },
   "files": [

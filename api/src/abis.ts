@@ -123,6 +123,62 @@ export const REGISTRY_ABI = [
     ],
     outputs: [],
   },
+  // ── V2 Write ──────────────────────────────────────────────────────────────
+  {
+    name: 'createProjectV2',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'name',               type: 'string'  },
+      { name: 'description',        type: 'string'  },
+      { name: 'license',            type: 'string'  },
+      { name: 'isPublic',           type: 'bool'    },
+      { name: 'readmeHash',         type: 'string'  },
+      { name: 'isAgent',            type: 'bool'    },
+      { name: 'agentEndpoint',      type: 'string'  },
+      { name: 'metadataUri',        type: 'string'  },
+      { name: 'forkOf',             type: 'uint256' },
+      { name: 'accessManifestHash', type: 'string'  },
+      { name: 'tagsHash',           type: 'bytes32' },
+    ],
+    outputs: [],
+  },
+  {
+    name: 'pushVersionV2',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'projectId',                 type: 'uint256' },
+      { name: 'arweaveHash',               type: 'string'  },
+      { name: 'versionTag',                type: 'string'  },
+      { name: 'changelog',                 type: 'string'  },
+      { name: 'agentAddress',              type: 'address' },
+      { name: 'versionMetadataArweaveHash', type: 'string' },
+    ],
+    outputs: [],
+  },
+  // ── V2 View ───────────────────────────────────────────────────────────────
+  {
+    name: 'projectMetadataUri',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'projectId', type: 'uint256' }],
+    outputs: [{ type: 'string' }],
+  },
+  {
+    name: 'projectForkOf',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'projectId', type: 'uint256' }],
+    outputs: [{ type: 'uint256' }],
+  },
+  {
+    name: 'projectAccessManifest',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'projectId', type: 'uint256' }],
+    outputs: [{ type: 'string' }],
+  },
   // ── Events ────────────────────────────────────────────────────────────────
   {
     type: 'event',
@@ -143,6 +199,28 @@ export const REGISTRY_ABI = [
       { name: 'tag',         type: 'string',  indexed: false },
       { name: 'contentHash', type: 'string',  indexed: false },
       { name: 'pusher',      type: 'address', indexed: true  },
+    ],
+  },
+  {
+    type: 'event',
+    name: 'ProjectCreatedV2',
+    inputs: [
+      { name: 'projectId',   type: 'uint256', indexed: true  },
+      { name: 'owner',       type: 'address', indexed: true  },
+      { name: 'name',        type: 'string',  indexed: false },
+      { name: 'forkOf',      type: 'uint256', indexed: false },
+      { name: 'metadataUri', type: 'string',  indexed: false },
+    ],
+  },
+  {
+    type: 'event',
+    name: 'VersionPushedV2',
+    inputs: [
+      { name: 'projectId',    type: 'uint256', indexed: true  },
+      { name: 'arweaveHash',  type: 'string',  indexed: false },
+      { name: 'versionTag',   type: 'string',  indexed: false },
+      { name: 'agentAddress', type: 'address', indexed: true  },
+      { name: 'relayer',      type: 'address', indexed: false },
     ],
   },
 ] as const

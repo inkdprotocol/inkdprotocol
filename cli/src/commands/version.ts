@@ -200,5 +200,10 @@ export async function cmdVersionShow(args: string[]): Promise<void> {
   }
   info(`Pushed by:     ${version['pushedBy'] as string}`)
   info(`Pushed at:     ${GREEN}${formatDate(version['pushedAt'] as bigint)}${RESET}`)
+  const changelog = version['changelog'] as string | undefined
+  if (changelog) {
+    console.log()
+    info(`Changelog:     ${changelog}`)
+  }
   console.log()
 }

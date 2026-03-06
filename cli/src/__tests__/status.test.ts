@@ -69,32 +69,19 @@ afterEach(() => {
 // ─── cmdStatus ────────────────────────────────────────────────────────────────
 
 describe("cmdStatus", () => {
-  it("reads versionFee, transferFee, and projectCount in parallel", async () => {
-    mockReadContract
-      .mockResolvedValueOnce(parseEther("0.001")) // versionFee
-      .mockResolvedValueOnce(parseEther("0.01"))  // transferFee
-      .mockResolvedValueOnce(42n);                // projectCount
+  it("reads projectCount from contract", async () => {
+    mockReadContract.mockResolvedValueOnce(42n); // projectCount
 
     const { cmdStatus } = await import("../commands/status.js");
     await cmdStatus();
 
-    expect(mockReadContract).toHaveBeenCalledTimes(3);
-    expect(mockReadContract).toHaveBeenCalledWith(
-      expect.objectContaining({ functionName: "versionFee" })
-    );
-    expect(mockReadContract).toHaveBeenCalledWith(
-      expect.objectContaining({ functionName: "transferFee" })
-    );
     expect(mockReadContract).toHaveBeenCalledWith(
       expect.objectContaining({ functionName: "projectCount" })
     );
   });
 
-  it("displays project count and fee values", async () => {
-    mockReadContract
-      .mockResolvedValueOnce(parseEther("0.001"))
-      .mockResolvedValueOnce(parseEther("0.01"))
-      .mockResolvedValueOnce(99n);
+  it("displays project count", async () => {
+    mockReadContract.mockResolvedValueOnce(99n);
 
     const { cmdStatus } = await import("../commands/status.js");
     await cmdStatus();
@@ -102,15 +89,10 @@ describe("cmdStatus", () => {
     const { info } = await import("../config.js");
     const infoCalls = (info as Mock).mock.calls.flat().join(" ");
     expect(infoCalls).toContain("99");
-    expect(infoCalls).toContain("0.001");
-    expect(infoCalls).toContain("0.01");
   });
 
   it("shows network and rpcUrl from config", async () => {
-    mockReadContract
-      .mockResolvedValueOnce(0n)
-      .mockResolvedValueOnce(0n)
-      .mockResolvedValueOnce(0n);
+    mockReadContract.mockResolvedValue(0n);
 
     const { cmdStatus } = await import("../commands/status.js");
     await cmdStatus();
@@ -125,10 +107,7 @@ describe("cmdStatus", () => {
     const { loadConfig } = await import("../config.js");
     (loadConfig as Mock).mockReturnValueOnce({ network: "testnet", rpcUrl: undefined });
 
-    mockReadContract
-      .mockResolvedValueOnce(0n)
-      .mockResolvedValueOnce(0n)
-      .mockResolvedValueOnce(0n);
+    mockReadContract.mockResolvedValue(0n);
 
     const { cmdStatus } = await import("../commands/status.js");
     await cmdStatus();
@@ -165,10 +144,7 @@ describe("cmdStatus", () => {
   });
 
   it("displays contract addresses from ADDRESSES config", async () => {
-    mockReadContract
-      .mockResolvedValueOnce(0n)
-      .mockResolvedValueOnce(0n)
-      .mockResolvedValueOnce(0n);
+    mockReadContract.mockResolvedValue(0n);
 
     const { cmdStatus } = await import("../commands/status.js");
     await cmdStatus();
@@ -185,10 +161,7 @@ describe("cmdStatus", () => {
     const origToken = (ADDRESSES as Record<string, Record<string, string>>).testnet.token;
     (ADDRESSES as Record<string, Record<string, string>>).testnet.token = "";
 
-    mockReadContract
-      .mockResolvedValueOnce(0n)
-      .mockResolvedValueOnce(0n)
-      .mockResolvedValueOnce(0n);
+    mockReadContract.mockResolvedValue(0n);
 
     const { cmdStatus } = await import("../commands/status.js");
     await cmdStatus();

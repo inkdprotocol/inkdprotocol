@@ -6,7 +6,7 @@
 # ─── Project ─────────────────────────────────────────────────────────────────
 
 """
-A registered project on Inkd Protocol. Created by locking 1 $INKD.
+A registered project on Inkd Protocol.
 """
 type Project @entity {
   " Stringified projectId (uint256) "
@@ -53,6 +53,18 @@ type Project @entity {
 
   " Historical ownership transfers "
   transfers: [ProjectTransfer!]! @derivedFrom(field: "project")
+
+  " [V2] Arweave hash of extensible project metadata JSON "
+  metadataUri: String
+
+  " [V2] Fork lineage — projectId this was forked from (0 = original) "
+  forkOf: BigInt
+
+  " [V2] Arweave hash of multi-wallet access control manifest "
+  accessManifest: String
+
+  " [V2] Projects that forked from this one "
+  forks: [Project!]! @derivedFrom(field: "forkOf")
 }
 
 # ─── Version ──────────────────────────────────────────────────────────────────
@@ -76,8 +88,11 @@ type Version @entity {
   " On-chain changelog text "
   changelog: String!
 
-  " Address that pushed this version "
+  " Address that pushed this version (server relay wallet) "
   pushedBy: Bytes!
+
+  " [V2] Real agent/user address that initiated the push "
+  agentAddress: Bytes
 
   " Block timestamp of the push "
   pushedAt: BigInt!

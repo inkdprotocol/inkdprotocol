@@ -13,6 +13,21 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import type { Mock } from "vitest";
 import { parseEther } from "viem";
 
+// ─── @inkd/sdk mock (hoisted so vi.mock can reference it) ─────────────────────
+const hoisted = vi.hoisted(() => ({
+  mockCreateProject: vi.fn().mockResolvedValue({
+    projectId: 1n,
+    owner: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+    txHash: "0xdeadbeefdeadbeefdeadbeef" as `0x${string}`,
+  }),
+}))
+
+vi.mock("@inkd/sdk", () => ({
+  ProjectsClient: vi.fn(function () {
+    return { createProject: hoisted.mockCreateProject }
+  }),
+}))
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const MOCK_TX_HASH = "0xdeadbeefdeadbeefdeadbeef" as `0x${string}`;
@@ -244,29 +259,23 @@ describe("cmdProjectList", () => {
 
 describe("cmdProjectCreate", () => {
   let consoleLog: ReturnType<typeof vi.spyOn>;
-  let exitSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     consoleLog = vi.spyOn(console, "log").mockImplementation(() => {});
     vi.spyOn(console, "error").mockImplementation(() => {});
-    exitSpy = vi
-      .spyOn(process, "exit")
-      .mockImplementation((_code?: number | string | null | undefined) => {
-        throw new Error("process.exit");
-      });
-
-    // Default: allowance is sufficient, tx succeeds
-    mockReadContract = vi
-      .fn()
-      .mockResolvedValue(parseEther("10")); // allowance >= 1 INKD
-    mockWriteContract = vi.fn().mockResolvedValue(MOCK_TX_HASH);
-    mockWaitForReceipt = vi
-      .fn()
-      .mockResolvedValue({ status: "success", blockNumber: 12345n });
+    vi.spyOn(process, "exit").mockImplementation((_code?: number | string | null | undefined) => {
+      throw new Error("process.exit");
+    });
+    hoisted.mockCreateProject.mockResolvedValue({
+      projectId: 1n,
+      owner: MOCK_OWNER,
+      txHash: MOCK_TX_HASH,
+    })
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+    hoisted.mockCreateProject.mockClear();
   });
 
   it("exits when --name is missing", async () => {
@@ -274,212 +283,57 @@ describe("cmdProjectCreate", () => {
     await expect(cmdProjectCreate([])).rejects.toThrow("process.exit");
   });
 
-  it("calls createProject on registry with correct args", async () => {
+  it("calls createProject with correct args", async () => {
     const { cmdProjectCreate } = await import("../commands/project.js");
     await cmdProjectCreate([
-      "--name",
-      "my-agent",
-      "--description",
-      "Cool agent",
-      "--license",
-      "Apache-2.0",
+      "--name", "my-agent",
+      "--description", "Cool agent",
+      "--license", "Apache-2.0",
     ]);
 
-    expect(mockWriteContract).toHaveBeenCalledTimes(1);
-    const call = mockWriteContract.mock.calls[0][0];
-    expect(call.functionName).toBe("createProject");
-    expect(call.args[0]).toBe("my-agent");
-    expect(call.args[1]).toBe("Cool agent");
-    expect(call.args[2]).toBe("Apache-2.0");
-  });
-
-  it("approves token spending when allowance is insufficient", async () => {
-    mockReadContract = vi.fn().mockResolvedValue(0n); // allowance = 0
-    mockWriteContract = vi.fn().mockResolvedValue(MOCK_TX_HASH);
-    mockWaitForReceipt = vi
-      .fn()
-      .mockResolvedValue({ status: "success", blockNumber: 12345n });
-
-    const { cmdProjectCreate } = await import("../commands/project.js");
-    await cmdProjectCreate(["--name", "my-agent"]);
-
-    // First writeContract = approve, second = createProject
-    expect(mockWriteContract).toHaveBeenCalledTimes(2);
-    expect(mockWriteContract.mock.calls[0][0].functionName).toBe("approve");
-    expect(mockWriteContract.mock.calls[1][0].functionName).toBe("createProject");
+    expect(hoisted.mockCreateProject).toHaveBeenCalledTimes(1);
+    const call = hoisted.mockCreateProject.mock.calls[0][0];
+    expect(call.name).toBe("my-agent");
+    expect(call.description).toBe("Cool agent");
+    expect(call.license).toBe("Apache-2.0");
   });
 
   it("marks project as private when --private flag is set", async () => {
     const { cmdProjectCreate } = await import("../commands/project.js");
     await cmdProjectCreate(["--name", "secret-agent", "--private"]);
-
-    const call = mockWriteContract.mock.calls[0][0];
-    // isPublic is args[3]
-    expect(call.args[3]).toBe(false);
+    const call = hoisted.mockCreateProject.mock.calls[0][0];
+    expect(call.isPublic).toBe(false);
   });
 
   it("marks project as agent when --agent flag is set", async () => {
     const { cmdProjectCreate } = await import("../commands/project.js");
     await cmdProjectCreate(["--name", "autonomous", "--agent"]);
-
-    const call = mockWriteContract.mock.calls[0][0];
-    // isAgent is args[5]
-    expect(call.args[5]).toBe(true);
+    const call = hoisted.mockCreateProject.mock.calls[0][0];
+    expect(call.isAgent).toBe(true);
   });
 
   it("sets agentEndpoint when --endpoint is provided", async () => {
     const { cmdProjectCreate } = await import("../commands/project.js");
-    await cmdProjectCreate([
-      "--name",
-      "bot",
-      "--agent",
-      "--endpoint",
-      "https://bot.example.com",
-    ]);
-
-    const call = mockWriteContract.mock.calls[0][0];
-    // agentEndpoint is args[6]
-    expect(call.args[6]).toBe("https://bot.example.com");
+    await cmdProjectCreate(["--name", "bot", "--agent", "--endpoint", "https://bot.example.com"]);
+    const call = hoisted.mockCreateProject.mock.calls[0][0];
+    expect(call.agentEndpoint).toBe("https://bot.example.com");
   });
 
-  it("prints success when transaction succeeds", async () => {
+  it("prints success with project name", async () => {
     const { cmdProjectCreate } = await import("../commands/project.js");
     await cmdProjectCreate(["--name", "ok-agent"]);
-
     const logged = consoleLog.mock.calls.map((c: unknown[]) => c.join(" ")).join("\n");
     expect(logged).toMatch(/ok-agent/);
   });
 
-  it("calls process.exit when transaction reverts", async () => {
-    mockWaitForReceipt = vi
-      .fn()
-      .mockResolvedValue({ status: "reverted", blockNumber: 12345n });
-
+  it("calls process.exit when createProject throws", async () => {
+    hoisted.mockCreateProject.mockRejectedValueOnce(new Error("payment failed"));
     const { cmdProjectCreate } = await import("../commands/project.js");
-    await expect(
-      cmdProjectCreate(["--name", "fail-agent"])
-    ).rejects.toThrow("process.exit");
+    await expect(cmdProjectCreate(["--name", "fail-agent"])).rejects.toThrow("process.exit");
   });
 });
 
-// ─── cmdProjectTransfer ───────────────────────────────────────────────────────
 
-describe("cmdProjectTransfer", () => {
-  let exitSpy: ReturnType<typeof vi.spyOn>;
-
-  beforeEach(() => {
-    vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
-    exitSpy = vi
-      .spyOn(process, "exit")
-      .mockImplementation((_code?: number | string | null | undefined) => {
-        throw new Error("process.exit");
-      });
-
-    mockReadContract = vi.fn().mockResolvedValue(parseEther("0.001")); // transferFee
-    mockWriteContract = vi.fn().mockResolvedValue(MOCK_TX_HASH);
-    mockWaitForReceipt = vi.fn().mockResolvedValue({ status: "success" });
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  it("exits when --id is missing", async () => {
-    const { cmdProjectTransfer } = await import("../commands/project.js");
-    await expect(
-      cmdProjectTransfer(["--to", MOCK_TO])
-    ).rejects.toThrow("process.exit");
-  });
-
-  it("exits when --to is missing", async () => {
-    const { cmdProjectTransfer } = await import("../commands/project.js");
-    await expect(
-      cmdProjectTransfer(["--id", "1"])
-    ).rejects.toThrow("process.exit");
-  });
-
-  it("exits when --to is not a valid address", async () => {
-    const { cmdProjectTransfer } = await import("../commands/project.js");
-    await expect(
-      cmdProjectTransfer(["--id", "1", "--to", "not-an-address"])
-    ).rejects.toThrow("process.exit");
-  });
-
-  it("calls transferProject with correct args including fee", async () => {
-    const { cmdProjectTransfer } = await import("../commands/project.js");
-    await cmdProjectTransfer(["--id", "42", "--to", MOCK_TO]);
-
-    expect(mockWriteContract).toHaveBeenCalledTimes(1);
-    const call = mockWriteContract.mock.calls[0][0];
-    expect(call.functionName).toBe("transferProject");
-    expect(call.args[0]).toBe(42n);
-    expect(call.args[1].toLowerCase()).toBe(MOCK_TO.toLowerCase());
-    expect(call.value).toBe(parseEther("0.001"));
-  });
-});
-
-// ─── cmdProjectCollab ─────────────────────────────────────────────────────────
-
-describe("cmdProjectCollab", () => {
-  let exitSpy: ReturnType<typeof vi.spyOn>;
-
-  beforeEach(() => {
-    vi.spyOn(console, "log").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
-    exitSpy = vi
-      .spyOn(process, "exit")
-      .mockImplementation((_code?: number | string | null | undefined) => {
-        throw new Error("process.exit");
-      });
-
-    mockWriteContract = vi.fn().mockResolvedValue(MOCK_TX_HASH);
-    mockWaitForReceipt = vi.fn().mockResolvedValue({ status: "success" });
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  it("exits when action is neither add nor remove", async () => {
-    const { cmdProjectCollab } = await import("../commands/project.js");
-    await expect(cmdProjectCollab(["grant"])).rejects.toThrow("process.exit");
-  });
-
-  it("calls addCollaborator when action is 'add'", async () => {
-    const { cmdProjectCollab } = await import("../commands/project.js");
-    await cmdProjectCollab(["add", "--id", "5", "--address", MOCK_TO]);
-
-    expect(mockWriteContract).toHaveBeenCalledTimes(1);
-    const call = mockWriteContract.mock.calls[0][0];
-    expect(call.functionName).toBe("addCollaborator");
-    expect(call.args[0]).toBe(5n);
-    expect(call.args[1].toLowerCase()).toBe(MOCK_TO.toLowerCase());
-  });
-
-  it("calls removeCollaborator when action is 'remove'", async () => {
-    const { cmdProjectCollab } = await import("../commands/project.js");
-    await cmdProjectCollab(["remove", "--id", "5", "--address", MOCK_TO]);
-
-    expect(mockWriteContract).toHaveBeenCalledTimes(1);
-    const call = mockWriteContract.mock.calls[0][0];
-    expect(call.functionName).toBe("removeCollaborator");
-  });
-
-  it("exits when --id is missing", async () => {
-    const { cmdProjectCollab } = await import("../commands/project.js");
-    await expect(
-      cmdProjectCollab(["add", "--address", MOCK_TO])
-    ).rejects.toThrow("process.exit");
-  });
-
-  it("exits when --address is invalid", async () => {
-    const { cmdProjectCollab } = await import("../commands/project.js");
-    await expect(
-      cmdProjectCollab(["add", "--id", "1", "--address", "bad"])
-    ).rejects.toThrow("process.exit");
-  });
-});
 
 // ─── Registry-not-configured error paths ─────────────────────────────────────
 
@@ -514,15 +368,12 @@ describe("registry not configured error paths (mainnet)", () => {
     vi.restoreAllMocks();
   });
 
-  it("cmdProjectCreate exits when registry not configured", async () => {
-    const { loadConfig } = await import("../config.js");
-    vi.mocked(loadConfig).mockReturnValueOnce(mockMainnet());
-
+  it("cmdProjectCreate exits when createProject fails", async () => {
+    hoisted.mockCreateProject.mockRejectedValueOnce(new Error("402 payment required"));
     const { cmdProjectCreate } = await import("../commands/project.js");
     await expect(
       cmdProjectCreate(["--name", "fail-project"])
     ).rejects.toThrow("process.exit");
-    expect(mockWriteContract).not.toHaveBeenCalled();
   });
 
   it("cmdProjectGet exits when registry not configured", async () => {
@@ -543,27 +394,7 @@ describe("registry not configured error paths (mainnet)", () => {
     expect(mockReadContract).not.toHaveBeenCalled();
   });
 
-  it("cmdProjectTransfer exits when registry not configured", async () => {
-    const { loadConfig } = await import("../config.js");
-    vi.mocked(loadConfig).mockReturnValueOnce(mockMainnet());
 
-    const { cmdProjectTransfer } = await import("../commands/project.js");
-    await expect(
-      cmdProjectTransfer(["--id", "1", "--to", MOCK_TO])
-    ).rejects.toThrow("process.exit");
-    expect(mockWriteContract).not.toHaveBeenCalled();
-  });
-
-  it("cmdProjectCollab exits when registry not configured", async () => {
-    const { loadConfig } = await import("../config.js");
-    vi.mocked(loadConfig).mockReturnValueOnce(mockMainnet());
-
-    const { cmdProjectCollab } = await import("../commands/project.js");
-    await expect(
-      cmdProjectCollab(["add", "--id", "1", "--address", MOCK_TO])
-    ).rejects.toThrow("process.exit");
-    expect(mockWriteContract).not.toHaveBeenCalled();
-  });
 });
 
 // ─── cmdProjectList — badge coverage ─────────────────────────────────────────

@@ -293,12 +293,15 @@ export function projectsRouter(cfg: ApiConfig): Router {
         if (nextNonce !== undefined) nextNonce++
       }
 
+      // Use createProjectV2 — records payer as agent address on-chain
+      const agentAddress = (payerAddress ?? walletAddress) as `0x${string}`
       const hash = await walletClient.writeContract({
         address:      registryAddress,
         abi:          REGISTRY_ABI,
-        functionName: 'createProject',
+        functionName: 'createProjectV2',
         nonce:        nextNonce,
-        args:         [name, description, license, isPublic, readmeHash, isAgent, agentEndpoint],
+        args:         [name, description, license, isPublic, readmeHash, isAgent, agentEndpoint,
+                       '', 0n, '', '0x0000000000000000000000000000000000000000000000000000000000000000'],
       })
 
       // Base Mainnet: ~2s block time — poll every 500ms to minimise latency on Vercel
@@ -410,12 +413,14 @@ export function projectsRouter(cfg: ApiConfig): Router {
         if (nextNonceV !== undefined) nextNonceV++
       }
 
+      // Use pushVersionV2 — records real agent address on-chain
+      const agentAddressV = (payerAddress ?? walletAddress) as `0x${string}`
       const hash = await walletClient.writeContract({
         address:      registryAddress,
         abi:          REGISTRY_ABI,
-        functionName: 'pushVersion',
+        functionName: 'pushVersionV2',
         nonce:        nextNonceV,
-        args:         [BigInt(id), tag, contentHash, metadataHash],
+        args:         [BigInt(id), contentHash, tag, metadataHash, agentAddressV, ''],
       })
 
       // Base Mainnet: ~2s block time — poll every 500ms to minimise latency on Vercel

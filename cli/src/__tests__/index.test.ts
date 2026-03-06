@@ -177,17 +177,16 @@ describe("project routing", () => {
     expect(cmdProjectList).toHaveBeenCalledWith(["0xDEAD"]);
   });
 
-  it("routes 'project transfer' to cmdProjectTransfer", async () => {
+  it("'project transfer' shows deprecated error", async () => {
     setArgv("project", "transfer", "--id", "1", "--to", "0xABCD");
-    await main();
-    expect(cmdProjectTransfer).toHaveBeenCalledWith(["--id", "1", "--to", "0xABCD"]);
+    await expect(main()).rejects.toThrow("process.exit(1)");
+    expect(consoleError).toHaveBeenCalled();
   });
 
-  it("routes 'project collab' to cmdProjectCollab", async () => {
+  it("'project collab' shows deprecated error", async () => {
     setArgv("project", "collab", "add", "--id", "1", "--address", "0xF00D");
-    await main();
-    // rest = ["collab","add","--id","1","--address","0xF00D"]; rest.slice(1) drops "collab"
-    expect(cmdProjectCollab).toHaveBeenCalledWith(["add", "--id", "1", "--address", "0xF00D"]);
+    await expect(main()).rejects.toThrow("process.exit(1)");
+    expect(consoleError).toHaveBeenCalled();
   });
 
   it("exits(1) on unknown project sub-command", async () => {

@@ -16,6 +16,11 @@ import {
   TransferFeeUpdated,
   ReadmeUpdated,
   AgentRegistered,
+  ProjectCreatedV2,
+  VersionPushedV2,
+  MetadataUriUpdated,
+  AccessManifestUpdated,
+  ProjectForked,
 } from "../generated/InkdRegistry/InkdRegistry";
 import {
   Project,
@@ -265,4 +270,65 @@ export function handleAgentRegistered(event: AgentRegistered): void {
     stats.lastUpdated = event.block.timestamp;
     stats.save();
   }
+}
+
+// ── V2 Handlers ──────────────────────────────────────────────────────────────
+
+/**
+ * ProjectCreatedV2 — enriches project with V2 metadata fields.
+ * Fired alongside ProjectCreated for all projects created via createProjectV2.
+ */
+export function handleProjectCreatedV2(event: ProjectCreatedV2): void {
+  let project = loadProject(event.params.projectId);
+  if (event.params.metadataUri.length > 0) {
+    project.metadataUri = event.params.metadataUri;
+  }
+  if (event.params.forkOf.gt(BigInt.fromI32(0))) {
+    project.forkOf = event.params.forkOf;
+  }
+  project.save();
+}
+
+/**
+ * VersionPushedV2 — records real agent address on the version.
+ * Fired alongside VersionPushed for all versions pushed via pushVersionV2.
+ */
+export function handleVersionPushedV2(event: VersionPushedV2): void {
+  // Find the version by projectId + latest version index
+  let project = loadProject(event.params.projectId);
+  let versionIndex = project.versionCount.minus(BigInt.fromI32(1));
+  let versionId = event.params.projectId.toString() + "-" + versionIndex.toString();
+  let version = Version.load(versionId);
+  if (version != null) {
+    version.agentAddress = event.params.agentAddress;
+    version.save();
+  }
+}
+
+/**
+ * MetadataUriUpdated — owner updated the project metadata URI.
+ */
+export function handleMetadataUriUpdated(event: MetadataUriUpdated): void {
+  let project = loadProject(event.params.projectId);
+  project.metadataUri = event.params.uri;
+  project.save();
+}
+
+/**
+ * AccessManifestUpdated — owner updated the access control manifest hash.
+ */
+export function handleAccessManifestUpdated(event: AccessManifestUpdated): void {
+  let project = loadProject(event.params.projectId);
+  project.accessManifest = event.params.manifestHash;
+  project.save();
+}
+
+/**
+ * ProjectForked — a new project was created as a fork of this one.
+ */
+export function handleProjectForked(event: ProjectForked): void {
+  // The fork's forkOf is already set in handleProjectCreatedV2.
+  // Here we just ensure the original project is saved (no-op, for completeness).
+  let _original = loadProject(event.params.originalProjectId);
+  _original.save();
 }

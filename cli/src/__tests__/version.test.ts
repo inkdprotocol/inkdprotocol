@@ -8,6 +8,27 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import type { Mock } from "vitest";
 import { parseEther } from "viem";
 
+// ─── @inkd/sdk mock ───────────────────────────────────────────────────────────
+const hoisted = vi.hoisted(() => ({
+  mockPushVersion: vi.fn().mockResolvedValue({
+    txHash: "0xbeefbeefbeefbeefbeef" as `0x${string}`,
+    contentHash: "ar://abc123",
+  }),
+  mockUpload: vi.fn().mockResolvedValue({
+    hash: "ar://uploaded123",
+    url: "https://arweave.net/uploaded123",
+  }),
+}))
+
+vi.mock("@inkd/sdk", () => ({
+  ProjectsClient: vi.fn(function () {
+    return {
+      pushVersion: hoisted.mockPushVersion,
+      upload:      hoisted.mockUpload,
+    }
+  }),
+}))
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const MOCK_TX_HASH = "0xbeefbeefbeefbeefbeef" as `0x${string}`;
@@ -98,25 +119,28 @@ function setupProcessMocks() {
 describe("cmdVersionPush", () => {
   beforeEach(() => {
     setupProcessMocks();
-    mockReadContract = vi.fn().mockResolvedValue(parseEther("0.001")); // versionFee
-    mockWriteContract = vi.fn().mockResolvedValue(MOCK_TX_HASH);
-    mockWaitForReceipt = vi
-      .fn()
-      .mockResolvedValue({ status: "success", blockNumber: 55555n });
+    mockReadContract = vi.fn();
+    mockWriteContract = vi.fn();
+    mockWaitForReceipt = vi.fn();
+    hoisted.mockPushVersion.mockResolvedValue({
+      txHash: MOCK_TX_HASH,
+      contentHash: "ar://abc123",
+    })
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+    hoisted.mockPushVersion.mockClear();
   });
 
   it("exits when --id is missing", async () => {
     const { cmdVersionPush } = await import("../commands/version.js");
     await expect(
-      cmdVersionPush(["--hash", "abc123", "--tag", "v0.1.0"])
+      cmdVersionPush(["--hash", "ar://abc123", "--tag", "v0.1.0"])
     ).rejects.toThrow("process.exit");
   });
 
-  it("exits when --hash is missing", async () => {
+  it("exits when both --hash and --file are missing", async () => {
     const { cmdVersionPush } = await import("../commands/version.js");
     await expect(
       cmdVersionPush(["--id", "1", "--tag", "v0.1.0"])
@@ -126,70 +150,43 @@ describe("cmdVersionPush", () => {
   it("exits when --tag is missing", async () => {
     const { cmdVersionPush } = await import("../commands/version.js");
     await expect(
-      cmdVersionPush(["--id", "1", "--hash", "abc123"])
+      cmdVersionPush(["--id", "1", "--hash", "ar://abc123"])
     ).rejects.toThrow("process.exit");
   });
 
-  it("calls pushVersion on registry with correct args", async () => {
+  it("calls pushVersion with correct args", async () => {
     const { cmdVersionPush } = await import("../commands/version.js");
     await cmdVersionPush([
       "--id", "1",
-      "--hash", "arweave_abc123",
+      "--hash", "ar://abc123",
       "--tag", "v0.9.0",
-      "--changelog", "Initial release",
     ]);
 
-    expect(mockWriteContract).toHaveBeenCalledTimes(1);
-    const call = mockWriteContract.mock.calls[0][0];
-    expect(call.functionName).toBe("pushVersion");
-    expect(call.args[0]).toBe(1n);
-    expect(call.args[1]).toBe("arweave_abc123");
-    expect(call.args[2]).toBe("v0.9.0");
-    expect(call.args[3]).toBe("Initial release");
+    expect(hoisted.mockPushVersion).toHaveBeenCalledTimes(1);
+    const [id, opts] = hoisted.mockPushVersion.mock.calls[0] as [number, Record<string, unknown>]
+    expect(id).toBe(1);
+    expect(opts.tag).toBe("v0.9.0");
+    expect(opts.contentHash).toBe("ar://abc123");
   });
 
-  it("includes versionFee as ETH value", async () => {
-    const { cmdVersionPush } = await import("../commands/version.js");
-    await cmdVersionPush([
-      "--id", "1",
-      "--hash", "abc",
-      "--tag", "v1.0.0",
-    ]);
-
-    const call = mockWriteContract.mock.calls[0][0];
-    expect(call.value).toBe(parseEther("0.001"));
-  });
-
-  it("defaults changelog to empty string when not provided", async () => {
-    const { cmdVersionPush } = await import("../commands/version.js");
-    await cmdVersionPush(["--id", "1", "--hash", "xyz", "--tag", "v0.1.0"]);
-
-    const call = mockWriteContract.mock.calls[0][0];
-    expect(call.args[3]).toBe("");
-  });
-
-  it("prints success with arweave hash on success", async () => {
+  it("prints success with version tag", async () => {
     const consoleLog = vi.spyOn(console, "log");
     const { cmdVersionPush } = await import("../commands/version.js");
     await cmdVersionPush([
       "--id", "1",
-      "--hash", "arweave_hash_abc",
+      "--hash", "ar://abc123",
       "--tag", "v0.9.0",
     ]);
 
     const logged = consoleLog.mock.calls.map((c: unknown[]) => c.join(" ")).join("\n");
     expect(logged).toMatch(/v0\.9\.0/);
-    expect(logged).toMatch(/arweave_hash_abc/);
   });
 
-  it("calls process.exit on reverted transaction", async () => {
-    mockWaitForReceipt = vi
-      .fn()
-      .mockResolvedValue({ status: "reverted", blockNumber: 55555n });
-
+  it("calls process.exit when pushVersion throws", async () => {
+    hoisted.mockPushVersion.mockRejectedValueOnce(new Error("payment failed"));
     const { cmdVersionPush } = await import("../commands/version.js");
     await expect(
-      cmdVersionPush(["--id", "1", "--hash", "abc", "--tag", "v0.1.0"])
+      cmdVersionPush(["--id", "1", "--hash", "ar://abc", "--tag", "v0.1.0"])
     ).rejects.toThrow("process.exit");
   });
 });
@@ -255,18 +252,18 @@ describe("cmdVersionList", () => {
     expect(mockReadContract).toHaveBeenCalledTimes(4); // 1 count + 3 versions
   });
 
-  it("shows changelog when present", async () => {
+  it("shows version tag and hash in list", async () => {
     mockReadContract = vi
       .fn()
       .mockResolvedValueOnce(1n)
-      .mockResolvedValueOnce(makeVersion({ changelog: "Fixed critical bug" }));
+      .mockResolvedValueOnce(makeVersion({ versionTag: "v1.2.3", arweaveHash: "ar://somehash" }));
 
     const consoleLog = vi.spyOn(console, "log");
     const { cmdVersionList } = await import("../commands/version.js");
     await cmdVersionList(["1"]);
 
     const logged = consoleLog.mock.calls.map((c: unknown[]) => c.join(" ")).join("\n");
-    expect(logged).toMatch(/Fixed critical bug/);
+    expect(logged).toMatch(/v1\.2\.3/);
   });
 });
 
@@ -400,52 +397,6 @@ describe("registry not configured error paths", () => {
   });
 });
 
-// ─── Long changelog truncation ────────────────────────────────────────────────
-
-describe("cmdVersionList — long changelog truncation", () => {
-  beforeEach(() => {
-    setupProcessMocks();
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  it("truncates changelog longer than 72 chars with ellipsis", async () => {
-    const longChangelog = "A".repeat(80); // 80 chars > 72 limit
-    mockReadContract = vi
-      .fn()
-      .mockResolvedValueOnce(1n) // getVersionCount
-      .mockResolvedValueOnce(makeVersion({ changelog: longChangelog }));
-
-    const consoleLog = vi.spyOn(console, "log");
-    const { cmdVersionList } = await import("../commands/version.js");
-    await cmdVersionList(["1"]);
-
-    const logged = consoleLog.mock.calls.map((c: unknown[]) => c.join(" ")).join("\n");
-    // Should contain the truncated portion (first 72 chars) and the ellipsis
-    expect(logged).toMatch(/A{72}/);
-    expect(logged).toMatch(/…/);
-  });
-
-  it("does not truncate changelog of exactly 72 chars (all chars present)", async () => {
-    const exactChangelog = "B".repeat(72);
-    mockReadContract = vi
-      .fn()
-      .mockResolvedValueOnce(1n)
-      .mockResolvedValueOnce(makeVersion({ changelog: exactChangelog }));
-
-    const consoleLog = vi.spyOn(console, "log");
-    const { cmdVersionList } = await import("../commands/version.js");
-    await cmdVersionList(["1"]);
-
-    const logged = consoleLog.mock.calls.map((c: unknown[]) => c.join(" ")).join("\n");
-    // All 72 B's should be present (no truncation)
-    expect(logged).toMatch(/B{72}/);
-    // The changelog line itself should not end with an ellipsis after the B's
-    expect(logged).not.toMatch(/B{72}…/);
-  });
-});
 
 // ─── cmdVersionList — empty changelog branch (branch coverage) ────────────────
 
