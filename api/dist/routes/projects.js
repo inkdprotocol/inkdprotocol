@@ -112,37 +112,33 @@ function projectsRouter(cfg) {
     // ─── USDC transferWithAuthorization helper ─────────────────────────────────
     // Executes the EIP-3009 signed transfer from the X-PAYMENT header.
     // Must be called BEFORE Treasury.settle() so the USDC is in Treasury first.
-    async function executeUsdcTransfer(req, walletClientWrapper, usdcAddress) {
+    async function executeUsdcTransfer(req, walletClientWrap, publicClientInst, usdcAddress) {
         const header = req.header('x-payment') ?? req.header('payment-signature');
         if (!header)
             return;
-        try {
-            const paymentPayload = (0, http_1.decodePaymentSignatureHeader)(header);
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const auth = paymentPayload?.payload?.authorization;
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const sig = paymentPayload?.payload?.signature;
-            if (!auth || !sig)
-                return;
-            await walletClientWrapper.writeContract({
-                address: usdcAddress,
-                abi: abis_js_1.USDC_ABI,
-                functionName: 'transferWithAuthorization',
-                args: [
-                    auth.from,
-                    auth.to,
-                    BigInt(auth.value),
-                    BigInt(auth.validAfter),
-                    BigInt(auth.validBefore),
-                    auth.nonce,
-                    sig,
-                ],
-            });
-        }
-        catch (err) {
-            // Non-fatal if transfer fails (USDC might already be in Treasury)
-            console.warn('[x402] executeUsdcTransfer warning:', err instanceof Error ? err.message : err);
-        }
+        const paymentPayload = (0, http_1.decodePaymentSignatureHeader)(header);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const auth = paymentPayload?.payload?.authorization;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const sig = paymentPayload?.payload?.signature;
+        if (!auth || !sig)
+            throw new Error('x402: missing EIP-3009 authorization or signature in X-PAYMENT header');
+        const hash = await walletClientWrap.writeContract({
+            address: usdcAddress,
+            abi: abis_js_1.USDC_ABI,
+            functionName: 'transferWithAuthorization',
+            args: [
+                auth.from,
+                auth.to,
+                BigInt(auth.value),
+                BigInt(auth.validAfter),
+                BigInt(auth.validBefore),
+                auth.nonce,
+                sig,
+            ],
+        });
+        // Wait for confirmation — USDC must be in Treasury before settle() is called
+        await publicClientInst.waitForTransactionReceipt({ hash, pollingInterval: 500 });
     }
     // ── GET /v1/projects/estimate?bytes=N ──────────────────────────────────────
     // NOTE: must be registered BEFORE /:id to avoid Express matching 'estimate' as an id param.
@@ -207,9 +203,9 @@ function projectsRouter(cfg) {
             const payerAddress = (0, x402_js_1.getPayerAddress)(req);
             const paymentAmount = (0, x402_js_1.getPaymentAmount)(req);
             const { client: walletClient, address: walletAddress } = (0, clients_js_1.buildWalletClient)(cfg, (0, clients_js_1.normalizePrivateKey)(cfg.serverWalletKey));
-            // Step 1: Execute EIP-3009 USDC transfer → moves funds into Treasury
+            // Step 1: Execute EIP-3009 USDC transfer → moves funds into Treasury (wait for confirm)
             if (cfg.usdcAddress && cfg.treasuryAddress) {
-                await executeUsdcTransfer(req, walletClient, cfg.usdcAddress);
+                await executeUsdcTransfer(req, walletClient, publicClient, cfg.usdcAddress);
             }
             // Step 2: Settle X402 USDC payment → splits revenue (arweaveCost = 0 for createProject)
             const settleAmountCreate = paymentAmount ?? x402_js_1.PRICE_CREATE_PROJECT;
@@ -298,9 +294,9 @@ function projectsRouter(cfg) {
             const payerAddress = (0, x402_js_1.getPayerAddress)(req);
             const paymentAmount = (0, x402_js_1.getPaymentAmount)(req);
             const { client: walletClient, address: walletAddress } = (0, clients_js_1.buildWalletClient)(cfg, (0, clients_js_1.normalizePrivateKey)(cfg.serverWalletKey));
-            // Step 1: Execute EIP-3009 USDC transfer → moves funds into Treasury
+            // Step 1: Execute EIP-3009 USDC transfer → moves funds into Treasury (wait for confirm)
             if (cfg.usdcAddress && cfg.treasuryAddress) {
-                await executeUsdcTransfer(req, walletClient, cfg.usdcAddress);
+                await executeUsdcTransfer(req, walletClient, publicClient, cfg.usdcAddress);
             }
             // Step 2: Settle X402 USDC payment → Treasury splits: arweaveCost + 20% markup
             const settleAmountVersion = paymentAmount ?? x402_js_1.PRICE_PUSH_VERSION;

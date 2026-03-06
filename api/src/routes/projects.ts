@@ -154,35 +154,38 @@ export function projectsRouter(cfg: ApiConfig): Router {
   // ─── USDC transferWithAuthorization helper ─────────────────────────────────
   // Executes the EIP-3009 signed transfer from the X-PAYMENT header.
   // Must be called BEFORE Treasury.settle() so the USDC is in Treasury first.
-  async function executeUsdcTransfer(req: import('express').Request, walletClientWrapper: ReturnType<typeof buildWalletClient>['client'], usdcAddress: Address) {
+  async function executeUsdcTransfer(
+    req:               import('express').Request,
+    walletClientWrap:  ReturnType<typeof buildWalletClient>['client'],
+    publicClientInst:  ReturnType<typeof buildPublicClient>,
+    usdcAddress:       Address,
+  ) {
     const header = req.header('x-payment') ?? req.header('payment-signature')
     if (!header) return
-    try {
-      const paymentPayload = decodePaymentSignatureHeader(header)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const auth = (paymentPayload?.payload as any)?.authorization
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const sig  = (paymentPayload?.payload as any)?.signature
-      if (!auth || !sig) return
+    const paymentPayload = decodePaymentSignatureHeader(header)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const auth = (paymentPayload?.payload as any)?.authorization
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sig  = (paymentPayload?.payload as any)?.signature
+    if (!auth || !sig) throw new Error('x402: missing EIP-3009 authorization or signature in X-PAYMENT header')
 
-      await walletClientWrapper.writeContract({
-        address:      usdcAddress,
-        abi:          USDC_ABI,
-        functionName: 'transferWithAuthorization',
-        args: [
-          auth.from        as Address,
-          auth.to          as Address,
-          BigInt(auth.value),
-          BigInt(auth.validAfter),
-          BigInt(auth.validBefore),
-          auth.nonce       as `0x${string}`,
-          sig              as `0x${string}`,
-        ],
-      })
-    } catch (err) {
-      // Non-fatal if transfer fails (USDC might already be in Treasury)
-      console.warn('[x402] executeUsdcTransfer warning:', err instanceof Error ? err.message : err)
-    }
+    const hash = await walletClientWrap.writeContract({
+      address:      usdcAddress,
+      abi:          USDC_ABI,
+      functionName: 'transferWithAuthorization',
+      args: [
+        auth.from        as Address,
+        auth.to          as Address,
+        BigInt(auth.value),
+        BigInt(auth.validAfter),
+        BigInt(auth.validBefore),
+        auth.nonce       as `0x${string}`,
+        sig              as `0x${string}`,
+      ],
+    })
+
+    // Wait for confirmation — USDC must be in Treasury before settle() is called
+    await publicClientInst.waitForTransactionReceipt({ hash, pollingInterval: 500 })
   }
 
   // ── GET /v1/projects/estimate?bytes=N ──────────────────────────────────────
@@ -257,9 +260,9 @@ export function projectsRouter(cfg: ApiConfig): Router {
       const { client: walletClient, address: walletAddress } =
         buildWalletClient(cfg, normalizePrivateKey(cfg.serverWalletKey))
 
-      // Step 1: Execute EIP-3009 USDC transfer → moves funds into Treasury
+      // Step 1: Execute EIP-3009 USDC transfer → moves funds into Treasury (wait for confirm)
       if (cfg.usdcAddress && cfg.treasuryAddress) {
-        await executeUsdcTransfer(req, walletClient, cfg.usdcAddress)
+        await executeUsdcTransfer(req, walletClient, publicClient, cfg.usdcAddress)
       }
 
       // Step 2: Settle X402 USDC payment → splits revenue (arweaveCost = 0 for createProject)
@@ -360,9 +363,9 @@ export function projectsRouter(cfg: ApiConfig): Router {
       const { client: walletClient, address: walletAddress } =
         buildWalletClient(cfg, normalizePrivateKey(cfg.serverWalletKey))
 
-      // Step 1: Execute EIP-3009 USDC transfer → moves funds into Treasury
+      // Step 1: Execute EIP-3009 USDC transfer → moves funds into Treasury (wait for confirm)
       if (cfg.usdcAddress && cfg.treasuryAddress) {
-        await executeUsdcTransfer(req, walletClient, cfg.usdcAddress)
+        await executeUsdcTransfer(req, walletClient, publicClient, cfg.usdcAddress)
       }
 
       // Step 2: Settle X402 USDC payment → Treasury splits: arweaveCost + 20% markup
