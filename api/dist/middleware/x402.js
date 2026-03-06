@@ -57,7 +57,8 @@ function buildX402Middleware(cfg) {
                 payTo: cfg.treasuryAddress,
                 price: '$5.00',
                 network: networkId,
-                extra: { token: usdcAddr, name: 'USDC' },
+                // name/version must match USDC's EIP-712 domain exactly (used for EIP-3009 sig)
+                extra: { token: usdcAddr, name: 'USD Coin', version: '2' },
             },
             description: 'Register an AI agent or project on Inkd Protocol',
         },
@@ -67,7 +68,7 @@ function buildX402Middleware(cfg) {
                 payTo: cfg.treasuryAddress,
                 price: '$2.00',
                 network: networkId,
-                extra: { token: usdcAddr, name: 'USDC' },
+                extra: { token: usdcAddr, name: 'USD Coin', version: '2' },
             },
             description: 'Push a new version to an Inkd project (Arweave + on-chain)',
         },
