@@ -1,28 +1,9 @@
-################################################################################
-#  Inkd Protocol — Subgraph Manifest
-#  Network: Base (chain id 8453)
-#
-#  Replace the placeholder addresses with real deployed addresses after mainnet
-#  deployment. See POST_DEPLOY.md for the full post-deploy checklist.
-#
-#  Deploy:
-#    graph auth --studio <DEPLOY_KEY>
-#    graph deploy --studio inkd-protocol
-#
-#  For Base Sepolia (testnet):
-#    Update network → base-sepolia
-#    Update addresses → deployed testnet addresses
-################################################################################
-
 specVersion: 0.0.5
 description: Decentralized project registry and ownership layer for AI agents on Base
 repository: https://github.com/inkdprotocol/inkd-protocol
-
 schema:
-  file: ./schema.graphql
-
+  file: schema.graphql
 dataSources:
-  # ── InkdRegistry ────────────────────────────────────────────────────────────
   - kind: ethereum
     name: InkdRegistry
     network: base
@@ -43,7 +24,7 @@ dataSources:
         - Account
       abis:
         - name: InkdRegistry
-          file: ./abis/InkdRegistry.json
+          file: InkdRegistry/abis/InkdRegistry.json
       eventHandlers:
         - event: ProjectCreated(indexed uint256,indexed address,string,string)
           handler: handleProjectCreated
@@ -75,9 +56,7 @@ dataSources:
           handler: handleAccessManifestUpdated
         - event: ProjectForked(indexed uint256,indexed uint256,indexed address)
           handler: handleProjectForked
-      file: ./src/registry.ts
-
-  # ── InkdTreasury ────────────────────────────────────────────────────────────
+      file: InkdRegistry/InkdRegistry.wasm
   - kind: ethereum
     name: InkdTreasury
     network: base
@@ -94,7 +73,7 @@ dataSources:
         - ProtocolStats
       abis:
         - name: InkdTreasury
-          file: ./abis/InkdTreasury.json
+          file: InkdTreasury/abis/InkdTreasury.json
       eventHandlers:
         - event: Deposited(indexed address,uint256)
           handler: handleDeposited
@@ -102,4 +81,4 @@ dataSources:
           handler: handleWithdrawn
         - event: Received(indexed address,uint256)
           handler: handleReceived
-      file: ./src/treasury.ts
+      file: InkdTreasury/InkdTreasury.wasm

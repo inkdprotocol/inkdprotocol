@@ -6,6 +6,11 @@
  * using its EVM wallet private key. Encrypted blobs are stored on Arweave.
  * Only the wallet owner can decrypt.
  *
+ * Multi-wallet access: use `grantAccess(granteePublicKey, blob)` to re-encrypt
+ * a sealed blob for a second wallet. Store the re-encrypted blob on Arweave and
+ * record the reference in an `AccessManifest` (uploaded via `projectAccessManifest`
+ * on InkdRegistryV2).
+ *
  * Encryption: ECIES (ECDH secp256k1 + HKDF-SHA256 + AES-256-GCM)
  *
  * Binary layout:
@@ -24,11 +29,35 @@
  * // Unseal credentials
  * const creds = await vault.unseal(encrypted)
  *
+ * // Grant access to another wallet
+ * const granteePublicKey = AgentVault.getPublicKey('0x...')
+ * const granteeBlob = await vault.grantAccess(granteePublicKey, encrypted)
+ *
  * // Store on Arweave + retrieve
  * const hash = await vault.store(creds, arweaveClient)  // → "ar://Qm..."
  * const loaded = await vault.load(hash, arweaveClient)
  * ```
  */
+
+// ─── AccessManifest ───────────────────────────────────────────────────────────
+
+export interface AccessManifestEntry {
+  /** Wallet address of the grantee (checksummed or lowercase). */
+  walletAddress: string;
+  /** Arweave URI (ar://...) of the re-encrypted blob for this grantee. */
+  encryptedBlobRef: string;
+  /** ISO timestamp of when access was granted. */
+  grantedAt: string;
+  /** Wallet address of the owner who granted access. */
+  grantedBy: string;
+}
+
+export interface AccessManifest {
+  $schema: "https://inkdprotocol.com/schemas/access-manifest/v1.json";
+  projectId: number;
+  entries: AccessManifestEntry[];
+  updatedAt: string;
+}
 
 import { secp256k1 } from "@noble/curves/secp256k1";
 import { gcm } from "@noble/ciphers/aes";
@@ -136,6 +165,103 @@ export class AgentVault {
   }
 
   /**
+   * Derive the compressed secp256k1 public key from a private key.
+   * Returns a hex string (66 chars, no 0x prefix) suitable for `grantAccess`.
+   */
+  static getPublicKey(privateKey: `0x${string}`): string {
+    const hex = privateKey.startsWith("0x") ? privateKey.slice(2) : privateKey;
+    const privBytes = hexToBytes(hex);
+    const pubBytes = secp256k1.getPublicKey(privBytes, true); // compressed 33 bytes
+    return bytesToHex(pubBytes);
+  }
+
+  /**
+   * Encrypt credentials for a specific public key (no private key needed).
+   * The recipient can decrypt with their corresponding `AgentVault.unseal()`.
+   *
+   * @param credentials - The credentials to encrypt.
+   * @param recipientPublicKeyHex - Compressed secp256k1 public key (33 bytes, 66 hex chars).
+   */
+  static async sealForPublicKey(
+    credentials: Record<string, unknown>,
+    recipientPublicKeyHex: string
+  ): Promise<Uint8Array> {
+    const recipientPubKey = hexToBytes(
+      recipientPublicKeyHex.startsWith("0x")
+        ? recipientPublicKeyHex.slice(2)
+        : recipientPublicKeyHex
+    );
+    if (recipientPubKey.length !== 33) {
+      throw new EncryptionError("Recipient public key must be 33 bytes (compressed secp256k1)");
+    }
+
+    const plaintext = new TextEncoder().encode(JSON.stringify(credentials));
+    const ephemeralPrivKey = secp256k1.utils.randomPrivateKey();
+    const ephemeralPubKey = secp256k1.getPublicKey(ephemeralPrivKey, true);
+    const sharedPoint = secp256k1.getSharedSecret(ephemeralPrivKey, recipientPubKey);
+    const sharedSecret = sharedPoint.slice(1, 33);
+    const aesKey = hkdf(sha256, sharedSecret, undefined, undefined, 32);
+    const iv = randomBytes(IV_LENGTH);
+    const cipher = gcm(aesKey, iv);
+    const cipherWithTag = cipher.encrypt(plaintext);
+
+    const result = new Uint8Array(ephemeralPubKey.length + iv.length + cipherWithTag.length);
+    result.set(ephemeralPubKey, 0);
+    result.set(iv, ephemeralPubKey.length);
+    result.set(cipherWithTag, ephemeralPubKey.length + iv.length);
+    return result;
+  }
+
+  /**
+   * Re-encrypt a sealed blob for a different wallet.
+   * Decrypts with the caller's private key, then re-encrypts for the grantee.
+   *
+   * @param granteePublicKeyHex - Grantee's compressed public key (use `AgentVault.getPublicKey`).
+   * @param blob - The sealed blob to re-encrypt.
+   * @returns A new sealed blob that only the grantee can decrypt.
+   *
+   * @example
+   * ```ts
+   * const granteeKey = AgentVault.getPublicKey('0x...')
+   * const granteeBlob = await ownerVault.grantAccess(granteeKey, ownerBlob)
+   * const ref = await arweave.uploadFile(granteeBlob, ...)
+   * ```
+   */
+  async grantAccess(
+    granteePublicKeyHex: string,
+    blob: Uint8Array
+  ): Promise<Uint8Array> {
+    const credentials = await this.unseal(blob);
+    return AgentVault.sealForPublicKey(credentials, granteePublicKeyHex);
+  }
+
+  /**
+   * Build an AccessManifest object for upload to Arweave.
+   * Upload this JSON to Arweave and store the txid in `InkdRegistryV2.setAccessManifest`.
+   *
+   * @param projectId - On-chain project ID.
+   * @param entries - Array of grantee entries (wallet address + arweave ref).
+   * @param ownerAddress - Wallet address of the owner (for `grantedBy` default).
+   */
+  static buildAccessManifest(
+    projectId: number,
+    entries: Omit<AccessManifestEntry, "grantedAt">[],
+    ownerAddress?: string
+  ): AccessManifest {
+    const now = new Date().toISOString();
+    return {
+      $schema: "https://inkdprotocol.com/schemas/access-manifest/v1.json",
+      projectId,
+      entries: entries.map((e) => ({
+        ...e,
+        grantedBy: e.grantedBy || ownerAddress || "",
+        grantedAt: now,
+      })),
+      updatedAt: now,
+    };
+  }
+
+  /**
    * Seal credentials and upload to Arweave.
    * Returns the Arweave hash (ar://...).
    */
@@ -177,4 +303,10 @@ function hexToBytes(hex: string): Uint8Array {
     bytes[i / 2] = parseInt(hex.slice(i, i + 2), 16);
   }
   return bytes;
+}
+
+function bytesToHex(bytes: Uint8Array): string {
+  return Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
