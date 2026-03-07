@@ -144,12 +144,13 @@ import { InkdActionProvider } from '@inkd/agentkit'
 
 ---
 
-## Contracts
+## Contracts & Token
 
-Deployed on Base Mainnet. All verified on Basescan. No admin keys. No pause function.
+Deployed on Base Mainnet. All verified on Basescan.
 
-| Contract | Address |
+| | Address |
 |---|---|
+| **$INKD Token** | `0x103013851D4475d7D1610C7941E2a16534a1eB07` |
 | InkdRegistry (Proxy) | `0xEd3067dDa601f19A5737babE7Dd3AbfD4a783e5d` |
 | InkdTreasury (Proxy) | `0x23012C3EF1E95aBC0792c03671B9be33C239D449` |
 | InkdBuyback (Proxy) | `0xcbbf310513228153D981967E96C8A097c3EEd357` |
