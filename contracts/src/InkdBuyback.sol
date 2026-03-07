@@ -189,8 +189,8 @@ contract InkdBuyback is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         uint256 usdcIn = IERC20(USDC).balanceOf(address(this));
         if (usdcIn == 0 || inkdToken == address(0)) return;
 
-        // Approve router
-        IERC20(USDC).approve(SWAP_ROUTER, usdcIn);
+        // Approve router (forceApprove handles non-standard tokens that require reset to 0)
+        SafeERC20.forceApprove(IERC20(USDC), SWAP_ROUTER, usdcIn);
 
         // Swap USDC → $INKD directly (no WETH needed!)
         ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({

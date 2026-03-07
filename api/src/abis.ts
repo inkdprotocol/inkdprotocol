@@ -149,6 +149,13 @@ export const REGISTRY_ABI = [
       },
     ],
   },
+  {
+    name: 'agentProjectCount',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'uint256' }],
+  },
   // ── Write: V1 (direct on-chain, fee-pull model) ───────────────────────────
   {
     name: 'createProject',
