@@ -158,8 +158,7 @@ Deployed on Base Mainnet. All verified on Basescan. No admin keys. No pause func
 
 ## Links
 
-- **Website:** [inkdprotocol.com](https://inkdprotocol.com)
-- **Docs:** [docs.inkdprotocol.com](https://docs.inkdprotocol.com)
+- **Docs:** [inkdprotocol.com](https://inkdprotocol.com)
 - **X:** [@inkdprotocol](https://x.com/inkdprotocol)
 - **API:** [api.inkdprotocol.com](https://api.inkdprotocol.com)
 
