@@ -120,9 +120,11 @@ contract InkdBuyback is IInkdBuyback, Initializable, OwnableUpgradeable, UUPSUpg
     /**
      * @notice Called by InkdTreasury after transferring USDC here.
      *         Auto-triggers buyback if USDC balance >= threshold.
-     * @param amount  Amount of USDC just deposited (for event only)
+     *         Restricted to treasury to prevent spoofed Deposited events.
+     * @param amount  Amount of USDC just deposited (validated: must match actual transfer)
      */
     function deposit(uint256 amount) external {
+        require(msg.sender == treasury, "InkdBuyback: only treasury");
         uint256 bal = IERC20(USDC).balanceOf(address(this));
         emit Deposited(msg.sender, amount, bal);
         // Auto-trigger if ready

@@ -71,6 +71,9 @@ contract InkdRegistry is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     // ───── Errors ─────
     error NameTaken();
     error EmptyName();
+    error EmptyArweaveHash();
+    error EmptyVersionTag();
+    error TooManyCollaborators();
     error NameTooLong();
     error DescriptionTooLong();
     error ProjectNotFound();
@@ -142,6 +145,7 @@ contract InkdRegistry is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         // slither-disable-next-line timestamp
         if (collaborator == projects[projectId].owner) revert CannotAddOwner();
         if (isCollaborator[projectId][collaborator]) revert AlreadyCollaborator();
+        if (_collaborators[projectId].length >= 50) revert TooManyCollaborators();
 
         isCollaborator[projectId][collaborator] = true;
         _collaborators[projectId].push(collaborator);
@@ -316,6 +320,8 @@ contract InkdRegistry is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         string calldata versionTag,
         string calldata changelog
     ) internal returns (uint256 versionIndex) {
+        if (bytes(arweaveHash).length == 0) revert EmptyArweaveHash();
+        if (bytes(versionTag).length  == 0) revert EmptyVersionTag();
         Project storage p = projects[projectId];
         if (!p.exists) revert ProjectNotFound();
         if (p.owner != msg.sender && !isCollaborator[projectId][msg.sender]) {
