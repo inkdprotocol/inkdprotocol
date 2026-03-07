@@ -6,6 +6,57 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v1.0.0] — 2026-03-07
+
+### Production Release
+
+First stable release. All contracts security-audited, all systems production-ready.
+
+### Security
+- **Full security audit completed** — 7 findings, all fixed (C-01, M-01–03, L-01–05, I-01–03)
+- `executeBuyback()` — onlyOwner access control (C-01)
+- `createProjectV2()` — explicit `owner_` param (M-01)
+- `settle()` — balance check before split (M-02)
+- V2 setters — `exists` check on all mutations (M-03)
+- `withdrawEth()` — ETH rescue function added to Treasury (L-01)
+- CEI pattern enforced in `_split()` (L-02)
+- `getAgentProjects()` — O(1) index lookup (L-03)
+- `forceApprove()` instead of `approve()` for USDC (L-04)
+- String length limits on all registry inputs (L-05)
+
+### Contracts (Base Mainnet)
+- All 3 proxies upgraded to security-fixed implementations via Safe multisig
+- InkdRegistry → V2 impl `0x8f0eac9067f3d4a4149d5c79aaab06cec64857da`
+- InkdTreasury → `0x7f73fcec2353fab6312a6cfd403ed227fee31e80`
+- InkdBuyback → `0x4b38ff89a749685958abb681d0c3e87bad137d52`
+- **291 contract tests passing**
+
+### SDK (`@inkd/sdk@1.0.0`)
+- `AgentVault.grantAccess()` — multi-wallet ECIES credential sharing
+- `AgentVault.buildAccessManifest()` — on-chain access manifest standard
+- `_createIrys()` factory pattern — testable Irys instantiation
+- **358 tests passing**
+
+### CLI (`@inkd/cli@1.0.0`)
+- Stable release aligned with SDK v1.0.0
+
+### API
+- `GET /v1/search` — The Graph-powered full-text search
+- `GET /v1/search/projects` — project discovery
+- `GET /v1/search/agents` — agent discovery
+- `GET /v1/search/stats` — protocol stats
+- `GET /v1/search/by-owner/:address` — projects by wallet
+- `GET /v1/agents/by-name/:name` — Graph-first lookup (O(1))
+- **203 tests passing**
+
+### Infrastructure
+- **The Graph subgraph** deployed on Base Mainnet (`inkd` — `https://thegraph.com/studio/subgraph/inkd`)
+- **Docs** live at `inkdprotocol.com` (Vocs)
+- **Metadata Standard v1** — project/version/access manifest JSON schemas
+- Repo cleanup: removed build artifacts, compiled configs, unused Docker workflow
+
+---
+
 ## [v0.10.9] — 2026-03-04
 
 ### Added

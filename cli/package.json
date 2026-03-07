@@ -1,6 +1,6 @@
 {
   "name": "@inkd/cli",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "CLI for the Inkd Protocol — register projects, push versions, and inspect the on-chain registry",
   "bin": {
     "inkd": "./dist/index.js"
@@ -46,7 +46,7 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "@inkd/sdk": "^0.9.0",
+    "@inkd/sdk": "^1.0.0",
     "viem": "^2.0.0"
   },
   "devDependencies": {
