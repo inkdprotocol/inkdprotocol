@@ -126,6 +126,8 @@ agentkit/src/**/*.js
 agentkit/src/**/*.d.ts
 subgraph/src/**/*.js
 subgraph/src/**/*.d.ts
+subgraph/build/
+subgraph/generated/
 examples/**/*.js
 examples/**/*.d.ts
 scripts/*.js
