@@ -53,7 +53,7 @@ export class ArweaveClient {
     // @ts-ignore – @irys/sdk is an optional peer dep; types may not be installed
     const { default: Irys } = await import("@irys/sdk");
     const irys = new Irys({ url, token: "ethereum", key: privateKey });
-    await (irys as { ready: () => Promise<void> }).ready();
+    await (irys as unknown as { ready: () => Promise<void> }).ready();
     return irys;
   }
 
