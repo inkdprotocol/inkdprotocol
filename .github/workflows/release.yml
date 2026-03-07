@@ -22,11 +22,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Install SDK dependencies
+        run: cd sdk && npm ci
+
       - name: Build SDK
-        run: npm run build --workspace=packages/sdk
+        run: cd sdk && npm run build
 
       - name: Publish @inkd/sdk
-        run: npm publish --workspace=packages/sdk --access public
+        run: cd sdk && npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
@@ -47,11 +50,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Install CLI dependencies
+        run: cd cli && npm ci
+
       - name: Build CLI
-        run: npm run build --workspace=packages/cli
+        run: cd cli && npm run build
 
       - name: Publish @inkd/cli
-        run: npm publish --workspace=packages/cli --access public
+        run: cd cli && npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 

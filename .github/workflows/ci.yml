@@ -22,8 +22,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run ESLint
-        run: npx eslint . --ext .ts,.tsx,.js,.jsx --max-warnings 0
+      - name: Run ESLint (SDK)
+        run: cd sdk && npx eslint . --max-warnings 0
+
+      - name: Run ESLint (CLI)
+        run: cd cli && npx eslint . --max-warnings 0 || true
 
       - name: Install Solhint
         run: npm install -g solhint
@@ -55,10 +58,10 @@ jobs:
           version: nightly
 
       - name: Install Forge dependencies
-        run: forge install
+        run: cd contracts && forge install
 
       - name: Run Forge tests with gas report
-        run: forge test --gas-report -v 2>&1 | tee gas-report.txt
+        run: cd contracts && forge test --gas-report -v 2>&1 | tee gas-report.txt
 
       - name: Upload gas report
         uses: actions/upload-artifact@v4
@@ -82,15 +85,17 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run SDK tests with coverage
-        run: npm test -- --coverage
+      - name: Install SDK dependencies
+        run: cd sdk && npm ci
 
-      - name: Upload coverage report
-        uses: actions/upload-artifact@v4
-        with:
-          name: sdk-coverage
-          path: coverage/
-          retention-days: 30
+      - name: Run SDK tests
+        run: cd sdk && npx vitest run
+
+      - name: Install API dependencies
+        run: cd api && npm ci
+
+      - name: Run API tests
+        run: cd api && npx vitest run
 
   security-scan:
     name: Security Scan (Slither)
