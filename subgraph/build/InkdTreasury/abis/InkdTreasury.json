@@ -13,7 +13,8 @@
         "type": "uint256",
         "indexed": false
       }
-    ]
+    ],
+    "anonymous": false
   },
   {
     "type": "event",
@@ -29,7 +30,8 @@
         "type": "uint256",
         "indexed": false
       }
-    ]
+    ],
+    "anonymous": false
   },
   {
     "type": "event",
@@ -45,7 +47,8 @@
         "type": "uint256",
         "indexed": false
       }
-    ]
+    ],
+    "anonymous": false
   },
   {
     "type": "event",
@@ -56,6 +59,7 @@
         "type": "address",
         "indexed": true
       }
-    ]
+    ],
+    "anonymous": false
   }
 ]

@@ -50,6 +50,8 @@ export interface ApiConfig {
   // CDP API credentials (for Mainnet CDP facilitator auth)
   cdpApiKeyId:     string | null
   cdpApiKeySecret: string | null
+  // The Graph subgraph
+  graphEndpoint: string | null
 }
 
 export function loadConfig(): ApiConfig {
@@ -85,6 +87,7 @@ export function loadConfig(): ApiConfig {
     x402Enabled: Boolean(treasuryAddress) && process.env['X402_ENABLED'] !== 'false',
     cdpApiKeyId:     process.env['CDP_API_KEY_ID']     ?? null,
     cdpApiKeySecret: process.env['CDP_API_KEY_SECRET'] ?? null,
+    graphEndpoint: process.env['GRAPH_ENDPOINT'] ?? 'https://api.studio.thegraph.com/query/1743853/inkd/v0.1.0',
   }
 }
 

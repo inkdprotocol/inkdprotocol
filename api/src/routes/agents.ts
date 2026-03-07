@@ -15,6 +15,7 @@ import { type ApiConfig, ADDRESSES } from '../config.js'
 import { buildPublicClient } from '../clients.js'
 import { REGISTRY_ABI } from '../abis.js'
 import { sendError, NotFoundError, BadRequestError, ServiceUnavailableError } from '../errors.js'
+import { getGraphClient } from '../graph.js'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -116,7 +117,16 @@ export function agentsRouter(cfg: ApiConfig): Router {
       const { name } = req.params
       if (!name) throw new BadRequestError('Agent name is required')
 
-      // Linear scan by name (no nameToId mapping yet — fine until The Graph)
+      // Try Graph first (O(1) lookup), fall back to linear RPC scan
+      const graph = getGraphClient()
+      if (graph) {
+        const graphAgent = await graph.getProjectByName(name).catch(() => null)
+        if (graphAgent && graphAgent.isAgent) {
+          return res.json({ data: graphAgent, source: 'graph' })
+        }
+      }
+
+      // Fallback: linear RPC scan
       const total = await publicClient.readContract({
         address:      registryAddress,
         abi:          REGISTRY_ABI,
@@ -142,7 +152,7 @@ export function agentsRouter(cfg: ApiConfig): Router {
 
       if (!found) throw new NotFoundError(`Agent "${name}"`)
 
-      res.json({ data: serializeAgent(found) })
+      res.json({ data: serializeAgent(found), source: 'rpc' })
     } catch (err) {
       sendError(res, err)
     }

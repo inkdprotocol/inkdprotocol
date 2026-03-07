@@ -39,6 +39,8 @@ import { healthRouter }   from './routes/health.js'
 import { projectsRouter } from './routes/projects.js'
 import { agentsRouter }   from './routes/agents.js'
 import { buildUploadRouter } from './routes/upload.js'
+import { buildSearchRouter } from './routes/search.js'
+import { initGraphClient } from './graph.js'
 
 // ─── Bootstrap ────────────────────────────────────────────────────────────────
 
@@ -96,9 +98,15 @@ if (cfg.x402Enabled && cfg.treasuryAddress) {
 
 // ─── API routes ───────────────────────────────────────────────────────────────
 
+// ─── The Graph ────────────────────────────────────────────────────────────────
+if (cfg.graphEndpoint) {
+  initGraphClient(cfg.graphEndpoint)
+}
+
 app.use('/v1/projects', projectsRouter(cfg))
 app.use('/v1/agents',   agentsRouter(cfg))
 app.use('/v1/upload',   buildUploadRouter(cfg))   // Arweave upload (free, no x402)
+app.use('/v1/search',   buildSearchRouter())      // Graph-powered search
 
 // ─── Root redirect ────────────────────────────────────────────────────────────
 
