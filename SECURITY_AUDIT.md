@@ -1,0 +1,212 @@
+# Inkd Protocol — Security Audit Report
+**Date:** 2026-03-07  
+**Auditor:** Internal  
+**Scope:** InkdRegistry.sol, InkdRegistryV2.sol, InkdTreasury.sol, InkdBuyback.sol  
+**Commit:** `eaef22f`  
+**Network:** Base Mainnet
+
+---
+
+## Summary
+
+| Severity | Count | Status |
+|---|---|---|
+| 🔴 Critical | 1 | Open |
+| 🟠 High | 0 | — |
+| 🟡 Medium | 3 | Open |
+| 🔵 Low | 5 | Open |
+| ℹ️ Info | 3 | Open |
+
+---
+
+## 🔴 Critical
+
+### C-01: InkdBuyback — No Slippage Protection (`amountOutMinimum: 0`)
+
+**Contract:** `InkdBuyback.sol` — `_executeBuyback()`  
+**Impact:** Loss of funds via sandwich attack  
+
+**Description:**  
+The Uniswap swap uses `amountOutMinimum: 0`, meaning it accepts any output amount including near-zero. An attacker can sandwich the `executeBuyback()` transaction:
+
+1. Attacker sees buyback TX in mempool
+2. Front-runs: buys $INKD, pushing price up
+3. Buyback executes at inflated price → receives very little $INKD
+4. Attacker back-runs: sells $INKD at elevated price, extracts value
+
+Since `executeBuyback()` is callable by anyone (public function), any MEV bot can trigger this when threshold is met.
+
+**Code:**
+```solidity
+ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
+    ...
+    amountOutMinimum:  0,     // ← CRITICAL: accepts any output
+    sqrtPriceLimitX96: 0
+});
+```
+
+**Fix:**
+```solidity
+// Use Uniswap V3 TWAP oracle for minimum out, or at minimum a % slippage floor
+uint256 minOut = _getMinAmountOut(usdcIn); // e.g. 95% of TWAP price
+ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
+    ...
+    amountOutMinimum: minOut,
+    sqrtPriceLimitX96: 0
+});
+```
+
+**Short-term mitigation:** Restrict `executeBuyback()` to `onlyOwner` until TWAP-based slippage is implemented.
+
+---
+
+## 🟡 Medium
+
+### M-01: V2 Project Owner = Settler Wallet (Not User)
+
+**Contract:** `InkdRegistryV2.sol` — `createProjectV2()`  
+**Impact:** On-chain project ownership assigned to server wallet, not actual user  
+
+**Description:**  
+`createProjectV2` calls `_createProjectCore` which sets `owner: msg.sender`. Since `createProjectV2` is `onlySettler`, `msg.sender` is the settler (API server wallet). All projects created via V2 are owned by `0x210bDf52...` on-chain, regardless of who paid.
+
+This means:
+- Users cannot call `transferProject`, `addCollaborator`, `setVisibility` etc. directly
+- If the settler wallet is compromised, attacker can transfer all projects
+- No on-chain provenance of actual project owner
+
+**Fix:** Add an explicit `owner_` parameter to `createProjectV2` and use it in `_createProjectCore`:
+```solidity
+function createProjectV2(
+    ...
+    address owner_,  // actual project owner (payer address from x402)
+    ...
+) external onlySettler {
+    // Set owner to payer, not settler
+    uint256 id = _createProjectCoreWithOwner(owner_, name, ...);
+}
+```
+
+### M-02: Treasury `settle()` Has No Balance Validation
+
+**Contract:** `InkdTreasury.sol` — `settle()`  
+**Impact:** Silent failures if USDC not pre-transferred  
+
+**Description:**  
+`settle(total, arweaveCost)` assumes USDC is already in the contract. There's no check that `usdc.balanceOf(address(this)) >= total`. If the API server calls `settle()` before the USDC transfer lands (race condition or bug), `safeTransfer` will revert with a confusing error rather than a clear "insufficient balance" message.
+
+**Fix:**
+```solidity
+function settle(uint256 total, uint256 arweaveCost) external onlyTrusted {
+    require(usdc.balanceOf(address(this)) >= total, "Insufficient USDC balance");
+    _split(total, arweaveCost);
+}
+```
+
+### M-03: V2 Metadata Setters Missing `exists` Check
+
+**Contract:** `InkdRegistryV2.sol` — `setMetadataUri`, `setAccessManifest`, `setTagsHash`  
+**Impact:** Metadata can be set on non-existent project IDs (griefing)  
+
+**Description:**  
+The V2 setter functions check `projects[projectId].owner != msg.sender` but do not verify `projects[projectId].exists`. For a non-existent project, `owner` is `address(0)`, so the check passes for no one — but this also means:
+- Anyone who knows the next `projectId` can pre-set metadata on it before creation
+- Creates confusing state where metadata exists without a project
+
+**Fix:**
+```solidity
+function setMetadataUri(uint256 projectId, string calldata uri) external {
+    if (!projects[projectId].exists) revert ProjectNotFound();  // ← add this
+    if (projects[projectId].owner != msg.sender && !isCollaborator[projectId][msg.sender])
+        revert NotOwnerOrCollaborator();
+    ...
+}
+```
+
+---
+
+## 🔵 Low
+
+### L-01: Treasury — ETH Permanently Stuck
+
+**Contract:** `InkdTreasury.sol`  
+**Description:** `receive() external payable` accepts ETH but there's no ETH withdrawal function. Any ETH accidentally sent to the treasury is permanently locked.  
+**Fix:** Add `function withdrawEth(address payable to) external onlyOwner { to.transfer(address(this).balance); }`
+
+### L-02: Reentrancy in `Treasury._split`
+
+**Contract:** `InkdTreasury.sol` — `_split()`  
+**Description:** `totalSettled += total` is updated AFTER external calls to `arweaveWallet` and `buybackContract.deposit()`. A malicious buyback contract could re-enter `settle()` before state is updated. Currently low risk since buybackContract is owner-controlled (Safe multisig), but violates checks-effects-interactions.  
+**Fix:** Move `totalSettled += total` to before any external calls.
+
+### L-03: Unbounded Iteration in `getAgentProjects`
+
+**Contract:** `InkdRegistry.sol` — `getAgentProjects()`  
+**Description:** O(n) iteration over all `projectCount`. At 10,000+ projects, this will hit gas limits for on-chain calls. Safe for off-chain view calls now, but will break at scale.  
+**Fix:** Maintain a separate `uint256[] agentProjectIds` array updated on project creation/agent registration. Or use The Graph for indexing.
+
+### L-04: `approve` Instead of `forceApprove` in Buyback
+
+**Contract:** `InkdBuyback.sol` — `_executeBuyback()`  
+**Description:** Uses `IERC20(USDC).approve(SWAP_ROUTER, usdcIn)` directly. If a previous approval is still pending (shouldn't happen for USDC but can for non-standard tokens), the approve would fail on tokens that require resetting to 0 first.  
+**Fix:** Use `SafeERC20.forceApprove(IERC20(USDC), SWAP_ROUTER, usdcIn)` (OZ utility).
+
+### L-05: No Input Length Limits on String Fields
+
+**Contract:** `InkdRegistry.sol`  
+**Description:** `name`, `description`, `agentEndpoint`, `arweaveHash` have no max length validation. A malicious actor could push very large strings, making transactions expensive and bloating on-chain storage.  
+**Recommendation:** Add `require(bytes(name).length <= 64, "Name too long")` and similar for other fields.
+
+---
+
+## ℹ️ Info
+
+### I-01: `pushVersionV2` Does Not Return Version Index
+
+**Contract:** `InkdRegistryV2.sol`  
+**Description:** Unlike `_pushVersionCore` which returns `versionIndex`, `pushVersionV2` does not return the new version index. Callers must derive it from the `VersionPushedV2` event.  
+**Recommendation:** Add `returns (uint256 versionIndex)` to `pushVersionV2`.
+
+### I-02: NPM Dev Dependency Vulnerabilities
+
+**Scope:** `vitest`, `vite`, `esbuild` (dev dependencies only)  
+**Description:** 5 moderate severity vulnerabilities in dev tooling. None affect production code or deployed contracts.  
+**Recommendation:** Run `npm audit fix` to resolve where possible.
+
+### I-03: Deployer Key in Repo Git History
+
+**Scope:** Operational  
+**Description:** From MEMORY.md — deployer key `0xD363864...` was reportedly in public repo history. Even if removed from current tree, it exists in git history and should be considered compromised.  
+**Action Required:** Generate new deployer wallet, transfer any assets, never use `0xD363864...` for new deployments.
+
+---
+
+## Recommendations by Priority
+
+### Immediate (before public launch):
+1. **[C-01]** Fix `amountOutMinimum: 0` in InkdBuyback — restrict to `onlyOwner` or implement TWAP
+2. **[I-03]** Rotate deployer key
+
+### Before $INKD Launch:
+3. **[M-01]** Add explicit `owner_` param to `createProjectV2`
+4. **[M-02]** Add balance check to `settle()`
+5. **[L-01]** Add ETH withdrawal to Treasury
+6. **[L-02]** Fix reentrancy ordering in `_split`
+
+### Before Scale (10k+ projects):
+7. **[L-03]** Replace `getAgentProjects` O(n) loop with indexed array or subgraph
+8. **[M-03]** Add `exists` check to V2 setters
+9. **[L-05]** Add string length limits
+
+---
+
+## What's Good ✅
+
+- **UUPS Upgrade Safety:** All contracts use `_disableInitializers()`, owner is Safe multisig
+- **SafeERC20:** Used consistently for all USDC transfers
+- **Access Control:** Well-structured; settler/registry separation in Treasury
+- **Storage Layout:** V2 appends storage after V1 — no collision risk
+- **Test Coverage:** 1279 tests, 291 contract tests — solid foundation
+- **No Reentrancy on Registry:** V1 `_pushVersionCore` external calls are to trusted treasury
+- **Zero Address Checks:** Consistent across initialize functions and setters
+- **Event Emission:** Comprehensive events for indexing

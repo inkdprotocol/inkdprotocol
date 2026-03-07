@@ -124,7 +124,7 @@ contract InkdBuyback is Initializable, OwnableUpgradeable, UUPSUpgradeable {
      * @notice Manual buyback trigger — anyone can call when threshold is met.
      * @dev Fallback in case deposit() auto-trigger was insufficient.
      */
-    function executeBuyback() external {
+    function executeBuyback() external onlyOwner {
         if (inkdToken == address(0)) revert InkdTokenNotSet();
         uint256 bal = IERC20(USDC).balanceOf(address(this));
         if (bal < threshold) revert BelowThreshold(bal, threshold);
