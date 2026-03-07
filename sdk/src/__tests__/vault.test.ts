@@ -327,3 +327,103 @@ describe("AgentVault unseal — JSON.parse catch branch (vault.ts L134-135)", ()
     await expect(vault.unseal(blob)).rejects.toThrow("Decrypted data is not valid JSON");
   });
 });
+
+// ─── Multi-Wallet Access ──────────────────────────────────────────────────────
+
+describe("AgentVault — multi-wallet access", () => {
+  const GRANTEE_PRIVATE_KEY = "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef" as `0x${string}`;
+
+  it("AgentVault.getPublicKey returns 66-char hex string (compressed secp256k1)", () => {
+    const pubKey = AgentVault.getPublicKey(TEST_PRIVATE_KEY);
+    expect(typeof pubKey).toBe("string");
+    expect(pubKey.length).toBe(66); // 33 bytes = 66 hex chars
+    expect(pubKey.startsWith("02") || pubKey.startsWith("03")).toBe(true);
+  });
+
+  it("getPublicKey is deterministic", () => {
+    expect(AgentVault.getPublicKey(TEST_PRIVATE_KEY)).toBe(AgentVault.getPublicKey(TEST_PRIVATE_KEY));
+  });
+
+  it("sealForPublicKey produces blob that grantee can unseal", async () => {
+    const credentials = { secret: "multi-wallet-test", value: 42 };
+    const granteePubKey = AgentVault.getPublicKey(GRANTEE_PRIVATE_KEY);
+    const blob = await AgentVault.sealForPublicKey(credentials, granteePubKey);
+
+    const granteeVault = new AgentVault(GRANTEE_PRIVATE_KEY);
+    const result = await granteeVault.unseal(blob);
+    expect(result).toEqual(credentials);
+  });
+
+  it("sealForPublicKey blob cannot be unsealed by a different key", async () => {
+    const credentials = { secret: "only-for-grantee" };
+    const granteePubKey = AgentVault.getPublicKey(GRANTEE_PRIVATE_KEY);
+    const blob = await AgentVault.sealForPublicKey(credentials, granteePubKey);
+
+    const wrongVault = new AgentVault(TEST_PRIVATE_KEY);
+    await expect(wrongVault.unseal(blob)).rejects.toThrow();
+  });
+
+  it("sealForPublicKey throws on invalid public key length", async () => {
+    await expect(
+      AgentVault.sealForPublicKey({ x: 1 }, "deadbeef")
+    ).rejects.toThrow("33 bytes");
+  });
+
+  it("grantAccess re-encrypts blob so grantee can read owner credentials", async () => {
+    const credentials = { apiKey: "owner-secret-key", nested: { a: 1 } };
+    const ownerVault = new AgentVault(TEST_PRIVATE_KEY);
+    const ownerBlob = await ownerVault.seal(credentials);
+
+    const granteePubKey = AgentVault.getPublicKey(GRANTEE_PRIVATE_KEY);
+    const granteeBlob = await ownerVault.grantAccess(granteePubKey, ownerBlob);
+
+    const granteeVault = new AgentVault(GRANTEE_PRIVATE_KEY);
+    const result = await granteeVault.unseal(granteeBlob);
+    expect(result).toEqual(credentials);
+  });
+
+  it("grantAccess owner blob remains unchanged (original still decryptable)", async () => {
+    const credentials = { token: "owner-token" };
+    const ownerVault = new AgentVault(TEST_PRIVATE_KEY);
+    const ownerBlob = await ownerVault.seal(credentials);
+
+    const granteePubKey = AgentVault.getPublicKey(GRANTEE_PRIVATE_KEY);
+    await ownerVault.grantAccess(granteePubKey, ownerBlob); // side-effect free
+
+    // Owner can still decrypt original
+    const result = await ownerVault.unseal(ownerBlob);
+    expect(result).toEqual(credentials);
+  });
+
+  it("grantAccess produces a different blob than the original", async () => {
+    const ownerVault = new AgentVault(TEST_PRIVATE_KEY);
+    const blob = await ownerVault.seal({ x: 1 });
+    const granteePubKey = AgentVault.getPublicKey(GRANTEE_PRIVATE_KEY);
+    const granteeBlob = await ownerVault.grantAccess(granteePubKey, blob);
+    expect(Buffer.from(blob).toString("hex")).not.toBe(Buffer.from(granteeBlob).toString("hex"));
+  });
+
+  it("buildAccessManifest constructs a valid manifest", () => {
+    const manifest = AgentVault.buildAccessManifest(
+      6,
+      [{ walletAddress: "0xABC", encryptedBlobRef: "ar://xyz", grantedBy: "0xOwner" }],
+      "0xOwner"
+    );
+    expect(manifest.$schema).toBe("https://inkdprotocol.com/schemas/access-manifest/v1.json");
+    expect(manifest.projectId).toBe(6);
+    expect(manifest.entries).toHaveLength(1);
+    expect(manifest.entries[0].walletAddress).toBe("0xABC");
+    expect(manifest.entries[0].encryptedBlobRef).toBe("ar://xyz");
+    expect(manifest.entries[0].grantedBy).toBe("0xOwner");
+    expect(typeof manifest.entries[0].grantedAt).toBe("string");
+    expect(typeof manifest.updatedAt).toBe("string");
+  });
+
+  it("buildAccessManifest supports multiple entries", () => {
+    const manifest = AgentVault.buildAccessManifest(1, [
+      { walletAddress: "0xA", encryptedBlobRef: "ar://a", grantedBy: "0xO" },
+      { walletAddress: "0xB", encryptedBlobRef: "ar://b", grantedBy: "0xO" },
+    ]);
+    expect(manifest.entries).toHaveLength(2);
+  });
+});

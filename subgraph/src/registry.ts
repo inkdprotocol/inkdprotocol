@@ -58,7 +58,7 @@ function loadProject(projectId: BigInt): Project {
     project.description = "";
     project.license = "";
     project.readmeHash = "";
-    project.owner = Bytes.empty();
+    project.owner = "0x0000000000000000000000000000000000000000";
     project.isPublic = false;
     project.isAgent = false;
     project.agentEndpoint = "";
@@ -87,7 +87,7 @@ export function handleProjectCreated(event: ProjectCreated): void {
   project.description = "";         // Not emitted; fetched from contract state if needed
   project.license = event.params.license;
   project.readmeHash = "";
-  project.owner = owner;
+  project.owner = owner.toHexString();
   project.isPublic = true;          // Default; updated via VisibilityChanged
   project.isAgent = false;          // Updated via AgentRegistered
   project.agentEndpoint = "";
@@ -118,7 +118,7 @@ export function handleVersionPushed(event: VersionPushed): void {
   version.arweaveHash = event.params.arweaveHash;
   version.versionTag = event.params.versionTag;
   version.changelog = "";           // Not emitted; use contract call for full changelog
-  version.pushedBy = event.params.pushedBy;
+  version.pushedBy = event.params.pushedBy.toHexString();
   version.pushedAt = event.block.timestamp;
   version.blockNumber = event.block.number;
   version.transactionHash = event.transaction.hash;
@@ -152,7 +152,7 @@ export function handleCollaboratorAdded(event: CollaboratorAdded): void {
   if (collaborator == null) {
     collaborator = new Collaborator(collaboratorId);
     collaborator.project = projectId.toString();
-    collaborator.address = collaboratorAddr;
+    collaborator.address = collaboratorAddr.toHexString();
     collaborator.addedAt = event.block.timestamp;
   }
   collaborator.active = true;
@@ -187,7 +187,7 @@ export function handleProjectTransferred(event: ProjectTransferred): void {
   let newOwner = event.params.newOwner;
 
   let project = loadProject(projectId);
-  project.owner = newOwner;
+  project.owner = newOwner.toHexString();
   project.save();
 
   // Ensure both accounts exist
@@ -284,7 +284,7 @@ export function handleProjectCreatedV2(event: ProjectCreatedV2): void {
     project.metadataUri = event.params.metadataUri;
   }
   if (event.params.forkOf.gt(BigInt.fromI32(0))) {
-    project.forkOf = event.params.forkOf;
+    project.forkOf = event.params.forkOf.toString();
   }
   project.save();
 }
@@ -300,7 +300,8 @@ export function handleVersionPushedV2(event: VersionPushedV2): void {
   let versionId = event.params.projectId.toString() + "-" + versionIndex.toString();
   let version = Version.load(versionId);
   if (version != null) {
-    version.agentAddress = event.params.agentAddress;
+    let agentAcc = loadOrCreateAccount(event.params.agentAddress);
+    version.agentAddress = agentAcc.id;
     version.save();
   }
 }
