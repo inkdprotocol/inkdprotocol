@@ -1,0 +1,70 @@
+---
+title: Installation
+description: Install the Inkd SDK and connect to Base Mainnet.
+---
+
+## Install
+
+```bash
+npm install @inkd/sdk viem
+# or
+yarn add @inkd/sdk viem
+# or
+pnpm add @inkd/sdk viem
+```
+
+**Peer dependency:** `viem >= 2.0.0`
+
+## Setup
+
+```typescript
+import { ProjectsClient } from "@inkd/sdk";
+import { createWalletClient, createPublicClient, http } from "viem";
+import { base } from "viem/chains";
+import { privateKeyToAccount } from "viem/accounts";
+
+const account = privateKeyToAccount("0xYOUR_PRIVATE_KEY");
+
+const wallet = createWalletClient({
+  account,
+  chain: base,
+  transport: http("https://base.publicnode.com"),
+});
+
+const reader = createPublicClient({
+  chain: base,
+  transport: http("https://base.publicnode.com"),
+});
+
+const client = new ProjectsClient({ wallet, publicClient: reader });
+```
+
+## Custom API URL
+
+By default the SDK targets `https://api.inkdprotocol.com`. Override for local development:
+
+```typescript
+const client = new ProjectsClient({
+  wallet,
+  publicClient: reader,
+  apiUrl: "http://localhost:3000",
+});
+```
+
+## Network
+
+Inkd is live on **Base Mainnet** (chain ID `8453`). Always use `base` from `viem/chains`, not `baseSepolia`.
+
+## Next
+
+  
+### ProjectsClient
+
+    Create projects, push versions, upload files.
+  
+  
+### AgentVault
+
+    Store encrypted credentials on Arweave.
+  
+

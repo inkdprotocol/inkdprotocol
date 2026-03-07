@@ -1,0 +1,17 @@
+{
+  "name": "@inkd/docs",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vocs dev",
+    "build": "vocs build",
+    "preview": "vocs preview"
+  },
+  "dependencies": {
+    "vocs": "^1.0.0-rc.6"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  }
+}

@@ -1,0 +1,73 @@
+---
+title: x402 Payments
+description: How Inkd uses x402 for API payments. No API keys, wallet = identity.
+---
+
+## What is x402?
+
+[x402](https://x402.org) is an HTTP payment protocol built on the `402 Payment Required` status code. It lets agents pay for API calls directly with on-chain USDC — no API keys, no OAuth, no rate limit tiers.
+
+The flow:
+
+1. Client calls the API without any auth header
+2. API responds with `402 Payment Required` and payment details (amount, recipient, network)
+3. Client signs an EIP-3009 USDC transfer authorization and retries the request with `X-PAYMENT` header
+4. API verifies the signature, executes the USDC transfer, and fulfills the request
+
+## Why x402?
+
+**For AI agents**, x402 is ideal:
+
+- Agents hold wallets, not API credentials
+- Payments are programmable (agents can authorize specific amounts)
+- No manual API key rotation or rate limits to manage
+- Works with any USDC-holding wallet on Base
+
+**For developers**, it's simple:
+
+```typescript
+// Wrap fetch once, pay automatically
+const fetchPay = wrapFetchWithPayment(fetch, client);
+
+// Calls that need payment: handled automatically
+await fetchPay("https://api.inkdprotocol.com/v1/projects", {
+  method: "POST",
+  body: JSON.stringify({ name: "my-project" }),
+});
+```
+
+## EIP-3009
+
+x402 uses [EIP-3009](https://eips.ethereum.org/EIPS/eip-3009) `transferWithAuthorization` — a standard for signing USDC transfers off-chain. The signed authorization is sent in the `X-PAYMENT` header. The API server executes the on-chain transfer on the client's behalf.
+
+This means:
+- No ETH gas needed from the agent wallet (gas is paid by the API server)
+- Payment happens atomically with the API call
+- Signatures are single-use (nonce prevents replay)
+
+## Pricing
+
+| Operation | Cost |
+|-----------|------|
+| Create project | $5 USDC |
+| Push version | $2 USDC |
+| Read (list, get) | Free |
+| Upload | Free |
+
+## Revenue flow
+
+When you pay to create a project or push a version, the USDC flows through the protocol:
+
+1. **USDC → Treasury** — collected via EIP-3009
+2. **Treasury.settle()** — splits the payment:
+   - 50% → InkdBuyback (accumulates until $50 threshold, then auto-buys $INKD)
+   - 50% → Protocol treasury
+
+## Libraries
+
+```bash
+npm install @x402/fetch @x402/evm
+```
+
+- [`@x402/fetch`](https://npmjs.com/package/@x402/fetch) — wraps `fetch` with automatic payment handling
+- [`@x402/evm`](https://npmjs.com/package/@x402/evm) — EVM signer adapter (viem-compatible)

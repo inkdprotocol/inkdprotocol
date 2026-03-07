@@ -1,0 +1,96 @@
+---
+title: Upload
+description: Upload content to Arweave via the Inkd API.
+---
+
+## Upload content
+
+```http
+POST /v1/upload
+```
+
+Upload any content to Arweave via Irys. Returns a permanent `ar://` hash.
+
+**Free** — the Arweave storage cost is covered by the $2 USDC paid in `pushVersion`.
+
+**Request body** (`application/json`):
+
+```json
+{
+  "data":        "<base64-encoded content>",
+  "contentType": "application/json",
+  "filename":    "manifest.json"
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `data` | string | ✅ | Base64-encoded file content |
+| `contentType` | string | ✅ | MIME type |
+| `filename` | string | — | Optional filename tag on Arweave |
+
+**Max size:** 50 MB
+
+**Response:**
+
+```json
+{
+  "hash":  "ar://QmAbc123...",
+  "txId":  "QmAbc123...",
+  "url":   "https://arweave.net/QmAbc123...",
+  "bytes": 1024,
+  "cost": {
+    "usdc": "1844",
+    "usd":  "$0.0018"
+  }
+}
+```
+
+### Example
+
+```typescript
+import { readFileSync } from "fs";
+
+const data = readFileSync("./dist/agent.js");
+
+const res = await fetch("https://api.inkdprotocol.com/v1/upload", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    data:        data.toString("base64"),
+    contentType: "application/javascript",
+    filename:    "agent.js",
+  }),
+});
+
+const { hash, url } = await res.json();
+console.log(hash); // ar://QmAbc123...
+```
+
+---
+
+## Estimate upload cost
+
+```http
+GET /v1/upload/price?bytes=4096
+```
+
+Returns the Arweave cost estimate for a given upload size.
+
+**Query params:**
+
+| Param | Type | Description |
+|-------|------|-------------|
+| `bytes` | number | Upload size in bytes |
+
+**Response:**
+
+```json
+{
+  "bytes": 4096,
+  "costUsdc": "1844",
+  "costUsd": "$0.0018"
+}
+```
+
+`costUsdc` is in USDC with 6 decimals. Divide by `1e6` for USD.

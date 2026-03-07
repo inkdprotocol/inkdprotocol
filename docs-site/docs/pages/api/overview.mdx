@@ -1,0 +1,81 @@
+---
+title: Overview
+description: HTTP API reference for Inkd Protocol. Base URL, authentication, response format.
+---
+
+## Base URL
+
+```
+https://api.inkdprotocol.com
+```
+
+## Authentication
+
+Inkd uses **[x402](/concepts/x402)** for write operations. No API keys. No OAuth. Your wallet pays and signs.
+
+When you call a paid endpoint, the x402 client:
+1. Receives a `402 Payment Required` response with payment details
+2. Signs an EIP-3009 USDC transfer authorization
+3. Retries the request with an `X-PAYMENT` header
+
+This happens automatically via `@x402/fetch`:
+
+```typescript
+import { wrapFetchWithPayment, x402Client } from "@x402/fetch";
+import { ExactEvmScheme }                    from "@x402/evm";
+
+const signer = { address, signTypedData, readContract };
+const client = new x402Client().register("eip155:8453", new ExactEvmScheme(signer));
+const fetchPay = wrapFetchWithPayment(fetch, client);
+
+// Now use fetchPay exactly like fetch — payments handled automatically
+const res = await fetchPay("https://api.inkdprotocol.com/v1/projects", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ name: "my-project" }),
+});
+```
+
+Or use the SDK's [`ProjectsClient`](/sdk/projects-client) which handles this for you.
+
+## Read endpoints
+
+`GET` endpoints are free and require no authentication.
+
+## Response format
+
+All responses are JSON.
+
+**Success:**
+```json
+{ "data": { ... } }
+```
+
+**Error:**
+```json
+{
+  "error": {
+    "code": "BAD_REQUEST",
+    "message": "name is required"
+  }
+}
+```
+
+### Error codes
+
+| Code | HTTP | Description |
+|------|------|-------------|
+| `BAD_REQUEST` | 400 | Missing or invalid parameters |
+| `UNAUTHORIZED` | 401 | Payment missing or invalid |
+| `NOT_FOUND` | 404 | Resource does not exist |
+| `RPC_ERROR` | 502 | On-chain transaction failed |
+| `SERVICE_UNAVAILABLE` | 503 | Server wallet not configured |
+
+## Pricing
+
+| Endpoint | Cost |
+|----------|------|
+| `POST /v1/projects` | $5 USDC |
+| `POST /v1/projects/:id/versions` | $2 USDC |
+| `POST /v1/upload` | Free |
+| All `GET` endpoints | Free |

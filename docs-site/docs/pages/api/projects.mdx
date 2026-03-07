@@ -1,0 +1,172 @@
+---
+title: Projects
+description: Create projects, push versions, and read the registry.
+---
+
+## List projects
+
+```http
+GET /v1/projects?offset=0&limit=20
+```
+
+Free. Returns all public projects.
+
+**Query params:**
+
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| `offset` | number | 0 | Pagination offset |
+| `limit` | number | 20 | Max results (max 100) |
+
+**Response:**
+
+```json
+{
+  "data": [
+    {
+      "id": "7",
+      "name": "my-agent",
+      "description": "An autonomous agent",
+      "license": "MIT",
+      "owner": "0x210bDf52ad7afE3Ea7C67323eDcCD699598983C0",
+      "isPublic": true,
+      "isAgent": true,
+      "agentEndpoint": "https://my-agent.example.com",
+      "createdAt": "1772803578",
+      "versionCount": "1"
+    }
+  ]
+}
+```
+
+---
+
+## Get project
+
+```http
+GET /v1/projects/:id
+```
+
+**Response:** Same shape as a single item from the list.
+
+---
+
+## Create project
+
+```http
+POST /v1/projects
+```
+
+**Cost: $5 USDC** (paid via x402)
+
+**Request body:**
+
+```json
+{
+  "name":          "my-agent",
+  "description":   "An autonomous agent",
+  "license":       "MIT",
+  "isPublic":      true,
+  "isAgent":       true,
+  "agentEndpoint": "https://my-agent.example.com",
+  "readmeHash":    ""
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | ✅ | Unique project name |
+| `description` | string | — | Short description |
+| `license` | string | — | SPDX license (default: `MIT`) |
+| `isPublic` | boolean | — | Default: `true` |
+| `isAgent` | boolean | — | Mark as AI agent project |
+| `agentEndpoint` | string | — | HTTP endpoint if agent |
+| `readmeHash` | string | — | Arweave hash of README |
+
+**Response:**
+
+```json
+{
+  "txHash":    "0xabc...",
+  "projectId": "8",
+  "owner":     "0xYourWallet",
+  "signer":    "0x210bDf52...",
+  "status":    "success",
+  "blockNumber": "14234567"
+}
+```
+
+---
+
+## List versions
+
+```http
+GET /v1/projects/:id/versions
+```
+
+Free. Returns all versions for a project.
+
+---
+
+## Push version
+
+```http
+POST /v1/projects/:id/versions
+```
+
+**Cost: $2 USDC** (paid via x402)
+
+**Request body:**
+
+```json
+{
+  "tag":          "v1.0.0",
+  "contentHash":  "ar://QmAbc123...",
+  "metadataHash": "",
+  "contentSize":  12345
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `tag` | string | ✅ | Version tag |
+| `contentHash` | string | ✅ | Arweave hash (`ar://...`) |
+| `metadataHash` | string | — | Optional metadata hash |
+| `contentSize` | number | — | Bytes (for pricing display) |
+
+**Response:**
+
+```json
+{
+  "txHash":    "0xdef...",
+  "projectId": "8",
+  "tag":       "v1.0.0",
+  "contentHash": "ar://QmAbc123...",
+  "pusher":    "0xYourWallet",
+  "status":    "success",
+  "blockNumber": "14234600"
+}
+```
+
+---
+
+## Estimate version cost
+
+```http
+GET /v1/projects/estimate?bytes=102400
+```
+
+Returns the USDC cost for uploading a given number of bytes (Arweave storage cost + 20% markup).
+
+**Response:**
+
+```json
+{
+  "bytes": 102400,
+  "arweaveCost": "4600",
+  "markup": "920",
+  "total": "5520"
+}
+```
+
+All values are in USDC with 6 decimals (divide by `1e6` for USD).

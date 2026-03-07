@@ -1,0 +1,223 @@
+---
+title: ProjectsClient
+description: x402 payment client for creating projects, pushing versions, and uploading content.
+---
+
+`ProjectsClient` handles all write operations. Payments are made via [x402](/concepts/x402) — no API keys required.
+
+## Constructor
+
+```typescript
+import { ProjectsClient } from "@inkd/sdk";
+
+const client = new ProjectsClient({
+  wallet,       // viem WalletClient with account
+  publicClient, // viem PublicClient for reading state
+  apiUrl?,      // default: "https://api.inkdprotocol.com"
+});
+```
+
+---
+
+## createProject
+
+Register a new project on-chain. **Costs $5 USDC.**
+
+```typescript
+const { projectId, txHash, owner } = await client.createProject({
+  name: "my-agent",
+  description: "An autonomous trading agent",
+  license: "MIT",
+  isPublic: true,
+  isAgent: true,
+  agentEndpoint: "https://my-agent.example.com",
+});
+
+console.log(`Project #${projectId} → https://basescan.org/tx/${txHash}`);
+```
+
+### Parameters
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `name` | `string` | required | Unique project name (lowercase, no spaces) |
+| `description` | `string` | `""` | Short project description |
+| `license` | `string` | `"MIT"` | SPDX license identifier |
+| `isPublic` | `boolean` | `true` | Publicly listed in the registry |
+| `isAgent` | `boolean` | `false` | Marks this as an AI agent project |
+| `agentEndpoint` | `string` | `""` | HTTP endpoint for the agent (if `isAgent: true`) |
+| `readmeHash` | `string` | `""` | Arweave hash of README content |
+
+### Returns
+
+```typescript
+{
+  projectId:   number;   // On-chain project ID
+  txHash:      string;   // Transaction hash
+  owner:       string;   // Owner address (your wallet)
+  blockNumber: number;
+}
+```
+
+---
+
+## upload
+
+Upload content to Arweave. Returns a permanent `ar://` hash. **Free** — cost is covered by the `pushVersion` fee.
+
+```typescript
+import { readFileSync } from "fs";
+
+const data = readFileSync("./dist/agent.js");
+
+const { hash, url, bytes } = await client.upload(data, {
+  contentType: "application/javascript",
+  filename:    "agent.js",
+});
+
+console.log(hash); // "ar://QmAbc123..."
+console.log(url);  // "https://arweave.net/QmAbc123..."
+```
+
+### Parameters
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `data` | `Uint8Array \| Buffer \| string` | File content |
+| `opts.contentType` | `string` | MIME type (default: `application/octet-stream`) |
+| `opts.filename` | `string` | Optional filename tag on Arweave |
+
+### Returns
+
+```typescript
+{
+  hash:  string;  // "ar://TxId"
+  txId:  string;  // Raw Arweave transaction ID
+  url:   string;  // "https://arweave.net/TxId"
+  bytes: number;  // Upload size in bytes
+}
+```
+
+---
+
+## pushVersion
+
+Record a version on-chain with an Arweave content hash. **Costs $2 USDC.**
+
+```typescript
+const { txHash, tag } = await client.pushVersion(projectId, {
+  tag:         "v1.0.0",
+  contentHash: "ar://QmAbc123...",  // from upload()
+  contentSize: 12345,               // optional, used for dynamic pricing
+});
+```
+
+### Typical flow
+
+```typescript
+// 1. Upload content
+const { hash, bytes } = await client.upload(data, { contentType: "application/json" });
+
+// 2. Push version with the hash
+const { txHash } = await client.pushVersion(projectId, {
+  tag:         "v2.0.0",
+  contentHash: hash,
+  contentSize: bytes,
+});
+```
+
+### Parameters
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `tag` | `string` | Version tag (e.g. `"v1.0.0"`) |
+| `contentHash` | `string` | Arweave hash (`ar://...`) |
+| `metadataHash` | `string` | Optional metadata hash |
+| `contentSize` | `number` | Bytes (for dynamic pricing display) |
+
+### Returns
+
+```typescript
+{
+  tag:         string;
+  contentHash: string;
+  txHash:      string;
+  blockNumber: number;
+}
+```
+
+---
+
+## getProject
+
+Fetch project details (free, no payment).
+
+```typescript
+const project = await client.getProject(7);
+
+console.log(project.name);         // "my-agent"
+console.log(project.owner);        // "0x..."
+console.log(project.versionCount); // 3
+```
+
+---
+
+## listProjects
+
+List all projects (free).
+
+```typescript
+const projects = await client.listProjects({ offset: 0, limit: 20 });
+```
+
+---
+
+## estimateUploadCost
+
+Estimate the Arweave cost for a given upload size.
+
+```typescript
+const { total, arweaveCost, markup } = await client.estimateUploadCost(1024 * 100); // 100 KB
+console.log(total); // "1844" (USDC with 6 decimals)
+```
+
+---
+
+## Full example
+
+```typescript
+import { ProjectsClient } from "@inkd/sdk";
+import { createWalletClient, createPublicClient, http } from "viem";
+import { base } from "viem/chains";
+import { privateKeyToAccount } from "viem/accounts";
+import { readFileSync } from "fs";
+
+const account = privateKeyToAccount(process.env.PRIVATE_KEY as `0x${string}`);
+const wallet  = createWalletClient({ account, chain: base, transport: http() });
+const reader  = createPublicClient({ chain: base, transport: http() });
+
+const inkd = new ProjectsClient({ wallet, publicClient: reader });
+
+// Create project
+const { projectId } = await inkd.createProject({
+  name:    "my-autonomous-agent",
+  isAgent: true,
+  license: "MIT",
+});
+
+// Upload artifact
+const data = readFileSync("./dist/agent.js");
+const { hash, bytes } = await inkd.upload(data, {
+  contentType: "application/javascript",
+  filename:    "agent.js",
+});
+
+// Push version
+const { txHash } = await inkd.pushVersion(projectId, {
+  tag:         "v1.0.0",
+  contentHash: hash,
+  contentSize: bytes,
+});
+
+console.log(`Published! https://basescan.org/tx/${txHash}`);
+```

@@ -1,0 +1,66 @@
+---
+title: AgentVault
+description: Store encrypted agent credentials permanently on Arweave.
+---
+
+`AgentVault` lets agents store sensitive credentials (API keys, private configs) encrypted on Arweave, keyed to their wallet. Only the wallet that stored them can retrieve them.
+
+## How it works
+
+Credentials are encrypted with ECIES using the agent's wallet public key. The ciphertext is stored on Arweave. The Arweave hash is kept locally (or in the registry). Only the wallet's private key can decrypt.
+
+## Usage
+
+```typescript
+import { AgentVault } from "@inkd/sdk";
+import { privateKeyToAccount } from "viem/accounts";
+
+const account = privateKeyToAccount("0xYOUR_PRIVATE_KEY");
+const vault   = new AgentVault({ account });
+
+// Store credentials
+const { hash } = await vault.store({
+  openaiKey:    "sk-...",
+  discordToken: "Bot ...",
+});
+
+console.log(hash); // ar://QmVault...
+
+// Later: retrieve
+const credentials = await vault.load(hash);
+console.log(credentials.openaiKey); // "sk-..."
+```
+
+## API
+
+### `store(data)`
+
+Encrypts `data` with the wallet's public key and uploads to Arweave.
+
+```typescript
+const { hash, txId } = await vault.store({ key: "value" });
+```
+
+### `load(hash)`
+
+Fetches the ciphertext from Arweave and decrypts with the wallet's private key.
+
+```typescript
+const data = await vault.load("ar://QmVault...");
+```
+
+### `seal(data)`
+
+Encrypt only (no upload). Returns the ciphertext buffer.
+
+```typescript
+const ciphertext = await vault.seal({ key: "value" });
+```
+
+### `unseal(ciphertext)`
+
+Decrypt only (no Arweave fetch).
+
+```typescript
+const data = await vault.unseal(ciphertext);
+```

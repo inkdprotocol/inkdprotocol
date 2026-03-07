@@ -1,0 +1,140 @@
+---
+title: CLI Reference
+description: Terminal interface for Inkd Protocol. Create projects, push versions, check status.
+---
+
+## Install
+
+```bash
+npm install -g @inkd/cli
+```
+
+## Configuration
+
+```bash
+export INKD_PRIVATE_KEY=0xYOUR_PRIVATE_KEY   # required for write operations
+export INKD_NETWORK=mainnet                   # mainnet | testnet (default: testnet)
+export INKD_RPC_URL=https://...              # optional custom RPC
+export INKD_API_URL=https://...              # optional (default: api.inkdprotocol.com)
+```
+
+Or scaffold a local config file:
+
+```bash
+inkd init
+```
+
+---
+
+## `inkd status`
+
+Show network connectivity and registry info.
+
+```bash
+inkd status
+```
+
+---
+
+## `inkd project`
+
+### `project create`
+
+Register a new project. **Costs $5 USDC.**
+
+```bash
+inkd project create \
+  --name my-agent \
+  --description "An autonomous agent" \
+  --license MIT \
+  [--agent] \
+  [--private] \
+  [--endpoint https://my-agent.example.com]
+```
+
+| Flag | Description |
+|------|-------------|
+| `--name` | Project name (required) |
+| `--description` | Short description |
+| `--license` | SPDX license (default: MIT) |
+| `--agent` | Mark as AI agent project |
+| `--private` | Private project (not publicly listed) |
+| `--endpoint` | Agent HTTP endpoint |
+| `--readme` | Arweave hash of README |
+
+### `project get <id>`
+
+Fetch project details by ID.
+
+```bash
+inkd project get 7
+```
+
+### `project list <address>`
+
+List all projects owned by an address.
+
+```bash
+inkd project list 0xYourAddress
+```
+
+---
+
+## `inkd version`
+
+### `version push`
+
+Push a new version. **Costs $2 USDC.**
+
+**With file upload** (auto-uploads to Arweave first):
+
+```bash
+inkd version push \
+  --id 7 \
+  --file ./dist/agent.js \
+  --tag v1.0.0
+```
+
+**With existing Arweave hash:**
+
+```bash
+inkd version push \
+  --id 7 \
+  --hash ar://QmAbc123... \
+  --tag v1.0.0
+```
+
+| Flag | Description |
+|------|-------------|
+| `--id` | Project ID (required) |
+| `--file` | Local file to upload to Arweave |
+| `--hash` | Pre-existing Arweave hash (`ar://...`) |
+| `--tag` | Version tag, e.g. `v1.0.0` (required) |
+
+### `version list <id>`
+
+List all versions for a project.
+
+```bash
+inkd version list 7
+```
+
+### `version show`
+
+Show details for a specific version.
+
+```bash
+inkd version show --id 7 --index 0
+```
+
+---
+
+## Cost summary
+
+| Operation | Cost |
+|-----------|------|
+| `project create` | $5 USDC |
+| `version push` | $2 USDC |
+| `project get` / `version list` | Free |
+
+All payments are made via [x402](/concepts/x402) directly from your wallet. No API key needed.

@@ -1,0 +1,80 @@
+---
+title: Introduction
+description: On-chain project registry for AI agents and developers. Built on Base, stored on Arweave.
+---
+
+# What is Inkd?
+
+Inkd is a **permanent, on-chain project registry** on Base. Think npm or GitHub — but without a server that can be shut down.
+
+- Projects and versions are stored on-chain via smart contracts
+- Content (code, artifacts, data) lives permanently on Arweave
+- Agents and developers pay to publish via [x402](/concepts/x402) — no API keys, wallet = identity
+
+## How it works
+
+## Create a project
+
+    Register a project on-chain. Costs $5 USDC. Your wallet address is the owner.
+  
+  
+## Upload content
+
+    Push files to Arweave via the API. Returns a permanent `ar://` hash.
+  
+  
+## Push a version
+
+    Record the Arweave hash on-chain with a version tag. Costs $2 USDC. Permanent and immutable.
+  
+
+## Who is it for?
+
+**AI agents** that need to publish, version, and discover code autonomously — without OAuth, API keys, or human approval flows.
+
+**Developers** who want permanent, censorship-resistant artifact storage with on-chain provenance.
+
+## Key properties
+
+  
+### Permanent
+
+    Content on Arweave is stored forever. No takedowns, no 404s.
+  
+  
+### On-chain
+
+    Project ownership, version history, and metadata live on Base. Verifiable by anyone.
+  
+  
+### Agent-native
+
+    x402 payments via EIP-3009. Agents pay USDC directly — no OAuth, no API keys.
+  
+  
+### Open
+
+    All public projects are readable without authentication.
+  
+
+## Contracts (Base Mainnet)
+
+| Contract | Address |
+|----------|---------|
+| InkdRegistry | [`0xEd3067dDa601f19A5737babE7Dd3AbfD4a783e5d`](https://basescan.org/address/0xEd3067dDa601f19A5737babE7Dd3AbfD4a783e5d) |
+| InkdTreasury | [`0x23012C3EF1E95aBC0792c03671B9be33C239D449`](https://basescan.org/address/0x23012C3EF1E95aBC0792c03671B9be33C239D449) |
+| InkdBuyback | [`0xcbbf310513228153D981967E96C8A097c3EEd357`](https://basescan.org/address/0xcbbf310513228153D981967E96C8A097c3EEd357) |
+
+## Next steps
+
+  
+### Quickstart
+
+    Create your first project in 5 minutes with the CLI.
+  
+  
+### SDK
+
+    Use the TypeScript SDK in your agent or application.
+  
+

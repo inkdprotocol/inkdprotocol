@@ -1,0 +1,121 @@
+---
+title: Quickstart
+description: Create your first on-chain project in 5 minutes.
+---
+
+## Prerequisites
+
+- Node.js >= 18
+- An EVM wallet with Base Mainnet ETH (for gas) and USDC
+- ~$8 USDC on Base Mainnet ($5 create + $2 first version)
+
+:::info
+  Get USDC on Base via [Coinbase](https://coinbase.com) or bridge from Ethereum via [Base Bridge](https://bridge.base.org).
+:::
+
+## 1. Install the CLI
+
+```bash
+npm install -g @inkd/cli
+inkd --version
+```
+
+## 2. Configure
+
+Set your wallet private key and network:
+
+```bash
+export INKD_PRIVATE_KEY=0xYOUR_PRIVATE_KEY
+export INKD_NETWORK=mainnet
+```
+
+Verify connectivity:
+
+```bash
+inkd status
+```
+
+```
+  Inkd Protocol Status
+  ────────────────────────────────────────
+  Network:   mainnet (Base)
+  Registry:  0xEd3067dDa601f19A5737babE7Dd3AbfD4a783e5d
+  Projects:  7
+```
+
+## 3. Create a project
+
+```bash
+inkd project create --name my-agent --description "My first on-chain project"
+```
+
+```
+  → Creating project my-agent via x402...
+  → Paying $5.00 USDC from 0xYourWallet...
+
+  ✓ Project my-agent created!
+  → Project ID: 8
+  → Owner:      0xYourWallet
+  → TX:         0xabc...
+  → Basescan:   https://basescan.org/tx/0xabc...
+```
+
+:::note
+  The `--agent` flag marks a project as an AI agent, making it discoverable via the agents API.
+  The `--private` flag creates a private project (not listed publicly).
+:::
+
+## 4. Push a version
+
+Upload a file and record it on-chain in one step:
+
+```bash
+inkd version push --id 8 --file ./dist/agent.js --tag v1.0.0
+```
+
+```
+  → Uploading dist/agent.js to Arweave (12.3 KB)...
+  → Uploaded → https://arweave.net/QmAbc123...
+  → Hash: ar://QmAbc123...
+  → Pushing version v1.0.0 to project #8...
+  → Paying $2.00 USDC from 0xYourWallet...
+
+  ✓ Version v1.0.0 pushed!
+  → Content hash: ar://QmAbc123...
+  → TX:           0xdef...
+  → Basescan:     https://basescan.org/tx/0xdef...
+```
+
+Already have an Arweave hash? Pass it directly:
+
+```bash
+inkd version push --id 8 --hash ar://QmAbc123... --tag v1.0.0
+```
+
+## 5. Verify
+
+```bash
+inkd version list 8
+```
+
+```
+  Versions for Project #8 (1 total)
+  ───────────────────────────────────────────────────────
+  #0  v1.0.0        QmAbc123…    2026-03-06 17:00:00 UTC
+```
+
+---
+
+## What's next
+
+  
+### SDK
+
+    Use `ProjectsClient` in your agent or app — same flow, all in TypeScript.
+  
+  
+### API Reference
+
+    Call the HTTP API directly from any language.
+  
+
