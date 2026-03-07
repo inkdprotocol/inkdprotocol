@@ -2,7 +2,8 @@
 **Date:** 2026-03-07  
 **Auditor:** Internal  
 **Scope:** InkdRegistry.sol, InkdRegistryV2.sol, InkdTreasury.sol, InkdBuyback.sol  
-**Commit:** `eaef22f`  
+**Commit:** `c65f4e7`  
+**Fixes Commit:** `d3b4de7`, `c781354`, `c65f4e7`  
 **Network:** Base Mainnet
 
 ---
@@ -11,11 +12,11 @@
 
 | Severity | Count | Status |
 |---|---|---|
-| 🔴 Critical | 1 | Open |
+| 🔴 Critical | 1 | ✅ Fixed |
 | 🟠 High | 0 | — |
-| 🟡 Medium | 3 | Open |
-| 🔵 Low | 5 | Open |
-| ℹ️ Info | 3 | Open |
+| 🟡 Medium | 3 | ✅ Fixed |
+| 🔵 Low | 5 | ✅ Fixed (4), ⚠️ Accepted (1) |
+| ℹ️ Info | 3 | ✅ Fixed (2), ⚠️ Accepted (1) |
 
 ---
 
@@ -145,7 +146,7 @@ function setMetadataUri(uint256 projectId, string calldata uri) external {
 **Description:** O(n) iteration over all `projectCount`. At 10,000+ projects, this will hit gas limits for on-chain calls. Safe for off-chain view calls now, but will break at scale.  
 **Fix:** Maintain a separate `uint256[] agentProjectIds` array updated on project creation/agent registration. Or use The Graph for indexing.
 
-### L-04: `approve` Instead of `forceApprove` in Buyback
+### L-04: `approve` Instead of `forceApprove` in Buyback ⚠️
 
 **Contract:** `InkdBuyback.sol` — `_executeBuyback()`  
 **Description:** Uses `IERC20(USDC).approve(SWAP_ROUTER, usdcIn)` directly. If a previous approval is still pending (shouldn't happen for USDC but can for non-standard tokens), the approve would fail on tokens that require resetting to 0 first.  

@@ -79,40 +79,52 @@ async function makeApp() {
 describe('GET /v1/agents', () => {
   beforeEach(() => { mockReadContract.mockReset() })
 
-  it('returns list of agents', async () => {
-    mockReadContract.mockResolvedValue([rawAgent])
+  it('returns list of agents with total', async () => {
+    mockReadContract
+      .mockResolvedValueOnce([rawAgent]) // getAgentProjects
+      .mockResolvedValueOnce(1n)         // agentProjectCount
     const app = await makeApp()
     const res = await request(app).get('/v1/agents')
     expect(res.status).toBe(200)
     expect(res.body.data).toHaveLength(1)
     expect(res.body.data[0].name).toBe('smart-agent')
+    expect(res.body.total).toBe('1')
   })
 
   it('returns empty array when no agents', async () => {
-    mockReadContract.mockResolvedValue([])
+    mockReadContract
+      .mockResolvedValueOnce([]) // getAgentProjects
+      .mockResolvedValueOnce(0n) // agentProjectCount
     const app = await makeApp()
     const res = await request(app).get('/v1/agents')
     expect(res.status).toBe(200)
     expect(res.body.data).toHaveLength(0)
     expect(res.body.count).toBe(0)
+    expect(res.body.total).toBe('0')
   })
 
-  it('includes offset, limit, count in response', async () => {
-    mockReadContract.mockResolvedValue([rawAgent])
+  it('includes offset, limit, count, total in response', async () => {
+    mockReadContract
+      .mockResolvedValueOnce([rawAgent]) // getAgentProjects
+      .mockResolvedValueOnce(1n)         // agentProjectCount
     const app = await makeApp()
     const res = await request(app).get('/v1/agents?offset=5&limit=10')
     expect(res.body.offset).toBe(5)
     expect(res.body.limit).toBe(10)
     expect(res.body.count).toBe(1)
+    expect(res.body.total).toBe('1')
   })
 
   it('serializes bigint fields as strings', async () => {
-    mockReadContract.mockResolvedValue([rawAgent])
+    mockReadContract
+      .mockResolvedValueOnce([rawAgent]) // getAgentProjects
+      .mockResolvedValueOnce(1n)         // agentProjectCount
     const app = await makeApp()
     const res = await request(app).get('/v1/agents')
     expect(typeof res.body.data[0].id).toBe('string')
     expect(typeof res.body.data[0].versionCount).toBe('string')
     expect(typeof res.body.data[0].createdAt).toBe('string')
+    expect(typeof res.body.total).toBe('string')
   })
 
   it('returns 502 when RPC fails', async () => {
@@ -126,19 +138,28 @@ describe('GET /v1/agents', () => {
 describe('GET /v1/agents/by-name/:name', () => {
   beforeEach(() => { mockReadContract.mockReset() })
 
-  it('returns agent by name', async () => {
+  it('returns agent by name (linear scan)', async () => {
     mockReadContract
-      .mockResolvedValueOnce(1n)       // getProjectByName → projectId
-      .mockResolvedValueOnce(rawAgent) // getProject
-
+      .mockResolvedValueOnce(1n)       // projectCount
+      .mockResolvedValueOnce(rawAgent) // getProject(1)
     const app = await makeApp()
     const res = await request(app).get('/v1/agents/by-name/smart-agent')
     expect(res.status).toBe(200)
     expect(res.body.data.name).toBe('smart-agent')
   })
 
-  it('returns 404 when project id is 0n', async () => {
-    mockReadContract.mockResolvedValue(0n) // getProjectByName → not found
+  it('returns 404 when no matching agent found', async () => {
+    mockReadContract
+      .mockResolvedValueOnce(1n)       // projectCount
+      .mockResolvedValueOnce({ ...rawAgent, name: 'other-agent' }) // getProject(1)
+    const app = await makeApp()
+    const res = await request(app).get('/v1/agents/by-name/unknown-agent')
+    expect(res.status).toBe(404)
+    expect(res.body.error.code).toBe('NOT_FOUND')
+  })
+
+  it('returns 404 when no projects exist', async () => {
+    mockReadContract.mockResolvedValueOnce(0n) // projectCount = 0
     const app = await makeApp()
     const res = await request(app).get('/v1/agents/by-name/unknown-agent')
     expect(res.status).toBe(404)
@@ -147,8 +168,8 @@ describe('GET /v1/agents/by-name/:name', () => {
 
   it('returns 404 when project does not exist', async () => {
     mockReadContract
-      .mockResolvedValueOnce(1n)
-      .mockResolvedValueOnce({ ...rawAgent, exists: false })
+      .mockResolvedValueOnce(1n)                              // projectCount
+      .mockResolvedValueOnce({ ...rawAgent, exists: false })  // getProject(1)
     const app = await makeApp()
     const res = await request(app).get('/v1/agents/by-name/gone-agent')
     expect(res.status).toBe(404)
@@ -156,8 +177,8 @@ describe('GET /v1/agents/by-name/:name', () => {
 
   it('returns 404 when project is not an agent', async () => {
     mockReadContract
-      .mockResolvedValueOnce(1n)
-      .mockResolvedValueOnce({ ...rawAgent, isAgent: false })
+      .mockResolvedValueOnce(1n)                              // projectCount
+      .mockResolvedValueOnce({ ...rawAgent, isAgent: false }) // getProject(1)
     const app = await makeApp()
     const res = await request(app).get('/v1/agents/by-name/not-an-agent')
     expect(res.status).toBe(404)
