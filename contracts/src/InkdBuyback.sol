@@ -6,6 +6,7 @@ import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Own
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IInkdBuyback} from "./InkdTreasury.sol";
 
 /// @dev Uniswap V3 SwapRouter — USDC → $INKD directly, no WETH needed
 interface ISwapRouter {
@@ -41,7 +42,7 @@ interface ISwapRouter {
  *
  * @dev Owner should be a Safe Multisig (2-of-2 or 2-of-3).
  */
-contract InkdBuyback is Initializable, OwnableUpgradeable, UUPSUpgradeable {
+contract InkdBuyback is IInkdBuyback, Initializable, OwnableUpgradeable, UUPSUpgradeable {
     using SafeERC20 for IERC20;
 
     // ───── Constants ─────────────────────────────────────────────────────────
@@ -179,6 +180,7 @@ contract InkdBuyback is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     /// @notice Emergency: withdraw USDC. Requires Multisig.
     function emergencyWithdrawUsdc(address to) external onlyOwner {
         uint256 bal = IERC20(USDC).balanceOf(address(this));
+        // slither-disable-next-line incorrect-equality
         if (bal == 0) revert NothingToWithdraw();
         IERC20(USDC).safeTransfer(to, bal);
     }
@@ -187,6 +189,7 @@ contract InkdBuyback is Initializable, OwnableUpgradeable, UUPSUpgradeable {
 
     function _executeBuyback() internal {
         uint256 usdcIn = IERC20(USDC).balanceOf(address(this));
+        // slither-disable-next-line incorrect-equality
         if (usdcIn == 0 || inkdToken == address(0)) return;
 
         // Approve router (forceApprove handles non-standard tokens that require reset to 0)
@@ -204,11 +207,14 @@ contract InkdBuyback is Initializable, OwnableUpgradeable, UUPSUpgradeable {
             sqrtPriceLimitX96: 0
         });
 
+        // CEI: record inputs before external call (output computed after)
+        totalUsdcSpent += usdcIn;
+        buybackCount   += 1;
+
+        // slither-disable-next-line reentrancy-no-eth,reentrancy-benign,reentrancy-events
         uint256 inkdOut = ISwapRouter(SWAP_ROUTER).exactInputSingle(params);
 
-        totalUsdcSpent  += usdcIn;
         totalInkdBought += inkdOut;
-        buybackCount    += 1;
 
         emit BuybackExecuted(msg.sender, usdcIn, inkdOut);
     }

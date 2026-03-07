@@ -162,12 +162,7 @@ contract InkdRegistry is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     function transferProject(uint256 projectId, address newOwner) external onlyProjectOwner(projectId) {
         if (newOwner == address(0)) revert ZeroAddress();
 
-        uint256 fee = treasury.serviceFee();
-        if (fee > 0) {
-            usdc.safeTransferFrom(msg.sender, address(treasury), fee);
-            treasury.receivePayment(fee);
-        }
-
+        // CEI: update state before external calls
         address oldOwner = projects[projectId].owner;
         projects[projectId].owner = newOwner;
 
@@ -180,6 +175,13 @@ contract InkdRegistry is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         }
 
         emit ProjectTransferred(projectId, oldOwner, newOwner);
+
+        // External calls last
+        uint256 fee = treasury.serviceFee();
+        if (fee > 0) {
+            usdc.safeTransferFrom(msg.sender, address(treasury), fee);
+            treasury.receivePayment(fee);
+        }
     }
 
     /// @notice Set project visibility. Owner only.
@@ -319,12 +321,7 @@ contract InkdRegistry is Initializable, OwnableUpgradeable, UUPSUpgradeable {
             revert NotOwnerOrCollaborator();
         }
 
-        uint256 fee = treasury.serviceFee();
-        if (fee > 0) {
-            usdc.safeTransferFrom(msg.sender, address(treasury), fee);
-            treasury.receivePayment(fee);
-        }
-
+        // CEI: update state before external calls
         versionIndex = _versions[projectId].length;
         _versions[projectId].push(Version({
             projectId: projectId,
@@ -337,6 +334,13 @@ contract InkdRegistry is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         p.versionCount++;
 
         emit VersionPushed(projectId, arweaveHash, versionTag, msg.sender);
+
+        // External calls last
+        uint256 fee = treasury.serviceFee();
+        if (fee > 0) {
+            usdc.safeTransferFrom(msg.sender, address(treasury), fee);
+            treasury.receivePayment(fee);
+        }
     }
 
     /// @notice Convert a string to lowercase (ASCII A-Z only).

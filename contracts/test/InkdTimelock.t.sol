@@ -102,10 +102,9 @@ contract InkdTimelockTest is Test {
         timelock.setPendingAdmin(alice);
     }
 
-    function test_setPendingAdmin_canSetZero() public {
-        timelock.setPendingAdmin(alice);
+    function test_setPendingAdmin_rejectsZeroAddress() public {
+        vm.expectRevert("InkdTimelock: zero address");
         timelock.setPendingAdmin(address(0));
-        assertEq(timelock.pendingAdmin(), address(0));
     }
 
     // ─────────────────────────────────────────────────────────────────────────

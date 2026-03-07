@@ -32,12 +32,14 @@ contract InkdTimelock {
     }
 
     constructor(address admin_) {
+        require(admin_ != address(0), "InkdTimelock: zero admin");
         admin = admin_;
     }
 
     receive() external payable {}
 
     function setPendingAdmin(address pendingAdmin_) external onlyAdmin {
+        require(pendingAdmin_ != address(0), "InkdTimelock: zero address");
         pendingAdmin = pendingAdmin_;
         emit NewPendingAdmin(pendingAdmin_);
     }
@@ -81,6 +83,7 @@ contract InkdTimelock {
         bytes calldata data,
         uint256 eta
     ) external payable onlyAdmin returns (bytes memory) {
+        require(target != address(0), "InkdTimelock: zero target");
         bytes32 txHash = keccak256(abi.encode(target, value, data, eta));
         require(queuedTransactions[txHash], "InkdTimelock: tx not queued");
         require(block.timestamp >= eta, "InkdTimelock: too early");

@@ -55,6 +55,8 @@ contract InkdTreasury is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     event ArweaveWalletSet(address indexed wallet);
     event BuybackContractSet(address indexed buyback);
     event MarkupBpsSet(uint256 bps);
+    event RegistrySet(address indexed registry);
+    event DefaultFeeSet(uint256 fee);
 
     // ───── Errors ────────────────────────────────────────────────────────────
     error Unauthorized();
@@ -161,6 +163,7 @@ contract InkdTreasury is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     function setRegistry(address registry_) external onlyOwner {
         if (registry_ == address(0)) revert ZeroAddress();
         registry = registry_;
+        emit RegistrySet(registry_);
     }
 
     function setSettler(address settler_) external onlyOwner {
@@ -198,6 +201,7 @@ contract InkdTreasury is Initializable, OwnableUpgradeable, UUPSUpgradeable {
 
     function setDefaultFee(uint256 fee_) external onlyOwner {
         defaultFee = fee_;
+        emit DefaultFeeSet(fee_);
     }
 
     /// @notice Withdraw USDC treasury balance. Owner only (Multisig).
