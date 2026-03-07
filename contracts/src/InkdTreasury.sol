@@ -128,6 +128,7 @@ contract InkdTreasury is Initializable, OwnableUpgradeable, UUPSUpgradeable {
      *   (total-arweaveCost) × 50% → treasury
      */
     function settle(uint256 total, uint256 arweaveCost) external onlyTrusted {
+        require(total > 0, "Nothing to settle");
         require(usdc.balanceOf(address(this)) >= total, "Insufficient USDC");
         _split(total, arweaveCost);
     }
