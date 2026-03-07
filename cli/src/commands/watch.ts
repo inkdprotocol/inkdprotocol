@@ -13,10 +13,10 @@
  *   --json         Output raw JSON (for piping)
  */
 
-import { type Log, type Hex, _formatEther, decodeEventLog, parseAbi } from 'viem'
+import { type Log, type Hex, decodeEventLog, parseAbi } from 'viem'
 import {
   loadConfig, ADDRESSES,
-  error, info, _success,
+  error, info,
   BOLD, RESET, CYAN, DIM, GREEN, YELLOW,
 } from '../config.js'
 import { buildPublicClient } from '../client.js'

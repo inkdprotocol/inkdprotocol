@@ -7,7 +7,7 @@
  *   show  — show a specific version by index
  */
 
-import { readFileSync, _statSync, existsSync } from 'fs'
+import { readFileSync, existsSync } from 'fs'
 import { createWalletClient, createPublicClient, http } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { base, baseSepolia }   from 'viem/chains'
