@@ -85,7 +85,7 @@ ALLOWED_ROOTS=(
   ".gitignore" ".gitmodules" ".env.example" "package" "tsconfig"
   "vercel.json" "Makefile" "LICENSE" "README.md" "CHANGELOG"
   "CONTRIBUTING" "CODE_OF_CONDUCT" "SECURITY.md" "ROADMAP" "SUBGRAPH"
-  "docs.json" "mint.json" "docs-site/"
+  "docs.json" "mint.json" "docs-site/" ".solhint.json" ".solhintignore"
 )
 for file in $STAGED; do
   # Skip hook files themselves
