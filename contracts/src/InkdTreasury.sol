@@ -126,6 +126,7 @@ contract InkdTreasury is Initializable, OwnableUpgradeable, UUPSUpgradeable {
      *   (total-arweaveCost) × 50% → treasury
      */
     function settle(uint256 total, uint256 arweaveCost) external onlyTrusted {
+        require(usdc.balanceOf(address(this)) >= total, "Insufficient USDC");
         _split(total, arweaveCost);
     }
 
@@ -135,6 +136,11 @@ contract InkdTreasury is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         uint256 toBuyback  = revenue / 2;
         uint256 toTreasury = revenue - toBuyback;
 
+        // Effects before interactions (CEI pattern)
+        totalSettled += total;
+        emit Settled(msg.sender, total, toArweave, toBuyback, toTreasury);
+
+        // Interactions
         if (toArweave > 0 && arweaveWallet != address(0)) {
             usdc.safeTransfer(arweaveWallet, toArweave);
         }
@@ -148,9 +154,6 @@ contract InkdTreasury is Initializable, OwnableUpgradeable, UUPSUpgradeable {
                 try IInkdBuyback(_buyback).deposit(toBuyback) {} catch {}
             }
         }
-
-        totalSettled += total;
-        emit Settled(msg.sender, total, toArweave, toBuyback, toTreasury);
     }
 
     // ───── Admin ─────────────────────────────────────────────────────────────
@@ -208,6 +211,15 @@ contract InkdTreasury is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     function withdrawToken(address token, address to, uint256 amount) external onlyOwner {
         if (to == address(0)) revert ZeroAddress();
         IERC20(token).safeTransfer(to, amount);
+    }
+
+    /// @notice Withdraw any accidentally sent ETH. Owner only.
+    function withdrawEth(address payable to) external onlyOwner {
+        if (to == address(0)) revert ZeroAddress();
+        uint256 bal = address(this).balance;
+        require(bal > 0, "No ETH");
+        (bool ok,) = to.call{value: bal}("");
+        require(ok, "ETH transfer failed");
     }
 
     receive() external payable {}

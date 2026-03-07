@@ -134,12 +134,17 @@ contract InkdBuybackTest is Test {
     // ─── executeBuyback errors ───────────────────────────────────────────────
 
     function test_ExecuteBuyback_RevertNoToken() public {
-        // Mock USDC balance above threshold
+        // executeBuyback is now onlyOwner — non-owner should revert first
         vm.mockCall(
             buyback.USDC(),
             abi.encodeWithSignature("balanceOf(address)", address(buyback)),
             abi.encode(THRESHOLD)
         );
+        vm.expectRevert();
+        buyback.executeBuyback(); // called by non-owner → OwnableUnauthorizedAccount
+
+        // Owner calling without inkdToken set → InkdTokenNotSet
+        vm.prank(owner);
         vm.expectRevert(InkdBuyback.InkdTokenNotSet.selector);
         buyback.executeBuyback();
     }
@@ -153,6 +158,7 @@ contract InkdBuybackTest is Test {
             abi.encodeWithSignature("balanceOf(address)", address(buyback)),
             abi.encode(THRESHOLD - 1)
         );
+        vm.prank(owner);
         vm.expectRevert();
         buyback.executeBuyback();
     }

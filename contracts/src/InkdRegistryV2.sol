@@ -139,11 +139,11 @@ contract InkdRegistryV2 is InkdRegistry {
         string calldata changelog,
         address agentAddress_,
         string calldata versionMetadataArweaveHash_
-    ) external onlySettler {
+    ) external onlySettler returns (uint256 versionIndex) {
         Project storage p = projects[projectId];
         if (!p.exists) revert ProjectNotFound();
 
-        uint256 versionIndex = _versions[projectId].length;
+        versionIndex = _versions[projectId].length;
 
         _versions[projectId].push(Version({
             projectId:   projectId,
@@ -168,6 +168,7 @@ contract InkdRegistryV2 is InkdRegistry {
     // ───── V2 Setters (owner/collaborator) ───────────────────────────────────
 
     function setMetadataUri(uint256 projectId, string calldata uri) external {
+        if (!projects[projectId].exists) revert ProjectNotFound();
         if (projects[projectId].owner != msg.sender && !isCollaborator[projectId][msg.sender])
             revert NotOwnerOrCollaborator();
         projectMetadataUri[projectId] = uri;
@@ -175,6 +176,7 @@ contract InkdRegistryV2 is InkdRegistry {
     }
 
     function setAccessManifest(uint256 projectId, string calldata manifestHash) external {
+        if (!projects[projectId].exists) revert ProjectNotFound();
         if (projects[projectId].owner != msg.sender && !isCollaborator[projectId][msg.sender])
             revert NotOwnerOrCollaborator();
         projectAccessManifest[projectId] = manifestHash;
@@ -182,6 +184,7 @@ contract InkdRegistryV2 is InkdRegistry {
     }
 
     function setTagsHash(uint256 projectId, bytes32 hash_) external {
+        if (!projects[projectId].exists) revert ProjectNotFound();
         if (projects[projectId].owner != msg.sender && !isCollaborator[projectId][msg.sender])
             revert NotOwnerOrCollaborator();
         projectTagsHash[projectId] = hash_;
