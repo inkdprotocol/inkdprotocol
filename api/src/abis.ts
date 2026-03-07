@@ -183,6 +183,7 @@ export const REGISTRY_ABI = [
     type: 'function',
     stateMutability: 'nonpayable',
     inputs: [
+      { name: 'owner',              type: 'address' },
       { name: 'name',               type: 'string'  },
       { name: 'description',        type: 'string'  },
       { name: 'license',            type: 'string'  },

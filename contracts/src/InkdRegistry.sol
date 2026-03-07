@@ -52,6 +52,9 @@ contract InkdRegistry is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     mapping(address => uint256[]) internal _ownerProjects;
     mapping(uint256 => mapping(address => bool)) public isCollaborator;
 
+    // ───── Indexed arrays for O(1) lookup ─────
+    uint256[] internal _agentProjectIds;
+
     // ───── Events ─────
     event ProjectCreated(uint256 indexed projectId, address indexed owner, string name, string license);
     event VersionPushed(uint256 indexed projectId, string arweaveHash, string versionTag, address pushedBy);
@@ -68,6 +71,8 @@ contract InkdRegistry is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     // ───── Errors ─────
     error NameTaken();
     error EmptyName();
+    error NameTooLong();
+    error DescriptionTooLong();
     error ProjectNotFound();
     error NotOwner();
     error NotOwnerOrCollaborator();
@@ -217,32 +222,23 @@ contract InkdRegistry is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         return _ownerProjects[owner_];
     }
 
-    /// @notice Returns agent projects with pagination.
+    /// @notice Returns agent projects with pagination. O(limit) — uses indexed array.
     function getAgentProjects(uint256 offset, uint256 limit) external view returns (Project[] memory) {
-        uint256 count;
-        for (uint256 i = 1; i <= projectCount; i++) {
-            if (projects[i].isAgent) count++;
-        }
-
-        if (offset >= count) return new Project[](0);
-        uint256 resultSize = count - offset;
+        uint256 total = _agentProjectIds.length;
+        if (offset >= total) return new Project[](0);
+        uint256 resultSize = total - offset;
         if (resultSize > limit) resultSize = limit;
 
         Project[] memory result = new Project[](resultSize);
-        uint256 found;
-        uint256 added;
-
-        for (uint256 i = 1; i <= projectCount && added < resultSize; i++) {
-            if (projects[i].isAgent) {
-                if (found >= offset) {
-                    result[added] = projects[i];
-                    added++;
-                }
-                found++;
-            }
+        for (uint256 i = 0; i < resultSize; i++) {
+            result[i] = projects[_agentProjectIds[offset + i]];
         }
-
         return result;
+    }
+
+    /// @notice Total number of agent projects.
+    function agentProjectCount() external view returns (uint256) {
+        return _agentProjectIds.length;
     }
 
     /// @notice Returns the protocol version string.
@@ -253,6 +249,7 @@ contract InkdRegistry is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     // ───── Internal Helpers ─────
 
     /// @dev Core project creation logic shared by V1 and V2.
+    /// V1 calls with owner = msg.sender; V2 can specify explicit owner (payer address).
     function _createProjectCore(
         string calldata name,
         string calldata description,
@@ -262,7 +259,22 @@ contract InkdRegistry is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         bool isAgent,
         string calldata agentEndpoint
     ) internal returns (uint256 id) {
+        return _createProjectCoreFor(msg.sender, name, description, license, isPublic, readmeHash, isAgent, agentEndpoint);
+    }
+
+    function _createProjectCoreFor(
+        address owner_,
+        string calldata name,
+        string calldata description,
+        string calldata license,
+        bool isPublic,
+        string calldata readmeHash,
+        bool isAgent,
+        string calldata agentEndpoint
+    ) internal returns (uint256 id) {
         if (bytes(name).length == 0) revert EmptyName();
+        if (bytes(name).length > 64) revert NameTooLong();
+        if (bytes(description).length > 1024) revert DescriptionTooLong();
 
         string memory normalized = _normalizeName(name);
         if (nameTaken[normalized]) revert NameTaken();
@@ -274,7 +286,7 @@ contract InkdRegistry is Initializable, OwnableUpgradeable, UUPSUpgradeable {
             description: description,
             license: license,
             readmeHash: readmeHash,
-            owner: msg.sender,
+            owner: owner_,
             isPublic: isPublic,
             isAgent: isAgent,
             agentEndpoint: agentEndpoint,
@@ -284,9 +296,10 @@ contract InkdRegistry is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         });
 
         nameTaken[normalized] = true;
-        _ownerProjects[msg.sender].push(id);
+        _ownerProjects[owner_].push(id);
+        if (isAgent) _agentProjectIds.push(id);
 
-        emit ProjectCreated(id, msg.sender, normalized, license);
+        emit ProjectCreated(id, owner_, normalized, license);
 
         if (isAgent) {
             emit AgentRegistered(id, agentEndpoint);

@@ -94,11 +94,13 @@ contract InkdRegistryV2 is InkdRegistry {
     // ───── V2 Write Functions (settler-only, fee-free) ────────────────────────
 
     /// @notice Create a project with V2 metadata fields. Fee pre-paid via x402 off-chain.
+    /// @param owner_              Actual project owner (payer address from x402 header).
     /// @param metadataUri_        Arweave URI for off-chain JSON metadata (optional).
     /// @param forkOf_             Project ID this forks from, 0 if original.
     /// @param accessManifestHash_ Arweave hash of access control manifest (optional).
     /// @param tagsHash_           keccak256 of comma-separated tags (optional).
     function createProjectV2(
+        address owner_,
         string calldata name,
         string calldata description,
         string calldata license,
@@ -111,9 +113,10 @@ contract InkdRegistryV2 is InkdRegistry {
         string calldata accessManifestHash_,
         bytes32 tagsHash_
     ) external onlySettler {
+        if (owner_ == address(0)) revert ZeroAddress();
         if (forkOf_ != 0 && !projects[forkOf_].exists) revert InvalidForkTarget();
 
-        uint256 id = _createProjectCore(name, description, license, isPublic, readmeHash, isAgent, agentEndpoint);
+        uint256 id = _createProjectCoreFor(owner_, name, description, license, isPublic, readmeHash, isAgent, agentEndpoint);
 
         // V2 extra state (skip if empty/zero — saves gas)
         if (bytes(metadataUri_).length > 0)        projectMetadataUri[id]    = metadataUri_;
@@ -121,11 +124,11 @@ contract InkdRegistryV2 is InkdRegistry {
         if (bytes(accessManifestHash_).length > 0)  projectAccessManifest[id] = accessManifestHash_;
         if (tagsHash_ != bytes32(0))                projectTagsHash[id]       = tagsHash_;
 
-        emit ProjectCreatedV2(id, msg.sender, projects[id].name, forkOf_, metadataUri_);
+        emit ProjectCreatedV2(id, owner_, projects[id].name, forkOf_, metadataUri_);
 
         if (forkOf_ != 0) {
             _forks[forkOf_].push(id);
-            emit ProjectForked(id, forkOf_, msg.sender);
+            emit ProjectForked(id, forkOf_, owner_);
         }
     }
 

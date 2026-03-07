@@ -88,7 +88,7 @@ contract InkdRegistryV2Test is Test {
 
     function test_createProjectV2_succeeds() public {
         vm.prank(settler);
-        registry.createProjectV2(
+        registry.createProjectV2(owner, 
             "my-project", "desc", "MIT", true, "", false, "",
             "ar://metadata", 0, "", bytes32(0)
         );
@@ -96,7 +96,7 @@ contract InkdRegistryV2Test is Test {
         assertEq(registry.projectCount(), 1);
         InkdRegistry.Project memory p = registry.getProject(1);
         assertEq(p.name, "my-project");
-        assertEq(p.owner, settler); // msg.sender is settler
+        assertEq(p.owner, owner); // owner_ param is now used, not settler
         assertEq(registry.projectMetadataUri(1), "ar://metadata");
         assertEq(registry.projectForkOf(1), 0);
     }
@@ -104,7 +104,7 @@ contract InkdRegistryV2Test is Test {
     function test_createProjectV2_onlySettler() public {
         vm.prank(alice);
         vm.expectRevert(InkdRegistryV2.Unauthorized.selector);
-        registry.createProjectV2(
+        registry.createProjectV2(owner, 
             "proj", "d", "MIT", true, "", false, "",
             "", 0, "", bytes32(0)
         );
@@ -112,7 +112,7 @@ contract InkdRegistryV2Test is Test {
 
     function test_createProjectV2_ownerCanAlsoCreate() public {
         vm.prank(owner);
-        registry.createProjectV2(
+        registry.createProjectV2(owner, 
             "owner-proj", "d", "MIT", true, "", false, "",
             "", 0, "", bytes32(0)
         );
@@ -121,7 +121,7 @@ contract InkdRegistryV2Test is Test {
 
     function test_createProjectV2_storesMetadataUri() public {
         vm.prank(settler);
-        registry.createProjectV2(
+        registry.createProjectV2(owner, 
             "proj", "d", "MIT", true, "", false, "",
             "ar://abc123", 0, "", bytes32(0)
         );
@@ -130,7 +130,7 @@ contract InkdRegistryV2Test is Test {
 
     function test_createProjectV2_storesAccessManifest() public {
         vm.prank(settler);
-        registry.createProjectV2(
+        registry.createProjectV2(owner, 
             "proj", "d", "MIT", false, "", false, "",
             "", 0, "ar://manifest", bytes32(0)
         );
@@ -140,7 +140,7 @@ contract InkdRegistryV2Test is Test {
     function test_createProjectV2_storesTagsHash() public {
         bytes32 tags = keccak256("ai,agent,base");
         vm.prank(settler);
-        registry.createProjectV2(
+        registry.createProjectV2(owner, 
             "proj", "d", "MIT", true, "", false, "",
             "", 0, "", tags
         );
@@ -150,14 +150,14 @@ contract InkdRegistryV2Test is Test {
     function test_createProjectV2_forkOf() public {
         // Create original
         vm.prank(settler);
-        registry.createProjectV2(
+        registry.createProjectV2(owner, 
             "original", "d", "MIT", true, "", false, "",
             "", 0, "", bytes32(0)
         );
 
         // Fork it
         vm.prank(settler);
-        registry.createProjectV2(
+        registry.createProjectV2(owner, 
             "forked", "d", "MIT", true, "", false, "",
             "", 1, "", bytes32(0)
         );
@@ -171,7 +171,7 @@ contract InkdRegistryV2Test is Test {
     function test_createProjectV2_invalidForkTarget() public {
         vm.prank(settler);
         vm.expectRevert(InkdRegistryV2.InvalidForkTarget.selector);
-        registry.createProjectV2(
+        registry.createProjectV2(owner, 
             "proj", "d", "MIT", true, "", false, "",
             "", 999, "", bytes32(0)
         );
@@ -180,8 +180,8 @@ contract InkdRegistryV2Test is Test {
     function test_createProjectV2_emitsProjectCreated() public {
         vm.prank(settler);
         vm.expectEmit(true, true, false, true);
-        emit InkdRegistry.ProjectCreated(1, settler, "proj", "MIT");
-        registry.createProjectV2(
+        emit InkdRegistry.ProjectCreated(1, owner, "proj", "MIT");
+        registry.createProjectV2(owner,
             "proj", "d", "MIT", true, "", false, "",
             "", 0, "", bytes32(0)
         );
@@ -190,8 +190,8 @@ contract InkdRegistryV2Test is Test {
     function test_createProjectV2_emitsProjectCreatedV2() public {
         vm.prank(settler);
         vm.expectEmit(true, true, false, true);
-        emit InkdRegistryV2.ProjectCreatedV2(1, settler, "proj", 0, "ar://meta");
-        registry.createProjectV2(
+        emit InkdRegistryV2.ProjectCreatedV2(1, owner, "proj", 0, "ar://meta");
+        registry.createProjectV2(owner,
             "proj", "d", "MIT", true, "", false, "",
             "ar://meta", 0, "", bytes32(0)
         );
@@ -199,17 +199,17 @@ contract InkdRegistryV2Test is Test {
 
     function test_createProjectV2_emitsProjectForked() public {
         vm.prank(settler);
-        registry.createProjectV2("original", "d", "MIT", true, "", false, "", "", 0, "", bytes32(0));
+        registry.createProjectV2(owner, "original", "d", "MIT", true, "", false, "", "", 0, "", bytes32(0));
 
         vm.prank(settler);
         vm.expectEmit(true, true, true, false);
-        emit InkdRegistryV2.ProjectForked(2, 1, settler);
-        registry.createProjectV2("fork", "d", "MIT", true, "", false, "", "", 1, "", bytes32(0));
+        emit InkdRegistryV2.ProjectForked(2, 1, owner);
+        registry.createProjectV2(owner, "fork", "d", "MIT", true, "", false, "", "", 1, "", bytes32(0));
     }
 
     function test_createProjectV2_emptyMetadataNotStored() public {
         vm.prank(settler);
-        registry.createProjectV2("proj", "d", "MIT", true, "", false, "", "", 0, "", bytes32(0));
+        registry.createProjectV2(owner, "proj", "d", "MIT", true, "", false, "", "", 0, "", bytes32(0));
         assertEq(bytes(registry.projectMetadataUri(1)).length, 0);
         assertEq(registry.projectForkOf(1), 0);
         assertEq(registry.projectTagsHash(1), bytes32(0));
@@ -217,30 +217,30 @@ contract InkdRegistryV2Test is Test {
 
     function test_createProjectV2_normalizesName() public {
         vm.prank(settler);
-        registry.createProjectV2("MyProject", "d", "MIT", true, "", false, "", "", 0, "", bytes32(0));
+        registry.createProjectV2(owner, "MyProject", "d", "MIT", true, "", false, "", "", 0, "", bytes32(0));
         assertEq(registry.getProject(1).name, "myproject");
     }
 
     function test_createProjectV2_rejectsEmptyName() public {
         vm.prank(settler);
         vm.expectRevert(InkdRegistry.EmptyName.selector);
-        registry.createProjectV2("", "d", "MIT", true, "", false, "", "", 0, "", bytes32(0));
+        registry.createProjectV2(owner, "", "d", "MIT", true, "", false, "", "", 0, "", bytes32(0));
     }
 
     function test_createProjectV2_rejectsDuplicateName() public {
         vm.prank(settler);
-        registry.createProjectV2("proj", "d", "MIT", true, "", false, "", "", 0, "", bytes32(0));
+        registry.createProjectV2(owner, "proj", "d", "MIT", true, "", false, "", "", 0, "", bytes32(0));
 
         vm.prank(settler);
         vm.expectRevert(InkdRegistry.NameTaken.selector);
-        registry.createProjectV2("proj", "d", "MIT", true, "", false, "", "", 0, "", bytes32(0));
+        registry.createProjectV2(owner, "proj", "d", "MIT", true, "", false, "", "", 0, "", bytes32(0));
     }
 
     // ─── pushVersionV2() ──────────────────────────────────────────────────────
 
     function _createProject() internal returns (uint256 id) {
         vm.prank(settler);
-        registry.createProjectV2("myproj", "d", "MIT", true, "", false, "", "", 0, "", bytes32(0));
+        registry.createProjectV2(owner, "myproj", "d", "MIT", true, "", false, "", "", 0, "", bytes32(0));
         id = registry.projectCount();
     }
 
@@ -346,8 +346,8 @@ contract InkdRegistryV2Test is Test {
 
     function test_setMetadataUri_ownerOrCollaborator() public {
         uint256 id = _createProject();
-        // settler is owner of the project — should succeed
-        vm.prank(settler);
+        // owner_ param = owner — owner should succeed
+        vm.prank(owner);
         registry.setMetadataUri(id, "ar://new");
         assertEq(registry.projectMetadataUri(id), "ar://new");
     }
@@ -361,7 +361,7 @@ contract InkdRegistryV2Test is Test {
 
     function test_setAccessManifest_emitsEvent() public {
         uint256 id = _createProject();
-        vm.prank(settler);
+        vm.prank(owner);
         vm.expectEmit(true, false, false, true);
         emit InkdRegistryV2.AccessManifestUpdated(id, "ar://manifest");
         registry.setAccessManifest(id, "ar://manifest");
@@ -370,7 +370,7 @@ contract InkdRegistryV2Test is Test {
     function test_setTagsHash_storesHash() public {
         uint256 id = _createProject();
         bytes32 h = keccak256("tag1,tag2");
-        vm.prank(settler);
+        vm.prank(owner);
         registry.setTagsHash(id, h);
         assertEq(registry.projectTagsHash(id), h);
     }
@@ -400,7 +400,7 @@ contract InkdRegistryV2Test is Test {
 
         // Create via V2
         vm.prank(settler);
-        registry.createProjectV2("v2-proj", "d", "MIT", true, "", false, "", "ar://meta", 0, "", bytes32(0));
+        registry.createProjectV2(owner, "v2-proj", "d", "MIT", true, "", false, "", "ar://meta", 0, "", bytes32(0));
 
         assertEq(registry.projectCount(), 2);
         assertEq(registry.getProject(1).name, "v1-proj");
@@ -414,7 +414,7 @@ contract InkdRegistryV2Test is Test {
     function test_getProjectV2_returnsAllFields() public {
         bytes32 tags = keccak256("ai,agent");
         vm.prank(settler);
-        registry.createProjectV2(
+        registry.createProjectV2(owner, 
             "full", "d", "MIT", true, "", false, "",
             "ar://meta", 0, "ar://manifest", tags
         );
@@ -443,18 +443,18 @@ contract InkdRegistryV2Test is Test {
 
     function test_getForks_emptyForOriginal() public {
         vm.prank(settler);
-        registry.createProjectV2("orig", "d", "MIT", true, "", false, "", "", 0, "", bytes32(0));
+        registry.createProjectV2(owner, "orig", "d", "MIT", true, "", false, "", "", 0, "", bytes32(0));
         assertEq(registry.getForks(1).length, 0);
     }
 
     function test_getForks_multipleForks() public {
         vm.prank(settler);
-        registry.createProjectV2("orig", "d", "MIT", true, "", false, "", "", 0, "", bytes32(0));
+        registry.createProjectV2(owner, "orig", "d", "MIT", true, "", false, "", "", 0, "", bytes32(0));
 
         vm.prank(settler);
-        registry.createProjectV2("fork-a", "d", "MIT", true, "", false, "", "", 1, "", bytes32(0));
+        registry.createProjectV2(owner, "fork-a", "d", "MIT", true, "", false, "", "", 1, "", bytes32(0));
         vm.prank(settler);
-        registry.createProjectV2("fork-b", "d", "MIT", true, "", false, "", "", 1, "", bytes32(0));
+        registry.createProjectV2(owner, "fork-b", "d", "MIT", true, "", false, "", "", 1, "", bytes32(0));
 
         uint256[] memory forks = registry.getForks(1);
         assertEq(forks.length, 2);

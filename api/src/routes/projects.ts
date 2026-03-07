@@ -266,6 +266,7 @@ export function projectsRouter(cfg: ApiConfig): Router {
         abi:          REGISTRY_ABI,
         functionName: 'createProjectV2',
         args: [
+          (payerAddress ?? walletAddress) as `0x${string}`,
           name, description, license, isPublic, readmeHash,
           isAgent, agentEndpoint,
           metadataUri, BigInt(forkOf), accessManifestHash, tagsHashBytes,
