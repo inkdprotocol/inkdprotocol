@@ -70,9 +70,10 @@ No API key. No OAuth. No human in the loop.
 ```bash
 npm install -g @inkd/cli
 
-inkd config set privateKey 0x...
-inkd create my-project
-inkd push my-project v1.0.0 ar://QmYourArweaveHash
+export INKD_PRIVATE_KEY=0x...
+
+inkd project create --name my-project --license MIT
+inkd version push --id 1 --file ./dist/bundle.js --tag v1.0.0
 ```
 
 **For AI agents (x402):**
