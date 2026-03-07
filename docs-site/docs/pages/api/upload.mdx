@@ -1,96 +1,144 @@
 ---
-title: Upload
-description: Upload content to Arweave via the Inkd API.
+title: Upload API
+description: Upload files to permanent Arweave storage via the Inkd API.
 ---
 
-## Upload content
+# Upload API
+
+Upload files to permanent Arweave storage via Irys.
+
+**Base URL:** `https://api.inkdprotocol.com`
+
+---
+
+## POST /v1/upload
+
+Upload a file to Arweave. Returns a permanent `ar://` content hash.
 
 ```http
 POST /v1/upload
+Content-Type: multipart/form-data
 ```
 
-Upload any content to Arweave via Irys. Returns a permanent `ar://` hash.
+**No payment required.** Upload is free — you pay when pushing the version to the registry.
 
-**Free** — the Arweave storage cost is covered by the $2 USDC paid in `pushVersion`.
-
-**Request body** (`application/json`):
-
-```json
-{
-  "data":        "<base64-encoded content>",
-  "contentType": "application/json",
-  "filename":    "manifest.json"
-}
-```
+### Request fields (multipart/form-data)
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `data` | string | ✅ | Base64-encoded file content |
-| `contentType` | string | ✅ | MIME type |
-| `filename` | string | — | Optional filename tag on Arweave |
+| `file` | File | ✅ | The file to upload |
+| `contentType` | string | — | MIME type override. Defaults to detected type. |
 
-**Max size:** 50 MB
-
-**Response:**
+### Response
 
 ```json
 {
-  "hash":  "ar://QmAbc123...",
-  "txId":  "QmAbc123...",
-  "url":   "https://arweave.net/QmAbc123...",
-  "bytes": 1024,
-  "cost": {
-    "usdc": "1844",
-    "usd":  "$0.0018"
-  }
+  "arweaveHash": "ar://QmAbc123xyz...",
+  "url":         "https://arweave.net/QmAbc123xyz...",
+  "bytes":       14336,
+  "contentType": "application/javascript"
 }
 ```
 
 ### Example
 
-```typescript
-import { readFileSync } from "fs";
+```bash
+curl -X POST https://api.inkdprotocol.com/v1/upload \
+  -F "file=@./dist/agent.js"
+```
 
-const data = readFileSync("./dist/agent.js");
+```json
+{
+  "arweaveHash": "ar://QmAbc123xyz...",
+  "url":         "https://arweave.net/QmAbc123xyz...",
+  "bytes":       14336,
+  "contentType": "application/javascript"
+}
+```
 
-const res = await fetch("https://api.inkdprotocol.com/v1/upload", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    data:        data.toString("base64"),
-    contentType: "application/javascript",
-    filename:    "agent.js",
-  }),
-});
+Then push the version with the returned hash:
 
-const { hash, url } = await res.json();
-console.log(hash); // ar://QmAbc123...
+```bash
+inkd version push --id 10 --hash ar://QmAbc123xyz --tag v1.0.0
 ```
 
 ---
 
-## Estimate upload cost
+## GET /v1/upload/price
+
+Estimate the cost for a given file size before uploading.
 
 ```http
-GET /v1/upload/price?bytes=4096
+GET /v1/upload/price?bytes=102400
 ```
-
-Returns the Arweave cost estimate for a given upload size.
-
-**Query params:**
 
 | Param | Type | Description |
 |-------|------|-------------|
-| `bytes` | number | Upload size in bytes |
-
-**Response:**
+| `bytes` | number | File size in bytes |
 
 ```json
 {
-  "bytes": 4096,
-  "costUsdc": "1844",
-  "costUsd": "$0.0018"
+  "bytes":       102400,
+  "arweaveCost": "184000",
+  "markup":      "36800",
+  "total":       "220800",
+  "totalUsd":    "$0.22"
 }
 ```
 
-`costUsdc` is in USDC with 6 decimals. Divide by `1e6` for USD.
+All USDC values use 6 decimals. `total / 1e6` = USD amount.
+
+| File size | Total cost |
+|-----------|-----------|
+| 1 KB | ~$0.0022 |
+| 10 KB | ~$0.022 |
+| 100 KB | ~$0.22 |
+| 1 MB | ~$2.21 |
+
+Rates adjust with Arweave network conditions. Always call this endpoint before showing a cost estimate to users.
+
+---
+
+## Retrieving content
+
+Once uploaded, content is permanently accessible:
+
+```bash
+# Public Arweave gateway
+https://arweave.net/{txid}
+
+# ar:// shorthand (resolved by compatible clients)
+ar://QmAbc123xyz...
+```
+
+Content is immutable — the same URL returns the same bytes forever.
+
+:::warning
+Arweave uploads are **permanent**. There is no way to delete or update a file once uploaded. Do not upload private keys, secrets, or sensitive data in plaintext. Use [AgentVault](/sdk/agent-vault) to encrypt sensitive content before uploading.
+:::
+
+---
+
+## SDK usage
+
+The SDK handles upload automatically when you pass `file` to `pushVersion`:
+
+```typescript
+import { ProjectsClient } from "@inkd/sdk"
+
+const client = new ProjectsClient({ privateKey: process.env.INKD_PRIVATE_KEY! })
+
+// Auto-upload + push in one call
+await client.pushVersion({
+  projectId:  10,
+  file:       "./dist/agent.js",
+  versionTag: "v1.0.0",
+})
+
+// Or upload separately and use the hash
+const { arweaveHash } = await client.upload(
+  require("fs").readFileSync("./dist/agent.js"),
+  "application/javascript"
+)
+await client.pushVersion({ projectId: 10, arweaveHash, versionTag: "v1.0.0" })
+```

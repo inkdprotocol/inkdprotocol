@@ -1,66 +1,148 @@
 ---
 title: AgentVault
-description: Store encrypted agent credentials permanently on Arweave.
+description: ECIES-encrypted credential storage for AI agents. Wallet-key encryption, Arweave-backed persistence. No key server.
 ---
 
-`AgentVault` lets agents store sensitive credentials (API keys, private configs) encrypted on Arweave, keyed to their wallet. Only the wallet that stored them can retrieve them.
+# AgentVault
 
-## How it works
+**Encrypted credential storage for AI agents.**
 
-Credentials are encrypted with ECIES using the agent's wallet public key. The ciphertext is stored on Arweave. The Arweave hash is kept locally (or in the registry). Only the wallet's private key can decrypt.
+`AgentVault` lets an agent store credentials (API keys, tokens, secrets) encrypted to its wallet public key and persist them on Arweave. Only the agent that owns the private key can open the vault. Access can be selectively granted to other wallets without a key server.
 
-## Usage
+- **ECIES encryption** — Elliptic Curve Integrated Encryption Scheme over secp256k1. The same curve Ethereum wallets use.
+- **No key server** — Credentials are encrypted to a public key derived from your private key. Only you can decrypt.
+- **Arweave persistence** — Encrypted blobs stored permanently. Your agent always has access from any machine.
+- **Multi-wallet grants** — Re-encrypt a secret for another wallet without sharing your private key.
+
+---
+
+## Install
+
+```bash
+npm install @inkd/sdk
+```
 
 ```typescript
-import { AgentVault } from "@inkd/sdk";
-import { privateKeyToAccount } from "viem/accounts";
+import { AgentVault } from "@inkd/sdk"
+```
 
-const account = privateKeyToAccount("0xYOUR_PRIVATE_KEY");
-const vault   = new AgentVault({ account });
+---
 
-// Store credentials
-const { hash } = await vault.store({
+## Seal credentials
+
+Create an `AgentVault` instance with your private key and seal a credentials object. The result is an encrypted base64 blob you can store anywhere — on Arweave, in a database, or in a file.
+
+```typescript
+import { AgentVault, ProjectsClient } from "@inkd/sdk"
+
+const vault  = new AgentVault(process.env.INKD_PRIVATE_KEY!)
+const client = new ProjectsClient({ privateKey: process.env.INKD_PRIVATE_KEY! })
+
+// Seal any JSON-serializable credentials
+const blob = await vault.seal({
   openaiKey:    "sk-...",
-  discordToken: "Bot ...",
-});
+  anthropicKey: "sk-ant-...",
+  githubToken:  "ghp_...",
+})
 
-console.log(hash); // ar://QmVault...
-
-// Later: retrieve
-const credentials = await vault.load(hash);
-console.log(credentials.openaiKey); // "sk-..."
+// blob is a base64-encoded encrypted string
+// Store it on Arweave via Inkd
+const { arweaveHash } = await client.upload(Buffer.from(blob))
+console.log(arweaveHash) // "ar://QmAbc123..."
 ```
 
-## API
+---
 
-### `store(data)`
+## Open credentials
 
-Encrypts `data` with the wallet's public key and uploads to Arweave.
+On startup, fetch the encrypted blob from Arweave and open it. Returns the original credentials object.
 
 ```typescript
-const { hash, txId } = await vault.store({ key: "value" });
+import { AgentVault } from "@inkd/sdk"
+
+const vault = new AgentVault(process.env.INKD_PRIVATE_KEY!)
+
+// Fetch blob from Arweave
+const res  = await fetch("https://arweave.net/QmAbc123...")
+const blob = await res.text()
+
+// Decrypt — throws if wrong key or corrupted ciphertext
+const creds = await vault.open(blob)
+console.log(creds.openaiKey) // "sk-..."
 ```
 
-### `load(hash)`
+---
 
-Fetches the ciphertext from Arweave and decrypts with the wallet's private key.
+## Multi-wallet access
+
+Grant another agent or wallet access to your credentials without sharing your private key. This re-encrypts the plaintext to the grantee's public key.
 
 ```typescript
-const data = await vault.load("ar://QmVault...");
+// Get the grantee's public key
+const granteePubKey = AgentVault.getPublicKey(granteePrivateKey)
+// → compressed secp256k1 hex: "02a3f..."
+
+// Re-encrypt for grantee
+const existingCreds = await vault.open(myBlob)
+const granteeBlob   = await vault.grantAccess(granteePubKey, existingCreds)
+
+// Grantee opens with their own vault
+const granteeVault = new AgentVault(granteePrivateKey)
+const creds        = await granteeVault.open(granteeBlob)
 ```
 
-### `seal(data)`
+---
 
-Encrypt only (no upload). Returns the ciphertext buffer.
+## Access manifest
+
+An access manifest lists all wallets with access to a project's secrets and where their encrypted blobs are stored. Publish it to Arweave and anchor the hash on-chain so your team can verify who has access.
 
 ```typescript
-const ciphertext = await vault.seal({ key: "value" });
+const manifest = AgentVault.buildAccessManifest(projectId, [
+  {
+    wallet:      "0xAgentWallet",
+    blobHash:    "ar://QmAgent...",
+    grantedAt:   Date.now(),
+    grantedBy:   "0xOwnerWallet",
+    description: "Primary agent",
+  },
+  {
+    wallet:      "0xBackupWallet",
+    blobHash:    "ar://QmBackup...",
+    grantedAt:   Date.now(),
+    grantedBy:   "0xOwnerWallet",
+    description: "Recovery wallet",
+  },
+])
+
+// Publish manifest to Arweave
+const { arweaveHash } = await client.upload(
+  Buffer.from(JSON.stringify(manifest, null, 2)),
+  "application/json"
+)
+
+// Anchor on-chain (InkdRegistryV2)
+// setProjectAccessManifest(projectId, arweaveHash)
 ```
 
-### `unseal(ciphertext)`
+---
 
-Decrypt only (no Arweave fetch).
+## API reference
 
-```typescript
-const data = await vault.unseal(ciphertext);
-```
+| Method | Description |
+|--------|-------------|
+| `new AgentVault(privateKey)` | Create a vault bound to a wallet private key |
+| `vault.seal(credentials)` | Encrypt credentials to this wallet. Returns base64 blob. |
+| `vault.open(blob)` | Decrypt a blob sealed for this wallet. Returns credentials. |
+| `vault.sealForPublicKey(creds, pubKey)` | Encrypt credentials to any wallet by public key |
+| `vault.grantAccess(pubKey, plaintext)` | Re-encrypt existing plaintext for another wallet |
+| `AgentVault.getPublicKey(privateKey)` | Derive compressed secp256k1 public key. Static. |
+| `AgentVault.buildAccessManifest(projectId, entries)` | Build a typed access manifest. Static. |
+
+---
+
+## Security notes
+
+- **Arweave is public.** The encrypted blob is visible to anyone. Security depends on the strength of ECIES and keeping your private key secret.
+- **Forward secrecy.** Each `seal()` call generates a new ephemeral key pair, so blobs sealed at different times look different even with identical plaintext.
+- **Rotation.** To rotate credentials, seal a new blob and update the Arweave hash reference. Old blobs remain on Arweave permanently — they cannot be deleted.

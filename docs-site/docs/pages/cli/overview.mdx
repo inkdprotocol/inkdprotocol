@@ -1,7 +1,11 @@
 ---
 title: CLI Reference
-description: Terminal interface for Inkd Protocol. Create projects, push versions, check status.
+description: Terminal interface for Inkd Protocol. Create projects, push versions, manage collaborators.
 ---
+
+# CLI Reference
+
+`@inkd/cli` — terminal interface for the Inkd Protocol.
 
 ## Install
 
@@ -9,29 +13,46 @@ description: Terminal interface for Inkd Protocol. Create projects, push version
 npm install -g @inkd/cli
 ```
 
+Verify:
+
+```bash
+inkd --version
+# @inkd/cli 0.1.1
+```
+
+---
+
 ## Configuration
 
 ```bash
 export INKD_PRIVATE_KEY=0xYOUR_PRIVATE_KEY   # required for write operations
-export INKD_NETWORK=mainnet                   # mainnet | testnet (default: testnet)
-export INKD_RPC_URL=https://...              # optional custom RPC
-export INKD_API_URL=https://...              # optional (default: api.inkdprotocol.com)
+export INKD_NETWORK=mainnet                   # mainnet | testnet (default: mainnet)
+export INKD_API_URL=https://...              # optional, default: api.inkdprotocol.com
 ```
 
-Or scaffold a local config file:
-
-```bash
-inkd init
-```
+:::warning
+Never commit your private key to version control. Use environment variables or a secrets manager.
+:::
 
 ---
 
 ## `inkd status`
 
-Show network connectivity and registry info.
+Show network connectivity, wallet balance, and registry info.
 
 ```bash
 inkd status
+```
+
+```
+Inkd Protocol
+────────────────────────────────────
+Network:   mainnet (Base, chain 8453)
+Registry:  0xEd3067dDa601f19A5737babE7Dd3AbfD4a783e5d
+Wallet:    0xYourWallet
+USDC:      12.50
+ETH:       0.0041
+Projects:  12 registered
 ```
 
 ---
@@ -40,7 +61,7 @@ inkd status
 
 ### `project create`
 
-Register a new project. **Costs $5 USDC.**
+Register a new project on-chain. Costs **$0.10 USDC minimum** (paid via x402).
 
 ```bash
 inkd project create \
@@ -52,30 +73,82 @@ inkd project create \
   [--endpoint https://my-agent.example.com]
 ```
 
-| Flag | Description |
-|------|-------------|
-| `--name` | Project name (required) |
-| `--description` | Short description |
-| `--license` | SPDX license (default: MIT) |
-| `--agent` | Mark as AI agent project |
-| `--private` | Private project (not publicly listed) |
-| `--endpoint` | Agent HTTP endpoint |
-| `--readme` | Arweave hash of README |
+| Flag | Required | Description |
+|------|----------|-------------|
+| `--name` | ✅ | Project name. Max 64 chars, globally unique, immutable. |
+| `--description` | — | Short description. Max 1024 chars. |
+| `--license` | — | SPDX identifier. Default: MIT. |
+| `--agent` | — | Mark as AI agent project. |
+| `--private` | — | Make the project private. |
+| `--endpoint` | — | Agent HTTP endpoint (requires `--agent`). |
+| `--json` | — | Output as JSON. |
 
-### `project get <id>`
+```
+→ Paying $0.10 USDC via EIP-3009...
+→ Submitting transaction...
 
-Fetch project details by ID.
-
-```bash
-inkd project get 7
+✓ Project created
+  Name:       my-agent
+  Project ID: 10
+  Owner:      0xYourWallet
+  TX:         0x25642785bb...
+  Basescan:   https://basescan.org/tx/0x25642785bb...
 ```
 
-### `project list <address>`
+:::note
+Project names are **global and permanent**. Once a name is taken, it cannot be reused by anyone. Names are normalized to lowercase.
+:::
 
-List all projects owned by an address.
+### `project get`
+
+Look up a project by ID or name.
 
 ```bash
-inkd project list 0xYourAddress
+inkd project get 10
+inkd project get my-agent
+inkd project get my-agent --json
+```
+
+```
+Project #10: my-agent
+────────────────────────────────────
+Owner:    0xYourWallet
+License:  MIT
+Public:   true
+Agent:    true
+Versions: 2
+Created:  2026-03-07 20:40 UTC
+```
+
+### `project list`
+
+List all public projects.
+
+```bash
+inkd project list [--offset 0] [--limit 20] [--json]
+```
+
+### `project transfer`
+
+Transfer project ownership.
+
+```bash
+inkd project transfer --id 10 --to 0xNewOwner
+```
+
+### `project collaborator`
+
+Manage push access. Max 50 collaborators per project.
+
+```bash
+# Add
+inkd project collaborator add --id 10 --address 0xCollaborator
+
+# Remove
+inkd project collaborator remove --id 10 --address 0xCollaborator
+
+# List
+inkd project collaborator list --id 10
 ```
 
 ---
@@ -84,57 +157,79 @@ inkd project list 0xYourAddress
 
 ### `version push`
 
-Push a new version. **Costs $2 USDC.**
-
-**With file upload** (auto-uploads to Arweave first):
+Upload content to Arweave and record the version on-chain.
 
 ```bash
 inkd version push \
-  --id 7 \
+  --id 10 \
   --file ./dist/agent.js \
-  --tag v1.0.0
+  --tag v1.0.0 \
+  [--changelog "Initial release"]
 ```
 
-**With existing Arweave hash:**
+| Flag | Required | Description |
+|------|----------|-------------|
+| `--id` | ✅ | Project ID. |
+| `--file` | ✅ or `--hash` | Local file to upload to Arweave. |
+| `--hash` | ✅ or `--file` | Existing Arweave hash. Skips upload. |
+| `--tag` | ✅ | Version tag (e.g. `v1.0.0`). |
+| `--changelog` | — | Description of changes. |
+| `--json` | — | Output as JSON. |
 
-```bash
-inkd version push \
-  --id 7 \
-  --hash ar://QmAbc123... \
-  --tag v1.0.0
+```
+→ Uploading dist/agent.js (14.2 KB) to Arweave...
+→ Uploaded: ar://QmAbc123xyz...
+→ Paying $0.0022 USDC...
+→ Submitting transaction...
+
+✓ Version pushed
+  Tag:      v1.0.0
+  Content:  ar://QmAbc123xyz
+  URL:      https://arweave.net/QmAbc123xyz
+  TX:       0x7a63bd374bd4...
 ```
 
-| Flag | Description |
-|------|-------------|
-| `--id` | Project ID (required) |
-| `--file` | Local file to upload to Arweave |
-| `--hash` | Pre-existing Arweave hash (`ar://...`) |
-| `--tag` | Version tag, e.g. `v1.0.0` (required) |
-
-### `version list <id>`
-
-List all versions for a project.
+Already have an Arweave hash?
 
 ```bash
-inkd version list 7
+inkd version push --id 10 --hash ar://QmExisting --tag v1.1.0
 ```
 
-### `version show`
-
-Show details for a specific version.
+### `version list`
 
 ```bash
-inkd version show --id 7 --index 0
+inkd version list --id 10
+```
+
+```
+#   Tag      Hash               Pushed at
+0   v1.0.0   ar://QmAbc123...   2026-03-07 20:45 UTC
+1   v1.1.0   ar://QmDef456...   2026-03-07 21:12 UTC
+```
+
+### `version get`
+
+```bash
+inkd version get --id 10 --index 0
 ```
 
 ---
 
-## Cost summary
+## CI/CD example
 
-| Operation | Cost |
-|-----------|------|
-| `project create` | $5 USDC |
-| `version push` | $2 USDC |
-| `project get` / `version list` | Free |
+```yaml
+# .github/workflows/deploy.yml
+- name: Push version to Inkd
+  env:
+    INKD_PRIVATE_KEY: ${{ secrets.INKD_PRIVATE_KEY }}
+  run: |
+    npx @inkd/cli version push \
+      --id ${{ vars.INKD_PROJECT_ID }} \
+      --file ./dist/bundle.js \
+      --tag v${{ github.ref_name }} \
+      --changelog "Release ${{ github.ref_name }}"
+```
 
-All payments are made via [x402](/concepts/x402) directly from your wallet. No API key needed.
+:::tip
+For AI agents, the [ProjectsClient](/sdk/projects-client) SDK handles error recovery and retries better than shelling out to the CLI.
+:::

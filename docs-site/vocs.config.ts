@@ -2,9 +2,9 @@ import { defineConfig } from 'vocs'
 
 export default defineConfig({
   title: 'Inkd Protocol',
-  description: 'On-chain project registry for AI agents and developers. Built on Base, stored on Arweave.',
+  description: 'Permanent on-chain project registry for AI agents and developers. Built on Base, stored on Arweave. Pay with USDC.',
   logoUrl: '/logo.jpg',
-  baseUrl: 'https://docs.inkdprotocol.com',
+  baseUrl: 'https://inkdprotocol.com',
   ogImageUrl: 'https://inkdprotocol.com/og.png',
 
   theme: {
@@ -77,7 +77,7 @@ export default defineConfig({
     {
       text: 'Security',
       items: [
-        { text: 'Security',  link: '/security-audit' },
+        { text: 'Security',        link: '/security-audit' },
       ],
     },
   ],

@@ -1,6 +1,6 @@
 ---
 title: Introduction
-description: Inkd is a permanent, on-chain project registry built on Base. Pay with USDC, store forever on Arweave.
+description: Inkd is a permanent, on-chain project registry built on Base. Pay with USDC. Store forever on Arweave. Own your work.
 ---
 
 # Inkd Protocol
@@ -15,12 +15,14 @@ Projects and versions are registered on-chain on Base. Content lives permanently
 
 Software registries today are centralized. npm, PyPI, Docker Hub — they can ban packages, go offline, change pricing, or shut down entirely. For AI agents that need to publish and discover code autonomously, this is a fundamental reliability problem.
 
+There is no trustless, censorship-resistant alternative. Until now.
+
 ## The solution
 
 Inkd replaces the centralized registry with on-chain state and permanent storage:
 
 - **On-chain registry** — Project ownership, version history, and metadata live on Base. Immutable, verifiable, censorship-resistant.
-- **Permanent content** — Files are stored on Arweave via Irys. Once uploaded, they exist forever.
+- **Permanent content** — Files are stored on Arweave via Irys. Once uploaded, they exist forever — no pinning, no renewal, no server.
 - **USDC payments** — Agents pay directly with USDC via [x402](/concepts/x402). No accounts, no API keys — your wallet is your identity.
 
 ---
@@ -31,14 +33,14 @@ Inkd replaces the centralized registry with on-chain state and permanent storage
 
 A project is an on-chain record with a unique name, owner address, license, and metadata. Once created, it exists forever on Base.
 
-```
+```solidity
 Project {
-  id:          uint256       // auto-incrementing
-  name:        string        // unique, max 64 chars
-  owner:       address       // controls the project
-  license:     string        // SPDX identifier
-  isPublic:    bool
-  isAgent:     bool          // AI agent flag
+  id:           uint256   // auto-incrementing
+  name:         string    // unique, max 64 chars, immutable
+  owner:        address   // controls the project
+  license:      string    // SPDX identifier
+  isPublic:     bool
+  isAgent:      bool      // AI agent flag
   versionCount: uint256
 }
 ```
@@ -47,14 +49,14 @@ Project {
 
 A version links a project to a permanent Arweave content hash. Every version is immutable once pushed.
 
-```
+```solidity
 Version {
   projectId:   uint256
-  arweaveHash: string        // ar://... permanent content address
-  versionTag:  string        // e.g. "v1.0.0"
+  arweaveHash: string    // ar://... permanent content address
+  versionTag:  string    // e.g. "v1.0.0"
   changelog:   string
   pushedBy:    address
-  pushedAt:    uint256
+  pushedAt:    uint256   // block timestamp
 }
 ```
 
@@ -62,16 +64,16 @@ Version {
 
 ## Who it's for
 
-**AI agents** — Autonomous agents can publish, version, and discover software without human-managed credentials. A wallet + USDC is all that's needed.
+**AI agents** — Autonomous agents can publish, version, and discover software without human-managed credentials. A wallet + USDC is all that's needed. No sign-up flows, no token rotation, no rate-limit headaches.
 
-**Developers** — Permanent, verifiable artifact storage. Every version is on-chain with a timestamp, owner proof, and permanent content link.
+**Developers** — Permanent, verifiable artifact storage. Every version is on-chain with a timestamp, owner proof, and a permanent content link that will resolve in 10 years the same as today.
 
 ---
 
 ## Contracts (Base Mainnet)
 
-| Contract | Address |
-|----------|---------|
+| Contract | Proxy Address |
+|----------|--------------|
 | InkdRegistry | [`0xEd3067dDa601f19A5737babE7Dd3AbfD4a783e5d`](https://basescan.org/address/0xEd3067dDa601f19A5737babE7Dd3AbfD4a783e5d) |
 | InkdTreasury | [`0x23012C3EF1E95aBC0792c03671B9be33C239D449`](https://basescan.org/address/0x23012C3EF1E95aBC0792c03671B9be33C239D449) |
 | InkdBuyback | [`0xcbbf310513228153D981967E96C8A097c3EEd357`](https://basescan.org/address/0xcbbf310513228153D981967E96C8A097c3EEd357) |
@@ -82,25 +84,23 @@ All contracts are open-source, verified on Basescan, and upgradeable via multisi
 
 ## Start building
 
-:::steps
-
-### Install the CLI
+Install the CLI:
 
 ```bash
 npm install -g @inkd/cli
 ```
 
-### Create a project
+Create a project:
 
 ```bash
 export INKD_PRIVATE_KEY=0x...
 inkd project create --name my-agent --description "My agent"
 ```
 
-### Push a version
+Push a version:
 
 ```bash
 inkd version push --id 1 --file ./dist/agent.js --tag v1.0.0
 ```
 
-:::
+→ [Full Quickstart guide](/quickstart)
