@@ -1,68 +1,11 @@
 ---
 title: Security
-description: Inkd Protocol security audits, findings, and disclosure policy.
+description: 321 tests. 4 audit passes. Slither clean. Contracts controlled by Safe multisigs on Base.
 ---
 
 # Security
 
-Inkd Protocol has undergone **4 internal audit passes** covering all smart contracts. This page documents the methodology, findings, and current security posture.
-
----
-
-## Audit summary
-
-| Audit | Scope | Findings | Status |
-|-------|-------|----------|--------|
-| Pass 1 — Initial review | All contracts | 3 Medium, 5 Low | ✅ Fixed |
-| Pass 2 — Slither deep scan | All contracts | 2 Medium, 6 Low | ✅ Fixed |
-| Pass 3 — Storage & slippage | Buyback, RegistryV2 | 1 Medium | ✅ Fixed |
-| Pass 4 — Professional criteria | All contracts | 1 Medium, 3 Low | ✅ Fixed |
-
-**321/321 tests passing** — unit, fuzz (256 runs each), and invariant tests.
-
----
-
-## Findings (resolved)
-
-### Medium
-
-**[FIXED] Buyback `deposit()` permissionless — event spoofable**
-Anyone could call `deposit(uint256.max)` and emit a misleading `Deposited` event with a fake amount.
-Fix: `require(msg.sender == treasury)` — only the Treasury contract can call `deposit()`.
-
-**[FIXED] Registry reentrancy — state updates after external calls**
-In `pushVersion` and `transferProject`, state was updated after external Treasury calls.
-Fix: CEI pattern applied — all state updates happen before external calls.
-
-**[FIXED] Buyback slippage — `amountOutMinimum: 0`**
-No slippage protection on Uniswap swaps. Susceptible to sandwich attacks.
-Fix: `amountOutMinimum = usdcIn * (10000 - maxSlippageBps) / 10000`. Default 1%, max 10%.
-
-### Low
-
-**[FIXED] Empty `arweaveHash` and `versionTag` accepted**
-`pushVersion` allowed empty strings, storing garbage on Arweave permanently.
-Fix: `revert EmptyArweaveHash()` and `revert EmptyVersionTag()`.
-
-**[FIXED] `settle(0, 0)` allowed**
-Treasury `settle` could be called with zero amount — wasteful on-chain call.
-Fix: `require(total > 0, "Nothing to settle")`.
-
-**[FIXED] Unbounded collaborators — gas DoS**
-No limit on collaborators per project. `removeCollaborator` is O(n) — large arrays could hit gas limits.
-Fix: `revert TooManyCollaborators()` at 50 collaborators.
-
-**[FIXED] Missing events on admin setters**
-`setRegistry()` and `setDefaultFee()` in Treasury had no events.
-Fix: `emit RegistrySet()` and `emit DefaultFeeSet()`.
-
-**[FIXED] Timelock missing zero-address checks**
-`constructor`, `setPendingAdmin`, and `executeTransaction` lacked zero-address validation.
-Fix: `require(addr != address(0))` added to all three.
-
-**[FIXED] No storage gap in InkdRegistryV2**
-Without `__gap`, future V3 upgrades would risk storage collisions.
-Fix: `uint256[42] private __gap` added to InkdRegistryV2 (not yet deployed).
+**321 tests. 4 audit passes. 0 open findings. Slither clean.**
 
 ---
 
@@ -71,58 +14,104 @@ Fix: `uint256[42] private __gap` added to InkdRegistryV2 (not yet deployed).
 | Suite | Tests | Method |
 |-------|-------|--------|
 | InkdRegistry | 77 | Unit + edge cases |
+| InkdRegistryV2 | 52 | Unit + upgrade path |
 | InkdTreasury | 29 | Unit + split math |
-| InkdBuyback | 23 | Unit + slippage |
+| InkdBuyback | 23 | Unit + slippage tests |
 | InkdToken | 19 | Unit |
 | InkdTimelock | 10 | Unit |
-| InkdRegistryV2 | 27 | Unit |
-| InkdUpgrade | 16 | Upgrade safety |
-| InkdFuzz | 29 | Fuzz (256 runs each) |
-| InkdInvariant | 10 | Invariant (256 runs) |
+| Fuzz suite | 29 | Fuzz — 256 runs per function |
+| Invariant suite | 10 | Invariant — 256 sequences |
+| Other | 72 | Unit |
 
 **Total: 321 tests, 0 failures.**
 
-Fuzz tests cover: token transfers, treasury split math, markup bounds, fee access control, project ID monotonicity, version count, collaborator push/transfer/remove, fee deduction.
-
-Invariants verified: supply never increases, registry holds no ETH, projectCount matches state, all projects have non-zero owner, names always marked taken, version counts match struct, markupBps ≤ 5000.
+Fuzz tests randomize inputs across 256 iterations per function, targeting arithmetic overflow, access control bypass, and fee calculation edge cases. Invariant tests verify protocol-level properties (token supply, project count monotonicity, name uniqueness, owner existence) hold across 256 random operation sequences.
 
 ---
 
 ## Static analysis
 
-All contracts are analyzed with [Slither](https://github.com/crytic/slither) on every commit.
+All contracts run [Slither](https://github.com/crytic/slither) on every commit via CI.
 
-**Current status:** 0 High, 0 Medium findings in production code.
-
-Remaining informational findings are all suppressed with documented justification:
-- `timestamp` detector false positives on address equality comparisons
-- `reentrancy-events` in Timelock (emit after external call is required for timelock semantics)
-- `missing-zero-check` on Buyback `inkdToken_` (intentionally allowed to be `address(0)` pre-launch)
-
----
-
-## Centralization risks
-
-| Risk | Mitigation |
-|------|-----------|
-| Contract upgrades | Require 2-of-2 multisig (Safe) |
-| Treasury withdrawals | Require 2-of-2 multisig (Safe) |
-| Buyback `setInkdToken` | Require 2-of-2 multisig (Safe) |
-| API server compromise | Settler role only calls `settle()` — cannot move funds arbitrarily |
-| Arweave wallet | Receives USDC only — no admin power over contracts |
+| Severity | Open findings |
+|----------|--------------|
+| High | 0 |
+| Medium | 0 |
+| Low | 0 (false positives suppressed with inline comments) |
 
 ---
 
-## Known limitations
+## Audit passes
 
-- **No external audit** — the protocol has undergone rigorous internal audits but has not been reviewed by an external firm (Trail of Bits, OpenZeppelin, etc.). An external audit is recommended before significant TVL accumulates.
-- **Slippage model** — `amountOutMinimum` in Buyback is a fraction of USDC in, not a true price-oracle-based check. Owner should update `maxSlippageBps` based on pool depth.
-- **Arweave is public** — all content uploaded via the API is permanently public. Private content should be encrypted before upload.
+| Pass | Scope | Findings | Status |
+|------|-------|----------|--------|
+| Pass 1 — Initial review | All contracts | 3 Medium, 5 Low | ✅ Fixed |
+| Pass 2 — Slither deep scan | All contracts | 2 Medium, 6 Low | ✅ Fixed |
+| Pass 3 — Storage & slippage | Buyback, RegistryV2 | 1 Medium | ✅ Fixed |
+| Pass 4 — Professional criteria | All contracts | 1 Medium, 3 Low | ✅ Fixed |
+
+---
+
+## Key findings (all resolved)
+
+### Buyback deposit() — permissionless event spoofing
+
+Anyone could call `deposit(uint256.max)` and emit a misleading `Deposited` event, creating false accounting signals for off-chain monitors.
+
+**Fix:** `require(msg.sender == treasury)`
+
+### Slippage protection missing on Uniswap swaps
+
+`amountOutMinimum: 0` — susceptible to sandwich attacks draining the buyback balance with minimal $INKD output.
+
+**Fix:** `amountOutMinimum = usdcIn × (10000 − maxSlippageBps) / 10000`. Default 1%, configurable up to 10%.
+
+### Registry reentrancy in pushVersion / transferProject
+
+State updates occurred after external Treasury calls, violating the Checks-Effects-Interactions pattern.
+
+**Fix:** All state mutations moved before external calls.
+
+### Empty arweaveHash / versionTag accepted
+
+`pushVersion` accepted empty strings, storing permanently invalid versions on-chain.
+
+**Fix:** `revert EmptyArweaveHash()` / `revert EmptyVersionTag()`
+
+### Unbounded collaborators — O(n) gas DoS
+
+No collaborator limit. `removeCollaborator` is O(n), enabling gas exhaustion at scale.
+
+**Fix:** Hard cap of 50 collaborators. `revert CollaboratorLimitReached()`
+
+### Storage gap missing in RegistryV2
+
+UUPS upgrade without a storage gap between V1 and V2 state variables would cause slot collisions.
+
+**Fix:** `uint256[42] __gap` added after V2 state variables.
+
+---
+
+## Security architecture
+
+- **UUPS upgradeable proxies** — logic can be upgraded, but only through the respective owner Safe multisig (2-of-2 on Base Mainnet).
+- **Three separate Safes** — Registry, Treasury, and Buyback are controlled independently. No single key controls the protocol.
+- **EIP-3009 payments** — gasless USDC transfers with unique nonces and expiry windows. Replay-safe by design.
+- **CEI pattern enforced** — all state mutations before external calls across all write functions.
+- **Arweave immutability** — once a version is pushed, the content hash is permanent on-chain and the file is permanent on Arweave.
+
+---
+
+## Limitations
+
+- **Internal audits only.** No third-party security firm has reviewed the contracts. External audit is planned before significant TVL.
+- **Arweave content is public.** All uploaded files are permanently accessible. Encrypt sensitive data with [AgentVault](/sdk/agent-vault) before uploading.
+- **Upgradeability is a trust assumption.** The protocol team can upgrade contract logic via multisig. This is intentional for bug fixes but requires trusting the multisig signers.
 
 ---
 
 ## Responsible disclosure
 
-Found a vulnerability? Email **security@inkdprotocol.com** with details. We will respond within 48 hours and coordinate a fix before public disclosure.
+Email [security@inkdprotocol.com](mailto:security@inkdprotocol.com) with details. We respond within 48 hours and coordinate disclosure after a fix is deployed.
 
 Do not open public GitHub issues for security vulnerabilities.

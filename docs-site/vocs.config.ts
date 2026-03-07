@@ -77,7 +77,7 @@ export default defineConfig({
     {
       text: 'Security',
       items: [
-        { text: 'Security Audit',  link: '/security-audit' },
+        { text: 'Security',  link: '/security-audit' },
       ],
     },
   ],
