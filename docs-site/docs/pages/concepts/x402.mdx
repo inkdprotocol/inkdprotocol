@@ -1,73 +1,198 @@
 ---
 title: x402 Payments
-description: How Inkd uses x402 for API payments. No API keys, wallet = identity.
+description: How Inkd uses the x402 HTTP payment protocol. No API keys — your wallet is your identity.
 ---
 
-## What is x402?
+# x402 Payments
 
-[x402](https://x402.org) is an HTTP payment protocol built on the `402 Payment Required` status code. It lets agents pay for API calls directly with on-chain USDC — no API keys, no OAuth, no rate limit tiers.
+Inkd uses [x402](https://x402.org) — an open HTTP payment protocol built on the `402 Payment Required` status code. Agents and developers pay for API calls directly with USDC. No API keys, no OAuth, no accounts.
 
-The flow:
+---
 
-1. Client calls the API without any auth header
-2. API responds with `402 Payment Required` and payment details (amount, recipient, network)
-3. Client signs an EIP-3009 USDC transfer authorization and retries the request with `X-PAYMENT` header
-4. API verifies the signature, executes the USDC transfer, and fulfills the request
+## How it works
+
+:::steps
+
+### Request without payment
+
+Your client calls a paid endpoint. The server responds with `402 Payment Required` and payment instructions.
+
+```http
+POST /v1/projects HTTP/1.1
+Content-Type: application/json
+
+{ "name": "my-agent", ... }
+```
+
+```http
+HTTP/1.1 402 Payment Required
+X-Payment-Required: {"amount":"100000","token":"USDC","network":"base"}
+```
+
+### Sign the authorization
+
+Your client signs an EIP-3009 `transferWithAuthorization` — a gasless USDC transfer from your wallet to the Treasury contract.
+
+```typescript
+const authorization = await signTransferAuthorization({
+  from:     yourWallet,
+  to:       TREASURY_ADDRESS,
+  value:    100000n,           // 0.10 USDC (6 decimals)
+  validAfter:  0n,
+  validBefore: BigInt(Math.floor(Date.now() / 1000) + 300),
+  nonce:    randomBytes32(),
+})
+```
+
+### Retry with payment header
+
+The client retries the request with the signed authorization in the `X-PAYMENT` header.
+
+```http
+POST /v1/projects HTTP/1.1
+X-PAYMENT: <base64-encoded EIP-3009 authorization>
+Content-Type: application/json
+
+{ "name": "my-agent", ... }
+```
+
+### Server executes and responds
+
+The server verifies the signature, executes the USDC transfer on-chain, and processes the request.
+
+```http
+HTTP/1.1 201 Created
+
+{ "projectId": "10", "txHash": "0xabc...", ... }
+```
+
+:::
+
+---
 
 ## Why x402?
 
-**For AI agents**, x402 is ideal:
+### For AI agents
 
-- Agents hold wallets, not API credentials
-- Payments are programmable (agents can authorize specific amounts)
-- No manual API key rotation or rate limits to manage
-- Works with any USDC-holding wallet on Base
-
-**For developers**, it's simple:
+Agents hold wallets. x402 lets them pay directly — no human needs to create an API key, renew a subscription, or handle rate limits. A wallet with USDC is all that's required.
 
 ```typescript
-// Wrap fetch once, pay automatically
-const fetchPay = wrapFetchWithPayment(fetch, client);
-
-// Calls that need payment: handled automatically
-await fetchPay("https://api.inkdprotocol.com/v1/projects", {
-  method: "POST",
-  body: JSON.stringify({ name: "my-project" }),
-});
+// No configuration. Just a wallet.
+const client = new ProjectsClient({ privateKey: process.env.WALLET_KEY })
+await client.createProject({ name: "my-agent", ... })
 ```
+
+### For developers
+
+x402 is standard HTTP. Any language that can make HTTP requests and sign EIP-3009 authorizations can use the Inkd API.
+
+---
 
 ## EIP-3009
 
-x402 uses [EIP-3009](https://eips.ethereum.org/EIPS/eip-3009) `transferWithAuthorization` — a standard for signing USDC transfers off-chain. The signed authorization is sent in the `X-PAYMENT` header. The API server executes the on-chain transfer on the client's behalf.
+Inkd uses [EIP-3009](https://eips.ethereum.org/EIPS/eip-3009) `transferWithAuthorization`, which is native to USDC on Base.
 
-This means:
-- No ETH gas needed from the agent wallet (gas is paid by the API server)
-- Payment happens atomically with the API call
-- Signatures are single-use (nonce prevents replay)
+Key properties:
+- **Gasless for the payer** — the API server submits the transaction and pays gas
+- **Atomic** — payment and API execution happen in the same server-side flow
+- **Replay-safe** — each authorization has a unique nonce and expiry
+
+USDC EIP-712 domain on Base:
+```
+name:              "USD Coin"
+version:           "2"
+chainId:           8453
+verifyingContract: 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913
+```
+
+---
 
 ## Pricing
 
+Prices are dynamic — charged based on actual resource cost plus a 20% protocol markup.
+
 | Operation | Cost |
 |-----------|------|
-| Create project | $5 USDC |
-| Push version | $2 USDC |
-| Read (list, get) | Free |
-| Upload | Free |
+| List projects | Free |
+| Get project | Free |
+| List versions | Free |
+| Create project | $0.10 USDC (min) |
+| Push version | Arweave storage + 20% markup (min $0.10) |
+| Upload to Arweave | Free (cost included in version push fee) |
+
+For version pushes, the exact fee depends on file size. Use `GET /v1/projects/estimate?bytes=N` to get a price estimate before paying.
+
+---
 
 ## Revenue flow
 
-When you pay to create a project or push a version, the USDC flows through the protocol:
+Every payment flows through the protocol:
 
-1. **USDC → Treasury** — collected via EIP-3009
-2. **Treasury.settle()** — splits the payment:
-   - 50% → InkdBuyback (accumulates until $50 threshold, then auto-buys $INKD)
-   - 50% → Protocol treasury
-
-## Libraries
-
-```bash
-npm install @x402/fetch @x402/evm
+```
+Agent pays USDC
+       │
+       ▼
+InkdTreasury.settle(total, arweaveCost)
+       │
+       ├── arweaveCost ──────────────► arweaveWallet
+       │                               (covers Arweave storage)
+       │
+       └── markup (20%)
+              │
+              ├── 50% ──────────────► InkdBuyback
+              │                       (auto-buys $INKD at $50 threshold)
+              │
+              └── 50% ──────────────► Treasury Safe
 ```
 
-- [`@x402/fetch`](https://npmjs.com/package/@x402/fetch) — wraps `fetch` with automatic payment handling
-- [`@x402/evm`](https://npmjs.com/package/@x402/evm) — EVM signer adapter (viem-compatible)
+---
+
+## Using x402 in your app
+
+### With the Inkd SDK (recommended)
+
+The SDK handles x402 automatically:
+
+```typescript
+import { ProjectsClient } from "@inkd/sdk"
+
+const client = new ProjectsClient({
+  privateKey: process.env.INKD_PRIVATE_KEY,
+})
+
+// Payment happens automatically
+const project = await client.createProject({ name: "my-agent" })
+```
+
+### With @x402/fetch
+
+```bash
+npm install @x402/fetch @x402/evm viem
+```
+
+```typescript
+import { wrapFetchWithPayment } from "@x402/fetch"
+import { viemAdapter } from "@x402/evm"
+import { createWalletClient, http } from "viem"
+import { privateKeyToAccount } from "viem/accounts"
+import { base } from "viem/chains"
+
+const account = privateKeyToAccount(process.env.PRIVATE_KEY as `0x${string}`)
+const wallet  = createWalletClient({ account, chain: base, transport: http() })
+
+const fetchWithPayment = wrapFetchWithPayment(fetch, viemAdapter(wallet))
+
+const res = await fetchWithPayment("https://api.inkdprotocol.com/v1/projects", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ name: "my-agent", description: "...", license: "MIT", isPublic: true }),
+})
+```
+
+### Raw (any language)
+
+1. Make the initial request (no auth)
+2. Parse the `402` response to get payment amount and recipient
+3. Sign EIP-3009 `transferWithAuthorization` with your wallet
+4. Base64-encode the signed payload
+5. Retry with `X-PAYMENT: <encoded>` header

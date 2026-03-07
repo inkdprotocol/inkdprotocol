@@ -1,55 +1,170 @@
 ---
 title: Arweave Storage
-description: Why Inkd stores content on Arweave and how uploads work.
+description: How Inkd uses Arweave for permanent, censorship-resistant content storage.
 ---
 
-## Why Arweave?
+# Arweave Storage
 
-On-chain storage of large files is prohibitively expensive. Inkd solves this by:
+Every version pushed to Inkd stores its content on [Arweave](https://arweave.org) — a permanent, decentralized storage network. Once uploaded, content can never be modified, deleted, or taken down.
 
-- Storing **metadata and ownership** on Base (cheap, verifiable)
-- Storing **content** (code, artifacts, data) on Arweave (permanent, decentralized)
+---
 
-The on-chain record links to the Arweave hash (`ar://TxId`). Anyone can verify the content matches the on-chain record.
+## How it works
 
-## Permanent by design
+When you push a version, the flow is:
 
-Arweave charges a one-time fee to store data forever — no recurring hosting costs, no takedowns. Once uploaded, the content is permanently available at `https://arweave.net/TxId`.
+:::steps
 
-This makes Inkd useful for:
-- Publishing agent binaries that need to run years from now
-- Storing audit trails and version history that must be immutable
-- Sharing datasets or models with guaranteed availability
+### Upload to Arweave
 
-## Irys
+Your file is uploaded via [Irys](https://irys.xyz) — a Layer 2 for Arweave that provides instant upload confirmation and pay-as-you-go pricing.
 
-Inkd uses [Irys](https://irys.xyz) (formerly Bundlr) as the upload layer. Irys handles the Arweave upload mechanics — bundling, payment, and confirmation.
+```
+POST /v1/upload
+→ File stored on Arweave
+→ Returns ar://QmAbc123...
+```
 
-The API server holds an ETH wallet on Base that pays Irys for uploads. This cost is covered by the $2 USDC paid when pushing a version.
+### Register on-chain
 
-## Content addressing
+The `ar://` hash is recorded in the InkdRegistry contract on Base. This creates a permanent, immutable link between your project version and the content.
 
-Every upload returns an Arweave transaction ID, formatted as `ar://TxId`. This hash is:
+```solidity
+registry.pushVersion(
+  projectId,
+  "ar://QmAbc123...",  // content hash
+  "v1.0.0",           // version tag
+  "Initial release"   // changelog
+)
+```
 
-- Content-addressed: the same content always produces the same hash
-- Immutable: the content at a given hash can never change
-- Permanent: stored on Arweave forever
+### Content is permanent
+
+The content at `ar://QmAbc123...` is now accessible forever via:
+- `https://arweave.net/QmAbc123`
+- Any Arweave gateway
+
+:::
+
+---
+
+## Addressing
+
+Arweave uses content-addressed storage. The `ar://` prefix followed by a base64-encoded transaction ID uniquely identifies content.
+
+```
+ar://QmAbc123xyz456...
+     └─ Arweave transaction ID (43 characters)
+```
+
+The same content always produces the same ID. You can verify the content of any version by fetching it from any Arweave gateway.
+
+---
+
+## Pricing
+
+Arweave storage costs are based on file size. The protocol charges the exact cost plus a 20% markup.
+
+| File size | Approx. cost (USDC) |
+|-----------|---------------------|
+| 1 KB | ~$0.0022 |
+| 10 KB | ~$0.022 |
+| 100 KB | ~$0.22 |
+| 1 MB | ~$2.21 |
+
+Use the estimate endpoint to get the exact fee:
+
+```bash
+curl "https://api.inkdprotocol.com/v1/upload/price?bytes=102400"
+```
+
+See [Fee Model](/concepts/fees) for a full breakdown.
+
+---
+
+## Supported content types
+
+The Inkd API accepts any content type. Common examples:
+
+| Content type | Use case |
+|-------------|----------|
+| `application/javascript` | Agent code, CLI tools |
+| `application/json` | Manifests, schemas, metadata |
+| `application/wasm` | WebAssembly modules |
+| `text/plain` | Scripts, configs |
+| `application/octet-stream` | Binary artifacts |
+
+---
+
+## Uploading content
+
+### Via CLI
+
+```bash
+inkd version push --id 10 --file ./dist/agent.js --tag v1.0.0
+```
+
+The CLI uploads the file and records the hash in one command.
+
+### Via API
+
+```bash
+# 1. Upload the file
+curl -X POST https://api.inkdprotocol.com/v1/upload \
+  -H "Content-Type: application/json" \
+  -d '{
+    "data":        "<base64-encoded content>",
+    "contentType": "application/javascript",
+    "filename":    "agent.js"
+  }'
+
+# Returns:
+# { "hash": "ar://QmAbc123...", "url": "https://arweave.net/QmAbc123...", ... }
+
+# 2. Push the version with the hash
+```
+
+### Via SDK
 
 ```typescript
-const { hash } = await client.upload(data, { contentType: "application/json" });
-// hash = "ar://QmAbc123..."
+import { ProjectsClient } from "@inkd/sdk"
+import { readFileSync } from "fs"
 
-// Access at any time:
-// https://arweave.net/QmAbc123...
+const client = new ProjectsClient({ privateKey: process.env.INKD_PRIVATE_KEY })
+
+// Upload returns ar:// hash
+const { hash } = await client.uploadContent({
+  data: readFileSync("./dist/agent.js"),
+  contentType: "application/javascript",
+})
+
+// Record on-chain
+await client.pushVersion({
+  projectId: 10,
+  arweaveHash: hash,
+  versionTag: "v1.0.0",
+})
 ```
 
-## Cost
+---
 
-Arweave storage costs are very low and scale with file size:
+## Accessing stored content
 
+Once uploaded, content is accessible via any Arweave gateway:
+
+```bash
+# Primary gateway
+https://arweave.net/QmAbc123xyz456...
+
+# Alternative gateways
+https://ar-io.dev/QmAbc123xyz456...
+https://gateway.irys.xyz/QmAbc123xyz456...
 ```
-GET /v1/upload/price?bytes=102400
-→ { "costUsdc": "4600", "costUsd": "$0.0046" }  // ~100 KB
-```
 
-For reference: 1 MB ≈ $0.04. The cost is dynamic and based on the Arweave network price at upload time.
+---
+
+## Important notes
+
+- **Uploads are permanent.** There is no way to delete or modify content on Arweave.
+- **Content is public.** By default, all uploaded content is publicly readable. Encrypt sensitive data before uploading.
+- **The Inkd API accepts uploads up to 50 MB.** For larger files, upload directly to Arweave and pass the `ar://` hash.

@@ -1,223 +1,273 @@
 ---
 title: ProjectsClient
-description: x402 payment client for creating projects, pushing versions, and uploading content.
+description: Create projects, push versions, and read the registry with the Inkd SDK.
 ---
 
-`ProjectsClient` handles all write operations. Payments are made via [x402](/concepts/x402) — no API keys required.
+# ProjectsClient
 
-## Constructor
+`ProjectsClient` is the main entry point for interacting with the Inkd Protocol. It handles x402 payments automatically.
 
 ```typescript
-import { ProjectsClient } from "@inkd/sdk";
+import { ProjectsClient } from "@inkd/sdk"
 
 const client = new ProjectsClient({
-  wallet,       // viem WalletClient with account
-  publicClient, // viem PublicClient for reading state
-  apiUrl?,      // default: "https://api.inkdprotocol.com"
-});
+  privateKey: process.env.INKD_PRIVATE_KEY,
+})
 ```
 
 ---
 
-## createProject
+## Projects
 
-Register a new project on-chain. **Costs $5 USDC.**
+### `createProject`
+
+Register a new project on-chain. Costs $0.10+ USDC (paid automatically via x402).
 
 ```typescript
-const { projectId, txHash, owner } = await client.createProject({
-  name: "my-agent",
-  description: "An autonomous trading agent",
-  license: "MIT",
-  isPublic: true,
-  isAgent: true,
-  agentEndpoint: "https://my-agent.example.com",
-});
+const project = await client.createProject({
+  name:          "my-agent",          // required, max 64 chars, globally unique
+  description:   "My agent project",  // optional, max 1024 chars
+  license:       "MIT",               // optional, SPDX identifier
+  isPublic:      true,                // optional, default true
+  isAgent:       true,                // optional, marks as AI agent
+  agentEndpoint: "https://...",       // optional, agent HTTP endpoint
+  readmeHash:    "ar://...",          // optional, Arweave README hash
+})
 
-console.log(`Project #${projectId} → https://basescan.org/tx/${txHash}`);
+console.log(project.id)     // "10"
+console.log(project.txHash) // "0xabc..."
 ```
 
-### Parameters
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `name` | `string` | required | Unique project name (lowercase, no spaces) |
-| `description` | `string` | `""` | Short project description |
-| `license` | `string` | `"MIT"` | SPDX license identifier |
-| `isPublic` | `boolean` | `true` | Publicly listed in the registry |
-| `isAgent` | `boolean` | `false` | Marks this as an AI agent project |
-| `agentEndpoint` | `string` | `""` | HTTP endpoint for the agent (if `isAgent: true`) |
-| `readmeHash` | `string` | `""` | Arweave hash of README content |
-
-### Returns
-
+**Returns:**
 ```typescript
 {
-  projectId:   number;   // On-chain project ID
-  txHash:      string;   // Transaction hash
-  owner:       string;   // Owner address (your wallet)
-  blockNumber: number;
+  id:          string   // on-chain project ID
+  name:        string
+  owner:       string   // your wallet address
+  txHash:      string
+  blockNumber: string
+}
+```
+
+**Throws:** `NameTaken`, `NameTooLong`, `InsufficientFunds`
+
+---
+
+### `getProject`
+
+```typescript
+const project = await client.getProject(10)
+
+console.log(project.name)         // "my-agent"
+console.log(project.owner)        // "0x..."
+console.log(project.versionCount) // 2
+```
+
+**Returns:** Full project object from the registry.
+
+---
+
+### `listProjects`
+
+```typescript
+const { data, total } = await client.listProjects({
+  offset: 0,
+  limit:  20,
+})
+
+for (const project of data) {
+  console.log(project.name, project.owner)
 }
 ```
 
 ---
 
-## upload
-
-Upload content to Arweave. Returns a permanent `ar://` hash. **Free** — cost is covered by the `pushVersion` fee.
+### `getOwnerProjects`
 
 ```typescript
-import { readFileSync } from "fs";
+const projects = await client.getOwnerProjects("0xYourAddress")
+```
 
-const data = readFileSync("./dist/agent.js");
+---
 
-const { hash, url, bytes } = await client.upload(data, {
+## Versions
+
+### `pushVersion`
+
+Upload content to Arweave and record it on-chain. Fee = Arweave cost + 20% markup (min $0.10 USDC).
+
+```typescript
+// With local file — uploads to Arweave automatically
+const version = await client.pushVersion({
+  projectId:  10,
+  file:       "./dist/agent.js",     // path or Buffer
+  versionTag: "v1.0.0",
+  changelog:  "Initial release",
+})
+
+// With existing Arweave hash
+const version = await client.pushVersion({
+  projectId:   10,
+  arweaveHash: "ar://QmAbc123...",
+  versionTag:  "v1.0.0",
+  changelog:   "Initial release",
+})
+
+console.log(version.arweaveHash) // "ar://QmAbc123..."
+console.log(version.arweaveUrl)  // "https://arweave.net/QmAbc123..."
+console.log(version.txHash)      // "0xdef..."
+```
+
+**Returns:**
+```typescript
+{
+  projectId:    string
+  versionIndex: string
+  versionTag:   string
+  arweaveHash:  string
+  arweaveUrl:   string
+  txHash:       string
+  blockNumber:  string
+}
+```
+
+**Throws:** `ProjectNotFound`, `NotOwnerOrCollaborator`, `EmptyArweaveHash`, `EmptyVersionTag`
+
+---
+
+### `getVersion`
+
+```typescript
+const version = await client.getVersion(10, 0) // projectId, versionIndex
+
+console.log(version.versionTag)  // "v1.0.0"
+console.log(version.arweaveHash) // "ar://QmAbc123..."
+console.log(version.pushedBy)    // "0x..."
+console.log(version.pushedAt)    // Unix timestamp
+```
+
+---
+
+### `listVersions`
+
+```typescript
+const { data } = await client.listVersions(10)
+
+for (const version of data) {
+  console.log(`${version.versionTag} → ${version.arweaveHash}`)
+}
+```
+
+---
+
+### `estimateVersionCost`
+
+Get the exact USDC fee for pushing a version before paying:
+
+```typescript
+const estimate = await client.estimateVersionCost({ bytes: 102400 })
+
+console.log(estimate.totalUsd)  // "$0.0055"
+console.log(estimate.total)     // "5520" (USDC, 6 decimals)
+```
+
+---
+
+## Collaborators
+
+### `addCollaborator`
+
+Grant push access to another address. Owner only. Max 50 collaborators per project.
+
+```typescript
+await client.addCollaborator({
+  projectId:    10,
+  collaborator: "0xCollaboratorAddress",
+})
+```
+
+---
+
+### `removeCollaborator`
+
+```typescript
+await client.removeCollaborator({
+  projectId:    10,
+  collaborator: "0xCollaboratorAddress",
+})
+```
+
+---
+
+### `isCollaborator`
+
+```typescript
+const isCollab = await client.isCollaborator(10, "0xAddress")
+// true | false
+```
+
+---
+
+## Content
+
+### `uploadContent`
+
+Upload a file to Arweave directly, without pushing a version. Returns an `ar://` hash.
+
+```typescript
+import { readFileSync } from "fs"
+
+const result = await client.uploadContent({
+  data:        readFileSync("./dist/agent.js"),
   contentType: "application/javascript",
-  filename:    "agent.js",
-});
+  filename:    "agent.js",         // optional
+})
 
-console.log(hash); // "ar://QmAbc123..."
-console.log(url);  // "https://arweave.net/QmAbc123..."
+console.log(result.hash) // "ar://QmAbc123..."
+console.log(result.url)  // "https://arweave.net/QmAbc123..."
 ```
 
-### Parameters
+---
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `data` | `Uint8Array \| Buffer \| string` | File content |
-| `opts.contentType` | `string` | MIME type (default: `application/octet-stream`) |
-| `opts.filename` | `string` | Optional filename tag on Arweave |
-
-### Returns
+## Full agent example
 
 ```typescript
-{
-  hash:  string;  // "ar://TxId"
-  txId:  string;  // Raw Arweave transaction ID
-  url:   string;  // "https://arweave.net/TxId"
-  bytes: number;  // Upload size in bytes
+import { ProjectsClient } from "@inkd/sdk"
+import { readFileSync } from "fs"
+
+const client = new ProjectsClient({
+  privateKey: process.env.INKD_PRIVATE_KEY,
+})
+
+async function deploy() {
+  // Create project (idempotent in practice — catch NameTaken)
+  let projectId: string
+
+  try {
+    const project = await client.createProject({
+      name:    "my-agent",
+      license: "MIT",
+      isAgent: true,
+    })
+    projectId = project.id
+    console.log(`Created project #${projectId}`)
+  } catch (err: any) {
+    if (err.code === "NameTaken") {
+      const existing = await client.getProject("my-agent")
+      projectId = existing.id
+    } else throw err
+  }
+
+  // Push version
+  const version = await client.pushVersion({
+    projectId:  projectId,
+    file:       "./dist/agent.js",
+    versionTag: `v${process.env.npm_package_version}`,
+    changelog:  process.env.CHANGELOG ?? "",
+  })
+
+  console.log(`Pushed ${version.versionTag} → ${version.arweaveHash}`)
 }
-```
 
----
-
-## pushVersion
-
-Record a version on-chain with an Arweave content hash. **Costs $2 USDC.**
-
-```typescript
-const { txHash, tag } = await client.pushVersion(projectId, {
-  tag:         "v1.0.0",
-  contentHash: "ar://QmAbc123...",  // from upload()
-  contentSize: 12345,               // optional, used for dynamic pricing
-});
-```
-
-### Typical flow
-
-```typescript
-// 1. Upload content
-const { hash, bytes } = await client.upload(data, { contentType: "application/json" });
-
-// 2. Push version with the hash
-const { txHash } = await client.pushVersion(projectId, {
-  tag:         "v2.0.0",
-  contentHash: hash,
-  contentSize: bytes,
-});
-```
-
-### Parameters
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `tag` | `string` | Version tag (e.g. `"v1.0.0"`) |
-| `contentHash` | `string` | Arweave hash (`ar://...`) |
-| `metadataHash` | `string` | Optional metadata hash |
-| `contentSize` | `number` | Bytes (for dynamic pricing display) |
-
-### Returns
-
-```typescript
-{
-  tag:         string;
-  contentHash: string;
-  txHash:      string;
-  blockNumber: number;
-}
-```
-
----
-
-## getProject
-
-Fetch project details (free, no payment).
-
-```typescript
-const project = await client.getProject(7);
-
-console.log(project.name);         // "my-agent"
-console.log(project.owner);        // "0x..."
-console.log(project.versionCount); // 3
-```
-
----
-
-## listProjects
-
-List all projects (free).
-
-```typescript
-const projects = await client.listProjects({ offset: 0, limit: 20 });
-```
-
----
-
-## estimateUploadCost
-
-Estimate the Arweave cost for a given upload size.
-
-```typescript
-const { total, arweaveCost, markup } = await client.estimateUploadCost(1024 * 100); // 100 KB
-console.log(total); // "1844" (USDC with 6 decimals)
-```
-
----
-
-## Full example
-
-```typescript
-import { ProjectsClient } from "@inkd/sdk";
-import { createWalletClient, createPublicClient, http } from "viem";
-import { base } from "viem/chains";
-import { privateKeyToAccount } from "viem/accounts";
-import { readFileSync } from "fs";
-
-const account = privateKeyToAccount(process.env.PRIVATE_KEY as `0x${string}`);
-const wallet  = createWalletClient({ account, chain: base, transport: http() });
-const reader  = createPublicClient({ chain: base, transport: http() });
-
-const inkd = new ProjectsClient({ wallet, publicClient: reader });
-
-// Create project
-const { projectId } = await inkd.createProject({
-  name:    "my-autonomous-agent",
-  isAgent: true,
-  license: "MIT",
-});
-
-// Upload artifact
-const data = readFileSync("./dist/agent.js");
-const { hash, bytes } = await inkd.upload(data, {
-  contentType: "application/javascript",
-  filename:    "agent.js",
-});
-
-// Push version
-const { txHash } = await inkd.pushVersion(projectId, {
-  tag:         "v1.0.0",
-  contentHash: hash,
-  contentSize: bytes,
-});
-
-console.log(`Published! https://basescan.org/tx/${txHash}`);
+deploy().catch(console.error)
 ```

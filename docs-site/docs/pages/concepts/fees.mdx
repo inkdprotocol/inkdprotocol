@@ -1,0 +1,122 @@
+---
+title: Fee Model
+description: How Inkd pricing works — dynamic fees, the 20% markup, and where revenue goes.
+---
+
+# Fee Model
+
+Inkd fees are **dynamic and transparent**. You pay exactly the resource cost plus a 20% protocol fee. Nothing is fixed — prices adjust automatically with Arweave storage rates.
+
+---
+
+## How fees are calculated
+
+### Creating a project
+
+Creating a project registers metadata on-chain. No Arweave upload is required (the `readmeHash` field is optional).
+
+```
+createProject fee = $0.10 USDC (minimum)
+```
+
+### Pushing a version
+
+Pushing a version uploads content to Arweave and records the hash on-chain. The fee is:
+
+```
+pushVersion fee = arweaveCost + 20% markup
+               = arweaveCost × 1.20
+
+minimum: $0.10 USDC
+```
+
+The Arweave cost depends on file size and current market rates. At current rates:
+
+| File size | Arweave cost | 20% markup | Total |
+|-----------|-------------|-----------|-------|
+| 1 KB | ~$0.0018 | ~$0.00036 | ~$0.0022 |
+| 100 KB | ~$0.18 | ~$0.036 | ~$0.22 |
+| 1 MB | ~$1.84 | ~$0.37 | ~$2.21 |
+
+Use the estimate endpoint to get the exact fee for any file size:
+
+```bash
+curl "https://api.inkdprotocol.com/v1/projects/estimate?bytes=102400"
+```
+
+```json
+{
+  "bytes":       102400,
+  "arweaveCost": "184000",
+  "markup":      "36800",
+  "total":       "220800",
+  "totalUsd":    "$0.22"
+}
+```
+
+All USDC values use 6 decimals. `total / 1e6` = USD amount.
+
+---
+
+## Where fees go
+
+Every payment is processed by `InkdTreasury.settle()`:
+
+```
+You pay: total USDC
+           │
+           ▼
+    InkdTreasury
+           │
+           ├── arweaveCost ──► arweaveWallet
+           │                   (exact Arweave upload cost)
+           │
+           └── 20% markup
+                  │
+                  ├── 50% ──► InkdBuyback
+                  │           (accumulates, then auto-buys $INKD at $50 threshold)
+                  │
+                  └── 50% ──► Treasury Safe (multisig)
+```
+
+- **You** pay the Arweave cost — it's forwarded directly to cover storage
+- **20% goes to the protocol** — split between buyback and treasury
+- **Nothing is hidden** — all flows are on-chain and verifiable
+
+---
+
+## Buyback mechanism
+
+Half of the 20% protocol fee flows into `InkdBuyback`. When the accumulated USDC balance reaches **$50**, the contract automatically:
+
+1. Calls Uniswap V3 to swap all USDC → $INKD
+2. $INKD is held in the contract (controlled by the Buyback Safe multisig)
+
+This creates continuous buy pressure on $INKD proportional to protocol usage.
+
+---
+
+## Read operations are free
+
+All read operations have no fee:
+
+- `GET /v1/projects` — list all projects
+- `GET /v1/projects/:id` — get project details
+- `GET /v1/projects/:id/versions` — list versions
+- `GET /v1/projects/estimate` — estimate push cost
+- `GET /v1/upload/price` — estimate upload cost
+- `GET /v1/status` — protocol status
+
+---
+
+## USDC on Base
+
+All fees are paid in USDC on Base Mainnet:
+
+```
+Token:    USD Coin (USDC)
+Contract: 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913
+Chain:    Base Mainnet (8453)
+```
+
+Get USDC on Base via [Coinbase](https://coinbase.com) or bridge from Ethereum at [bridge.base.org](https://bridge.base.org).
