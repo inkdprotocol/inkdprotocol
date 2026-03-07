@@ -19,14 +19,14 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: Install dependencies
+      - name: Install root dependencies (includes sdk + cli workspaces)
         run: npm ci
 
       - name: Run ESLint (SDK)
         run: cd sdk && npx eslint . --max-warnings 0
 
       - name: Run ESLint (CLI)
-        run: cd cli && npx eslint . --max-warnings 0 || true
+        run: cd cli && npx eslint . --max-warnings 0
 
       - name: Install Solhint
         run: npm install -g solhint
@@ -48,7 +48,7 @@ jobs:
           path: |
             ~/.foundry
             ~/.cargo
-          key: foundry-${{ runner.os }}-${{ hashFiles('foundry.toml') }}
+          key: foundry-${{ runner.os }}-${{ hashFiles('contracts/foundry.toml') }}
           restore-keys: |
             foundry-${{ runner.os }}-
 
@@ -60,8 +60,8 @@ jobs:
       - name: Install Forge dependencies
         run: cd contracts && forge install
 
-      - name: Run Forge tests with gas report
-        run: cd contracts && forge test --gas-report -v 2>&1 | tee gas-report.txt
+      - name: Run Forge tests
+        run: cd contracts && forge test -v 2>&1 | tee gas-report.txt
 
       - name: Upload gas report
         uses: actions/upload-artifact@v4
@@ -71,7 +71,7 @@ jobs:
           retention-days: 30
 
   test-sdk:
-    name: Test SDK
+    name: Test SDK + API
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -82,17 +82,14 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: Install dependencies
+      - name: Install root dependencies (workspaces)
         run: npm ci
-
-      - name: Install SDK dependencies
-        run: cd sdk && npm ci
-
-      - name: Run SDK tests
-        run: cd sdk && npx vitest run
 
       - name: Install API dependencies
         run: cd api && npm ci
+
+      - name: Run SDK tests
+        run: cd sdk && npx vitest run
 
       - name: Run API tests
         run: cd api && npx vitest run
@@ -141,8 +138,8 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: Install dependencies
+      - name: Install root dependencies (workspaces)
         run: npm ci
 
-      - name: Build
+      - name: Build SDK + CLI
         run: npm run build
