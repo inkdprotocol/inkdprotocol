@@ -83,15 +83,23 @@ export function agentsRouter(cfg: ApiConfig): Router {
       const registryAddress = requireRegistry()
       const { offset, limit } = PaginationQuery.parse(req.query)
 
-      const agents = await publicClient.readContract({
-        address:      registryAddress,
-        abi:          REGISTRY_ABI,
-        functionName: 'getAgentProjects',
-        args:         [BigInt(offset), BigInt(limit)],
-      }) as unknown as RawAgent[]
+      const [agents, total] = await Promise.all([
+        publicClient.readContract({
+          address:      registryAddress,
+          abi:          REGISTRY_ABI,
+          functionName: 'getAgentProjects',
+          args:         [BigInt(offset), BigInt(limit)],
+        }) as unknown as Promise<RawAgent[]>,
+        publicClient.readContract({
+          address:      registryAddress,
+          abi:          REGISTRY_ABI,
+          functionName: 'agentProjectCount',
+        }) as unknown as Promise<bigint>,
+      ])
 
       res.json({
         data:   agents.map(serializeAgent),
+        total:  total.toString(),
         offset,
         limit,
         count:  agents.length,
@@ -108,26 +116,33 @@ export function agentsRouter(cfg: ApiConfig): Router {
       const { name } = req.params
       if (!name) throw new BadRequestError('Agent name is required')
 
-      // Lookup project id by name, then fetch full project
-      const projectId = await publicClient.readContract({
+      // Linear scan by name (no nameToId mapping yet — fine until The Graph)
+      const total = await publicClient.readContract({
         address:      registryAddress,
         abi:          REGISTRY_ABI,
-        functionName: 'getProjectByName',
-        args:         [name],
+        functionName: 'projectCount',
       }) as bigint
 
-      if (projectId === 0n) throw new NotFoundError(`Agent "${name}"`)
+      const normalizedSearch = name.toLowerCase()
+      let found: RawProject | null = null
 
-      const p = await publicClient.readContract({
-        address:      registryAddress,
-        abi:          REGISTRY_ABI,
-        functionName: 'getProject',
-        args:         [projectId],
-      }) as unknown as RawProject
+      for (let i = 1; i <= Number(total); i++) {
+        const p = await publicClient.readContract({
+          address:      registryAddress,
+          abi:          REGISTRY_ABI,
+          functionName: 'getProject',
+          args:         [BigInt(i)],
+        }) as unknown as RawProject
 
-      if (!p.exists || !p.isAgent) throw new NotFoundError(`Agent "${name}"`)
+        if (p.exists && p.isAgent && p.name.toLowerCase() === normalizedSearch) {
+          found = p
+          break
+        }
+      }
 
-      res.json({ data: serializeAgent(p) })
+      if (!found) throw new NotFoundError(`Agent "${name}"`)
+
+      res.json({ data: serializeAgent(found) })
     } catch (err) {
       sendError(res, err)
     }
