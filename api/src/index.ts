@@ -114,7 +114,7 @@ app.get('/', (_req, res) => {
   res.json({
     name:    '@inkd/api',
     version: '0.1.0',
-    docs:    'https://docs.inkdprotocol.xyz/api',
+    docs:    'https://docs.inkdprotocol.com',
     health:  '/v1/health',
     status:  '/v1/status',
     routes: [
