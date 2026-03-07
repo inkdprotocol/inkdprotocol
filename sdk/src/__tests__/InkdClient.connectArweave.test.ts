@@ -14,10 +14,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const { mockConnect, mockUploadFile, MockArweaveClient } = vi.hoisted(() => {
   const mockConnect = vi.fn().mockResolvedValue(undefined);
   const mockUploadFile = vi.fn().mockResolvedValue({ hash: "tx-arweave-abc", size: 512 });
-  const MockArweaveClient = vi.fn().mockImplementation(() => ({
+  const MockArweaveClient = vi.fn().mockImplementation(function() { return {
     connect: mockConnect,
     uploadFile: mockUploadFile,
-  }));
+  }; });
   return { mockConnect, mockUploadFile, MockArweaveClient };
 });
 
