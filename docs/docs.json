@@ -1,4 +1,5 @@
 {
+  "$schema": "https://mintlify.com/docs.json",
   "name": "Inkd Protocol",
   "logo": {
     "light": "/logo/inkd-light.svg",
@@ -66,20 +67,18 @@
         ]
       }
     ],
-    "global": {
-      "anchors": [
-        {
-          "name": "GitHub",
-          "icon": "github",
-          "url": "https://github.com/inkdprotocol/inkd-protocol"
-        },
-        {
-          "name": "Discord",
-          "icon": "discord",
-          "url": "https://discord.gg/inkd"
-        }
-      ]
-    }
+    "anchors": [
+      {
+        "name": "GitHub",
+        "icon": "github",
+        "url": "https://github.com/inkdprotocol/inkd-protocol"
+      },
+      {
+        "name": "Discord",
+        "icon": "discord",
+        "url": "https://discord.gg/inkd"
+      }
+    ]
   },
   "footerSocials": {
     "twitter": "https://twitter.com/inkdprotocol",
