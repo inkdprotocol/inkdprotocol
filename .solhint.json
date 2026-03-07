@@ -10,7 +10,7 @@
     "ordering": "off",
     "no-unused-vars": "warn",
     "reason-string": "off",
-    "custom-errors": "off",
+    "no-console": "off",
     "immutable-vars-naming": "off"
   }
 }

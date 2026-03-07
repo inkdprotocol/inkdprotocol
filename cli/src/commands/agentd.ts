@@ -33,8 +33,8 @@
  */
 
 import { existsSync, readFileSync, writeFileSync } from 'fs'
-import { resolve, _join } from 'path'
-import { parseEther, formatEther, _getAddress, type Address } from 'viem'
+import { resolve} from 'path'
+import { parseEther, formatEther, type Address } from 'viem'
 import {
   loadConfig, requirePrivateKey, ADDRESSES,
   info, success, warn, error,
@@ -149,7 +149,7 @@ async function runCycle(opts: {
   quiet:           boolean
   dryRun:          boolean
 }): Promise<{ peersFound: number; healthy: boolean; errorMsg?: string }> {
-  const { state, registryAddress, walletAddress, publicClient, agentName, jsonMode, quiet, _dryRun } = opts
+  const { state, registryAddress, walletAddress, publicClient, agentName, jsonMode, quiet } = opts
 
   const say = (icon: string, color: string, msg: string, event: string) => {
     if (!quiet) humanLine(icon, color, msg, jsonMode, event)
