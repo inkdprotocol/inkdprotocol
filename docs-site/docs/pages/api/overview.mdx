@@ -1,81 +1,121 @@
 ---
-title: Overview
-description: HTTP API reference for Inkd Protocol. Base URL, authentication, response format.
+title: API Overview
+description: Inkd REST API — base URL, authentication, errors, and rate limits.
 ---
 
-## Base URL
+# API Reference
 
-```
-https://api.inkdprotocol.com
-```
+**Base URL:** `https://api.inkdprotocol.com`
+
+The Inkd API is a REST API over HTTPS. Read operations are free and require no authentication. Write operations require [x402 USDC payment](/concepts/x402).
+
+---
+
+## Endpoints
+
+| Category | Description |
+|----------|-------------|
+| [Projects](/api/projects) | Create projects, push versions, read the registry |
+| [Upload](/api/upload) | Upload files to Arweave |
+| [Errors](/api/errors) | Error codes reference |
+
+---
 
 ## Authentication
 
-Inkd uses **[x402](/concepts/x402)** for write operations. No API keys. No OAuth. Your wallet pays and signs.
+Inkd uses [x402](/concepts/x402) for payment and identity — no API keys, no accounts.
 
-When you call a paid endpoint, the x402 client:
-1. Receives a `402 Payment Required` response with payment details
-2. Signs an EIP-3009 USDC transfer authorization
-3. Retries the request with an `X-PAYMENT` header
+For write operations, your wallet address becomes your identity. The API server verifies your EIP-3009 signature on-chain.
 
-This happens automatically via `@x402/fetch`:
+**Read operations** — no authentication required:
 
-```typescript
-import { wrapFetchWithPayment, x402Client } from "@x402/fetch";
-import { ExactEvmScheme }                    from "@x402/evm";
-
-const signer = { address, signTypedData, readContract };
-const client = new x402Client().register("eip155:8453", new ExactEvmScheme(signer));
-const fetchPay = wrapFetchWithPayment(fetch, client);
-
-// Now use fetchPay exactly like fetch — payments handled automatically
-const res = await fetchPay("https://api.inkdprotocol.com/v1/projects", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ name: "my-project" }),
-});
+```bash
+curl https://api.inkdprotocol.com/v1/projects
 ```
 
-Or use the SDK's [`ProjectsClient`](/sdk/projects-client) which handles this for you.
+**Write operations** — x402 payment required:
 
-## Read endpoints
+```typescript
+import { ProjectsClient } from "@inkd/sdk"
 
-`GET` endpoints are free and require no authentication.
+const client = new ProjectsClient({ privateKey: process.env.INKD_PRIVATE_KEY })
+await client.createProject({ name: "my-agent" })
+```
+
+Or use `@x402/fetch` directly to make raw HTTP requests with automatic payment handling.
+
+---
 
 ## Response format
 
-All responses are JSON.
+All responses are JSON. Successful responses use `2xx` status codes.
 
 **Success:**
+
 ```json
-{ "data": { ... } }
+{
+  "projectId": "10",
+  "txHash":    "0xabc...",
+  "status":    "success"
+}
 ```
 
 **Error:**
+
 ```json
 {
-  "error": {
-    "code": "BAD_REQUEST",
-    "message": "name is required"
+  "error": "name_taken",
+  "message": "A project with the name 'my-agent' already exists."
+}
+```
+
+---
+
+## Rate limits
+
+| Type | Limit |
+|------|-------|
+| Read requests | 100 req/min per IP |
+| Write requests | 20 req/min per wallet |
+
+---
+
+## Health & status
+
+```bash
+# Health check
+curl https://api.inkdprotocol.com/v1/health
+
+# Protocol status (network, contracts, project count)
+curl https://api.inkdprotocol.com/v1/status
+```
+
+```json
+{
+  "ok": true,
+  "network": "mainnet",
+  "rpcUrl": "https://base.publicnode.com",
+  "rpcReachable": true,
+  "contracts": {
+    "registry": "0xEd3067dDa601f19A5737babE7Dd3AbfD4a783e5d",
+    "treasury": "0x23012C3EF1E95aBC0792c03671B9be33C239D449",
+    "deployed": true
+  },
+  "protocol": {
+    "projectCount": "9",
+    "totalSupply": "100000000000.0000 INKD"
   }
 }
 ```
 
-### Error codes
+---
 
-| Code | HTTP | Description |
-|------|------|-------------|
-| `BAD_REQUEST` | 400 | Missing or invalid parameters |
-| `UNAUTHORIZED` | 401 | Payment missing or invalid |
-| `NOT_FOUND` | 404 | Resource does not exist |
-| `RPC_ERROR` | 502 | On-chain transaction failed |
-| `SERVICE_UNAVAILABLE` | 503 | Server wallet not configured |
+## USDC on Base
 
-## Pricing
+All payments use USDC on Base Mainnet:
 
-| Endpoint | Cost |
-|----------|------|
-| `POST /v1/projects` | $5 USDC |
-| `POST /v1/projects/:id/versions` | $2 USDC |
-| `POST /v1/upload` | Free |
-| All `GET` endpoints | Free |
+```
+Token:   USD Coin (USDC)
+Address: 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913
+Chain:   Base Mainnet (8453)
+```

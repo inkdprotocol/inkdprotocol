@@ -1,121 +1,159 @@
 ---
 title: Quickstart
-description: Create your first on-chain project in 5 minutes.
+description: Create your first on-chain project in under 5 minutes.
 ---
+
+# Quickstart
+
+This guide walks you through creating a project and pushing your first version using the Inkd CLI.
 
 ## Prerequisites
 
-- Node.js >= 18
-- An EVM wallet with Base Mainnet ETH (for gas) and USDC
-- ~$8 USDC on Base Mainnet ($5 create + $2 first version)
+- Node.js 18 or later
+- A wallet with Base Mainnet USDC and a small amount of ETH for gas
+- Your wallet's private key
 
-:::info
-  Get USDC on Base via [Coinbase](https://coinbase.com) or bridge from Ethereum via [Base Bridge](https://bridge.base.org).
+:::tip Getting USDC on Base
+Buy USDC on [Coinbase](https://coinbase.com) and send to Base, or bridge from Ethereum at [bridge.base.org](https://bridge.base.org).
 :::
+
+---
 
 ## 1. Install the CLI
 
 ```bash
 npm install -g @inkd/cli
-inkd --version
 ```
 
-## 2. Configure
+Verify the installation:
 
-Set your wallet private key and network:
+```bash
+inkd --version
+# @inkd/cli 0.1.0
+```
+
+---
+
+## 2. Configure your wallet
 
 ```bash
 export INKD_PRIVATE_KEY=0xYOUR_PRIVATE_KEY
 export INKD_NETWORK=mainnet
 ```
 
-Verify connectivity:
+Check that everything is connected:
 
 ```bash
 inkd status
 ```
 
 ```
-  Inkd Protocol Status
-  ────────────────────────────────────────
-  Network:   mainnet (Base)
-  Registry:  0xEd3067dDa601f19A5737babE7Dd3AbfD4a783e5d
-  Projects:  7
+Inkd Protocol
+────────────────────────────────────
+Network:   mainnet (Base, chain 8453)
+Registry:  0xEd3067dDa601f19A5737babE7Dd3AbfD4a783e5d
+Wallet:    0xYourWallet
+USDC:      12.50
+Projects:  9 registered
 ```
+
+---
 
 ## 3. Create a project
 
 ```bash
-inkd project create --name my-agent --description "My first on-chain project"
+inkd project create \
+  --name my-agent \
+  --description "My first on-chain project" \
+  --license MIT \
+  --public
 ```
 
-```
-  → Creating project my-agent via x402...
-  → Paying $5.00 USDC from 0xYourWallet...
+The CLI handles the x402 payment automatically:
 
-  ✓ Project my-agent created!
-  → Project ID: 8
-  → Owner:      0xYourWallet
-  → TX:         0xabc...
-  → Basescan:   https://basescan.org/tx/0xabc...
+```
+→ Requesting payment terms from API...
+→ Paying $0.10 USDC via EIP-3009...
+→ Submitting transaction...
+
+✓ Project created
+  Name:       my-agent
+  Project ID: 10
+  Owner:      0xYourWallet
+  TX:         0xabc...
+  Basescan:   https://basescan.org/tx/0xabc...
 ```
 
 :::note
-  The `--agent` flag marks a project as an AI agent, making it discoverable via the agents API.
-  The `--private` flag creates a private project (not listed publicly).
+Project names are **global and permanent** — once a name is taken, it cannot be reused by anyone.
+Names are normalized to lowercase. Max 64 characters.
 :::
+
+---
 
 ## 4. Push a version
 
-Upload a file and record it on-chain in one step:
+Upload a file and register it on-chain:
 
 ```bash
-inkd version push --id 8 --file ./dist/agent.js --tag v1.0.0
+inkd version push \
+  --id 10 \
+  --file ./dist/agent.js \
+  --tag v1.0.0 \
+  --changelog "Initial release"
 ```
 
 ```
-  → Uploading dist/agent.js to Arweave (12.3 KB)...
-  → Uploaded → https://arweave.net/QmAbc123...
-  → Hash: ar://QmAbc123...
-  → Pushing version v1.0.0 to project #8...
-  → Paying $2.00 USDC from 0xYourWallet...
+→ Uploading dist/agent.js (14.2 KB) to Arweave...
+→ Uploaded: ar://QmAbc123xyz...
+→ Paying for version push (Arweave cost + 20% markup)...
+→ Submitting transaction...
 
-  ✓ Version v1.0.0 pushed!
-  → Content hash: ar://QmAbc123...
-  → TX:           0xdef...
-  → Basescan:     https://basescan.org/tx/0xdef...
+✓ Version pushed
+  Tag:      v1.0.0
+  Content:  ar://QmAbc123xyz...
+  URL:      https://arweave.net/QmAbc123xyz
+  TX:       0xdef...
 ```
 
-Already have an Arweave hash? Pass it directly:
+Already have an Arweave hash? Skip the upload:
 
 ```bash
-inkd version push --id 8 --hash ar://QmAbc123... --tag v1.0.0
+inkd version push --id 10 --hash ar://QmAbc123xyz --tag v1.0.0
 ```
 
-## 5. Verify
+---
+
+## 5. Verify on-chain
 
 ```bash
-inkd version list 8
+inkd project get 10
 ```
 
 ```
-  Versions for Project #8 (1 total)
-  ───────────────────────────────────────────────────────
-  #0  v1.0.0        QmAbc123…    2026-03-06 17:00:00 UTC
+Project #10: my-agent
+────────────────────────────────────
+Owner:    0xYourWallet
+License:  MIT
+Public:   true
+Versions: 1
+Created:  2026-03-07 20:40 UTC
+```
+
+```bash
+inkd version list 10
+```
+
+```
+Versions for my-agent (1 total)
+────────────────────────────────────────────────────────
+#0  v1.0.0    ar://QmAbc123xyz…    2026-03-07 20:42 UTC
 ```
 
 ---
 
 ## What's next
 
-  
-### SDK
-
-    Use `ProjectsClient` in your agent or app — same flow, all in TypeScript.
-  
-  
-### API Reference
-
-    Call the HTTP API directly from any language.
-  
-
+- [SDK](/sdk/installation) — Use `ProjectsClient` in your agent or TypeScript app
+- [API Reference](/api/overview) — Call the HTTP API from any language
+- [x402 Payments](/concepts/x402) — Understand how payments work under the hood

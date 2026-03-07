@@ -1,0 +1,128 @@
+---
+title: Error Codes
+description: Complete reference for all Inkd API error codes and contract revert reasons.
+---
+
+# Error Codes
+
+All API errors return a JSON body with an `error` field (machine-readable code) and a `message` field (human-readable description).
+
+```json
+{
+  "error":   "name_taken",
+  "message": "A project with the name 'my-agent' already exists."
+}
+```
+
+---
+
+## HTTP errors
+
+### 400 Bad Request
+
+| Code | Description |
+|------|-------------|
+| `name_required` | `name` field is missing or empty |
+| `name_too_long` | Project name exceeds 64 characters |
+| `name_taken` | A project with this name already exists |
+| `hash_required` | `arweaveHash` is missing or empty |
+| `tag_required` | `versionTag` is missing or empty |
+| `invalid_id` | Project ID is not a valid number |
+| `content_too_large` | Upload exceeds the 50 MB limit |
+
+### 402 Payment Required
+
+Payment is required. The response body contains x402 payment terms.
+
+```json
+{
+  "error":  "payment_required",
+  "amount": "100000",
+  "token":  "USDC",
+  "payTo":  "0x23012C3EF1E95aBC0792c03671B9be33C239D449",
+  "network": "base"
+}
+```
+
+Retry the request with a valid `X-PAYMENT` header. See [x402 Payments](/concepts/x402).
+
+### 403 Forbidden
+
+| Code | Description |
+|------|-------------|
+| `not_owner_or_collaborator` | Caller is not the project owner or an approved collaborator |
+| `payment_invalid` | The x402 payment signature is invalid or expired |
+| `payment_amount_mismatch` | Payment amount does not match the required fee |
+
+### 404 Not Found
+
+| Code | Description |
+|------|-------------|
+| `project_not_found` | No project exists with the given ID |
+| `version_not_found` | No version exists with the given index |
+| `route_not_found` | The requested route does not exist |
+
+### 500 Internal Server Error
+
+| Code | Description |
+|------|-------------|
+| `rpc_error` | Could not reach the Base RPC endpoint |
+| `arweave_upload_failed` | Arweave upload via Irys failed |
+| `tx_failed` | On-chain transaction was submitted but reverted |
+
+---
+
+## Contract revert reasons
+
+When a transaction reverts on-chain, the API returns `tx_failed` with the revert reason in the `message` field.
+
+### InkdRegistry
+
+| Revert | Cause |
+|--------|-------|
+| `EmptyName()` | Project name is empty |
+| `NameTooLong()` | Name exceeds 64 characters |
+| `NameTaken()` | Name already registered |
+| `DescriptionTooLong()` | Description exceeds 1024 characters |
+| `EmptyArweaveHash()` | Arweave hash is empty |
+| `EmptyVersionTag()` | Version tag is empty |
+| `ProjectNotFound()` | Project ID does not exist |
+| `NotOwnerOrCollaborator()` | Caller lacks push permission |
+| `CannotAddOwner()` | Cannot add the project owner as a collaborator |
+| `AlreadyCollaborator()` | Address is already a collaborator |
+| `NotCollaborator()` | Address is not a collaborator |
+| `TooManyCollaborators()` | Project already has 50 collaborators |
+| `ZeroAddress()` | Zero address passed where disallowed |
+
+### InkdTreasury
+
+| Revert | Cause |
+|--------|-------|
+| `Unauthorized()` | Caller is not the settler or registry |
+| `ZeroAddress()` | Zero address passed where disallowed |
+| `Nothing to settle` | `total` is 0 |
+| `Insufficient USDC` | Treasury USDC balance < `total` |
+
+### InkdBuyback
+
+| Revert | Cause |
+|--------|-------|
+| `InkdTokenNotSet()` | `inkdToken` is `address(0)` — set after Clanker launch |
+| `BelowThreshold(balance, threshold)` | USDC balance has not reached buyback threshold |
+| `NothingToWithdraw()` | No USDC balance to withdraw |
+| `ZeroAddress()` | Zero address passed where disallowed |
+| `Max 10% slippage` | `maxSlippageBps` exceeds 1000 |
+| `InkdBuyback: only treasury` | `deposit()` called by non-treasury address |
+
+---
+
+## Debugging tips
+
+**`tx_failed` with `NameTaken`**
+A project with that name already exists on-chain. Choose a different name.
+
+**`payment_invalid`**
+Your EIP-3009 authorization has expired (valid window is 5 minutes) or the nonce was already used. Generate a fresh authorization and retry.
+
+**`not_owner_or_collaborator`**
+The wallet signing the request is not the project owner and has not been added as a collaborator. Check with `GET /v1/projects/:id` that your address matches the `owner` field.

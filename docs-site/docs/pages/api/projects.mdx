@@ -1,30 +1,38 @@
 ---
-title: Projects
-description: Create projects, push versions, and read the registry.
+title: Projects API
+description: Create projects, push versions, and read the on-chain registry.
+---
+
+# Projects API
+
+Base URL: `https://api.inkdprotocol.com`
+
+Read operations are free. Write operations require [x402 payment](/concepts/x402) in USDC.
+
 ---
 
 ## List projects
 
 ```http
-GET /v1/projects?offset=0&limit=20
+GET /v1/projects
 ```
 
-Free. Returns all public projects.
+Returns all public projects. Free, no authentication required.
 
-**Query params:**
+**Query parameters**
 
-| Param | Type | Default | Description |
-|-------|------|---------|-------------|
-| `offset` | number | 0 | Pagination offset |
-| `limit` | number | 20 | Max results (max 100) |
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `offset` | `number` | `0` | Pagination offset |
+| `limit` | `number` | `20` | Results per page (max `100`) |
 
-**Response:**
+**Response** `200 OK`
 
 ```json
 {
   "data": [
     {
-      "id": "7",
+      "id": "9",
       "name": "my-agent",
       "description": "An autonomous agent",
       "license": "MIT",
@@ -32,10 +40,13 @@ Free. Returns all public projects.
       "isPublic": true,
       "isAgent": true,
       "agentEndpoint": "https://my-agent.example.com",
-      "createdAt": "1772803578",
-      "versionCount": "1"
+      "createdAt": "1741383600",
+      "versionCount": "2"
     }
-  ]
+  ],
+  "total": 9,
+  "offset": 0,
+  "limit": 20
 }
 ```
 
@@ -47,7 +58,28 @@ Free. Returns all public projects.
 GET /v1/projects/:id
 ```
 
-**Response:** Same shape as a single item from the list.
+**Response** `200 OK`
+
+```json
+{
+  "id": "9",
+  "name": "my-agent",
+  "description": "An autonomous agent",
+  "license": "MIT",
+  "owner": "0x210bDf52ad7afE3Ea7C67323eDcCD699598983C0",
+  "isPublic": true,
+  "isAgent": true,
+  "agentEndpoint": "https://my-agent.example.com",
+  "createdAt": "1741383600",
+  "versionCount": "2"
+}
+```
+
+**Errors**
+
+| Status | Error | Description |
+|--------|-------|-------------|
+| `404` | `project_not_found` | No project with that ID |
 
 ---
 
@@ -57,44 +89,55 @@ GET /v1/projects/:id
 POST /v1/projects
 ```
 
-**Cost: $5 USDC** (paid via x402)
+Registers a new project on-chain. Requires x402 payment.
 
-**Request body:**
+**Cost:** $0.10 USDC (minimum, dynamic)
+
+**Request body**
 
 ```json
 {
   "name":          "my-agent",
-  "description":   "An autonomous agent",
+  "description":   "An autonomous agent that manages deployments",
   "license":       "MIT",
   "isPublic":      true,
   "isAgent":       true,
   "agentEndpoint": "https://my-agent.example.com",
-  "readmeHash":    ""
+  "readmeHash":    "ar://QmReadme..."
 }
 ```
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `name` | string | ✅ | Unique project name |
-| `description` | string | — | Short description |
-| `license` | string | — | SPDX license (default: `MIT`) |
-| `isPublic` | boolean | — | Default: `true` |
-| `isAgent` | boolean | — | Mark as AI agent project |
-| `agentEndpoint` | string | — | HTTP endpoint if agent |
-| `readmeHash` | string | — | Arweave hash of README |
+| Field | Type | Required | Constraints | Description |
+|-------|------|----------|-------------|-------------|
+| `name` | `string` | ✅ | Max 64 chars, unique | Project name (normalized to lowercase) |
+| `description` | `string` | — | Max 1024 chars | Short description |
+| `license` | `string` | — | — | SPDX license identifier (default: `MIT`) |
+| `isPublic` | `boolean` | — | — | Default: `true` |
+| `isAgent` | `boolean` | — | — | Mark as an AI agent project |
+| `agentEndpoint` | `string` | — | — | HTTP endpoint for the agent |
+| `readmeHash` | `string` | — | `ar://` prefix | Arweave hash of README content |
 
-**Response:**
+**Response** `201 Created`
 
 ```json
 {
-  "txHash":    "0xabc...",
-  "projectId": "8",
+  "txHash":    "0x25642785bb06de399e102e3e943c6e93572fb8b65d3c9cceee45a3e430e413b9",
+  "projectId": "10",
+  "name":      "my-agent",
   "owner":     "0xYourWallet",
-  "signer":    "0x210bDf52...",
   "status":    "success",
-  "blockNumber": "14234567"
+  "blockNumber": "25841234"
 }
 ```
+
+**Errors**
+
+| Status | Error | Description |
+|--------|-------|-------------|
+| `400` | `name_required` | `name` field is missing |
+| `400` | `name_too_long` | Name exceeds 64 characters |
+| `400` | `name_taken` | A project with this name already exists |
+| `402` | — | Payment required (x402 flow) |
 
 ---
 
@@ -104,7 +147,35 @@ POST /v1/projects
 GET /v1/projects/:id/versions
 ```
 
-Free. Returns all versions for a project.
+Returns all versions for a project. Free.
+
+**Response** `200 OK`
+
+```json
+{
+  "data": [
+    {
+      "index":       "0",
+      "projectId":   "9",
+      "arweaveHash": "ar://QmAbc123xyz...",
+      "versionTag":  "v1.0.0",
+      "changelog":   "Initial release",
+      "pushedBy":    "0x210bDf52ad7afE3Ea7C67323eDcCD699598983C0",
+      "pushedAt":    "1741383900"
+    }
+  ]
+}
+```
+
+---
+
+## Get version
+
+```http
+GET /v1/projects/:id/versions/:index
+```
+
+Returns a specific version by its index (0-based).
 
 ---
 
@@ -114,39 +185,53 @@ Free. Returns all versions for a project.
 POST /v1/projects/:id/versions
 ```
 
-**Cost: $2 USDC** (paid via x402)
+Uploads content to Arweave (if `file` provided) and records the Arweave hash on-chain. Requires x402 payment.
 
-**Request body:**
+**Cost:** Arweave storage cost + 20% markup (min $0.10 USDC). Use the [estimate endpoint](#estimate-version-cost) to get the exact amount before paying.
+
+**Request body**
 
 ```json
 {
-  "tag":          "v1.0.0",
-  "contentHash":  "ar://QmAbc123...",
-  "metadataHash": "",
-  "contentSize":  12345
+  "arweaveHash":  "ar://QmAbc123xyz...",
+  "versionTag":   "v1.0.0",
+  "changelog":    "Add support for streaming responses",
+  "contentSize":  14336
 }
 ```
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `tag` | string | ✅ | Version tag |
-| `contentHash` | string | ✅ | Arweave hash (`ar://...`) |
-| `metadataHash` | string | — | Optional metadata hash |
-| `contentSize` | number | — | Bytes (for pricing display) |
+| `arweaveHash` | `string` | ✅ | Permanent `ar://` content hash. Use `/v1/upload` first if you have a local file. |
+| `versionTag` | `string` | ✅ | Version identifier (e.g. `v1.0.0`) |
+| `changelog` | `string` | — | Description of changes |
+| `contentSize` | `number` | — | File size in bytes (used for fee display) |
 
-**Response:**
+**Response** `201 Created`
 
 ```json
 {
-  "txHash":    "0xdef...",
-  "projectId": "8",
-  "tag":       "v1.0.0",
-  "contentHash": "ar://QmAbc123...",
-  "pusher":    "0xYourWallet",
-  "status":    "success",
-  "blockNumber": "14234600"
+  "txHash":      "0x7a63bd374bd439a73f9090ac8431cbb338bc4693574e7663f6f7aff595eadf18",
+  "projectId":   "9",
+  "versionIndex": "1",
+  "versionTag":  "v1.0.0",
+  "arweaveHash": "ar://QmAbc123xyz...",
+  "arweaveUrl":  "https://arweave.net/QmAbc123xyz",
+  "pusher":      "0xYourWallet",
+  "status":      "success",
+  "blockNumber": "25841300"
 }
 ```
+
+**Errors**
+
+| Status | Error | Description |
+|--------|-------|-------------|
+| `400` | `hash_required` | `arweaveHash` is missing or empty |
+| `400` | `tag_required` | `versionTag` is missing or empty |
+| `403` | `not_owner_or_collaborator` | Caller is not the project owner or a collaborator |
+| `404` | `project_not_found` | No project with that ID |
+| `402` | — | Payment required (x402 flow) |
 
 ---
 
@@ -156,17 +241,28 @@ POST /v1/projects/:id/versions
 GET /v1/projects/estimate?bytes=102400
 ```
 
-Returns the USDC cost for uploading a given number of bytes (Arweave storage cost + 20% markup).
+Returns the USDC cost to push a version for a given file size.
 
-**Response:**
+**Query parameters**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `bytes` | `number` | File size in bytes |
+
+**Response** `200 OK`
 
 ```json
 {
-  "bytes": 102400,
-  "arweaveCost": "4600",
-  "markup": "920",
-  "total": "5520"
+  "bytes":        102400,
+  "arweaveCost":  "4600",
+  "markup":       "920",
+  "total":        "5520",
+  "totalUsd":     "$0.0055"
 }
 ```
 
-All values are in USDC with 6 decimals (divide by `1e6` for USD).
+All USDC values use 6 decimals. Divide by `1e6` for USD.
+
+:::tip
+1 KB of Arweave storage costs approximately $0.0018 USDC at current rates.
+:::

@@ -1,70 +1,104 @@
 ---
-title: Installation
-description: Install the Inkd SDK and connect to Base Mainnet.
+title: SDK Installation
+description: Install and configure the Inkd TypeScript SDK.
+---
+
+# SDK Installation
+
+The `@inkd/sdk` package provides a TypeScript client for the Inkd Protocol. It handles x402 payments automatically.
+
 ---
 
 ## Install
 
 ```bash
-npm install @inkd/sdk viem
+npm install @inkd/sdk
 # or
-yarn add @inkd/sdk viem
+yarn add @inkd/sdk
 # or
-pnpm add @inkd/sdk viem
+pnpm add @inkd/sdk
 ```
 
-**Peer dependency:** `viem >= 2.0.0`
+**Requirements:** Node.js 18 or later, TypeScript 5.0+ (if using TypeScript).
 
-## Setup
+---
+
+## Quick setup
 
 ```typescript
-import { ProjectsClient } from "@inkd/sdk";
-import { createWalletClient, createPublicClient, http } from "viem";
-import { base } from "viem/chains";
-import { privateKeyToAccount } from "viem/accounts";
+import { ProjectsClient } from "@inkd/sdk"
 
-const account = privateKeyToAccount("0xYOUR_PRIVATE_KEY");
-
-const wallet = createWalletClient({
-  account,
-  chain: base,
-  transport: http("https://base.publicnode.com"),
-});
-
-const reader = createPublicClient({
-  chain: base,
-  transport: http("https://base.publicnode.com"),
-});
-
-const client = new ProjectsClient({ wallet, publicClient: reader });
+const client = new ProjectsClient({
+  privateKey: process.env.INKD_PRIVATE_KEY,
+})
 ```
 
-## Custom API URL
+That's it. The client connects to Base Mainnet and the production API by default.
 
-By default the SDK targets `https://api.inkdprotocol.com`. Override for local development:
+---
+
+## Configuration
 
 ```typescript
 const client = new ProjectsClient({
-  wallet,
-  publicClient: reader,
-  apiUrl: "http://localhost:3000",
-});
+  // Required: your wallet private key (never hardcode in source)
+  privateKey: process.env.INKD_PRIVATE_KEY,
+
+  // Optional: override API base URL
+  apiUrl: "https://api.inkdprotocol.com",
+
+  // Optional: override network ("mainnet" | "testnet")
+  network: "mainnet",
+})
 ```
 
-## Network
+### Environment variables
 
-Inkd is live on **Base Mainnet** (chain ID `8453`). Always use `base` from `viem/chains`, not `baseSepolia`.
+| Variable | Description |
+|----------|-------------|
+| `INKD_PRIVATE_KEY` | Your wallet private key (`0x...`) |
+| `INKD_NETWORK` | `mainnet` or `testnet` (default: `mainnet`) |
+| `INKD_API_URL` | Override API base URL |
 
-## Next
+---
 
-  
-### ProjectsClient
+## Wallet requirements
 
-    Create projects, push versions, upload files.
-  
-  
-### AgentVault
+Your wallet needs:
+- **USDC on Base Mainnet** — for paying fees (create project: $0.10+, push version: dynamic)
+- **ETH on Base Mainnet** — a small amount for gas on any direct contract calls
 
-    Store encrypted credentials on Arweave.
-  
+To check your balance:
 
+```typescript
+const status = await client.getStatus()
+console.log(status.usdcBalance) // e.g. "12.50"
+```
+
+---
+
+## Using in an AI agent
+
+For autonomous agents, load the private key from a secure environment:
+
+```typescript
+import { ProjectsClient } from "@inkd/sdk"
+
+// From environment (recommended)
+const client = new ProjectsClient({
+  privateKey: process.env.INKD_PRIVATE_KEY,
+})
+
+// Or from AgentVault (encrypted credential storage)
+import { AgentVault } from "@inkd/sdk"
+const vault  = new AgentVault(walletClient)
+const key    = await vault.get("inkd_private_key")
+const client = new ProjectsClient({ privateKey: key })
+```
+
+---
+
+## Next steps
+
+- [ProjectsClient](/sdk/projects-client) — Create projects, push versions, read the registry
+- [AgentVault](/sdk/agent-vault) — Encrypted credential storage for agents

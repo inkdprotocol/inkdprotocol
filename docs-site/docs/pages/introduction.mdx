@@ -1,61 +1,72 @@
 ---
 title: Introduction
-description: On-chain project registry for AI agents and developers. Built on Base, stored on Arweave.
+description: Inkd is a permanent, on-chain project registry built on Base. Pay with USDC, store forever on Arweave.
 ---
 
-# What is Inkd?
+# Inkd Protocol
 
-Inkd is a **permanent, on-chain project registry** on Base. Think npm or GitHub — but without a server that can be shut down.
+**Inkd is the ownership layer for AI agents and developers.**
 
-- Projects and versions are stored on-chain via smart contracts
-- Content (code, artifacts, data) lives permanently on Arweave
-- Agents and developers pay to publish via [x402](/concepts/x402) — no API keys, wallet = identity
+Projects and versions are registered on-chain on Base. Content lives permanently on Arweave. Payments happen natively in USDC — no API keys, no OAuth, no accounts.
 
-## How it works
+---
 
-## Create a project
+## The problem
 
-    Register a project on-chain. Costs $5 USDC. Your wallet address is the owner.
-  
-  
-## Upload content
+Software registries today are centralized. npm, PyPI, Docker Hub — they can ban packages, go offline, change pricing, or shut down entirely. For AI agents that need to publish and discover code autonomously, this is a fundamental reliability problem.
 
-    Push files to Arweave via the API. Returns a permanent `ar://` hash.
-  
-  
-## Push a version
+## The solution
 
-    Record the Arweave hash on-chain with a version tag. Costs $2 USDC. Permanent and immutable.
-  
+Inkd replaces the centralized registry with on-chain state and permanent storage:
 
-## Who is it for?
+- **On-chain registry** — Project ownership, version history, and metadata live on Base. Immutable, verifiable, censorship-resistant.
+- **Permanent content** — Files are stored on Arweave via Irys. Once uploaded, they exist forever.
+- **USDC payments** — Agents pay directly with USDC via [x402](/concepts/x402). No accounts, no API keys — your wallet is your identity.
 
-**AI agents** that need to publish, version, and discover code autonomously — without OAuth, API keys, or human approval flows.
+---
 
-**Developers** who want permanent, censorship-resistant artifact storage with on-chain provenance.
+## Core primitives
 
-## Key properties
+### Projects
 
-  
-### Permanent
+A project is an on-chain record with a unique name, owner address, license, and metadata. Once created, it exists forever on Base.
 
-    Content on Arweave is stored forever. No takedowns, no 404s.
-  
-  
-### On-chain
+```
+Project {
+  id:          uint256       // auto-incrementing
+  name:        string        // unique, max 64 chars
+  owner:       address       // controls the project
+  license:     string        // SPDX identifier
+  isPublic:    bool
+  isAgent:     bool          // AI agent flag
+  versionCount: uint256
+}
+```
 
-    Project ownership, version history, and metadata live on Base. Verifiable by anyone.
-  
-  
-### Agent-native
+### Versions
 
-    x402 payments via EIP-3009. Agents pay USDC directly — no OAuth, no API keys.
-  
-  
-### Open
+A version links a project to a permanent Arweave content hash. Every version is immutable once pushed.
 
-    All public projects are readable without authentication.
-  
+```
+Version {
+  projectId:   uint256
+  arweaveHash: string        // ar://... permanent content address
+  versionTag:  string        // e.g. "v1.0.0"
+  changelog:   string
+  pushedBy:    address
+  pushedAt:    uint256
+}
+```
+
+---
+
+## Who it's for
+
+**AI agents** — Autonomous agents can publish, version, and discover software without human-managed credentials. A wallet + USDC is all that's needed.
+
+**Developers** — Permanent, verifiable artifact storage. Every version is on-chain with a timestamp, owner proof, and permanent content link.
+
+---
 
 ## Contracts (Base Mainnet)
 
@@ -65,16 +76,31 @@ Inkd is a **permanent, on-chain project registry** on Base. Think npm or GitHub 
 | InkdTreasury | [`0x23012C3EF1E95aBC0792c03671B9be33C239D449`](https://basescan.org/address/0x23012C3EF1E95aBC0792c03671B9be33C239D449) |
 | InkdBuyback | [`0xcbbf310513228153D981967E96C8A097c3EEd357`](https://basescan.org/address/0xcbbf310513228153D981967E96C8A097c3EEd357) |
 
-## Next steps
+All contracts are open-source, verified on Basescan, and upgradeable via multisig-controlled UUPS proxies.
 
-  
-### Quickstart
+---
 
-    Create your first project in 5 minutes with the CLI.
-  
-  
-### SDK
+## Start building
 
-    Use the TypeScript SDK in your agent or application.
-  
+:::steps
 
+### Install the CLI
+
+```bash
+npm install -g @inkd/cli
+```
+
+### Create a project
+
+```bash
+export INKD_PRIVATE_KEY=0x...
+inkd project create --name my-agent --description "My agent"
+```
+
+### Push a version
+
+```bash
+inkd version push --id 1 --file ./dist/agent.js --tag v1.0.0
+```
+
+:::
