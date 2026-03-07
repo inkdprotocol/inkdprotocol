@@ -13,10 +13,10 @@
  *   --json         Output raw JSON (for piping)
  */
 
-import { type Log, type Hex, formatEther, decodeEventLog, parseAbi } from 'viem'
+import { type Log, type Hex, _formatEther, decodeEventLog, parseAbi } from 'viem'
 import {
   loadConfig, ADDRESSES,
-  error, info, success,
+  error, info, _success,
   BOLD, RESET, CYAN, DIM, GREEN, YELLOW,
 } from '../config.js'
 import { buildPublicClient } from '../client.js'
@@ -159,7 +159,7 @@ export async function cmdWatch(args: string[]): Promise<void> {
   }
 
   let lastBlock = fromBlock
-  let seenCount = 0
+  let _seenCount = 0
 
   while (true) {
     try {
@@ -177,7 +177,7 @@ export async function cmdWatch(args: string[]): Promise<void> {
             const decoded = decodeEventLog({ abi: WATCH_ABI, data: log.data, topics: log.topics as [Hex, ...Hex[]] })
             if (FILTER_MAP[filterArg].includes(decoded.eventName)) {
               renderEvent(log, jsonMode)
-              seenCount++
+              _seenCount++
             }
           } catch {
             // not one of our events

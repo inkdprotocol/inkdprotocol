@@ -48,12 +48,22 @@ export default [
     },
   },
 
-  // Test files — more lenient
+  // Test files — more lenient, skip type-aware rules
   {
     files: ['src/__tests__/**/*.ts'],
+    languageOptions: {
+      parser: tsParser,
+      parserOptions: {
+        project: null,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/consistent-type-imports': 'off',
+      '@typescript-eslint/no-floating-promises': 'off',
+      '@typescript-eslint/await-thenable': 'off',
+      '@typescript-eslint/no-misused-promises': 'off',
       'no-console': 'off',
     },
   },

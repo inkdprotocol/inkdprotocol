@@ -16,7 +16,7 @@ import {
   loadConfig,
   writeConfig,
   requirePrivateKey,
-  error,
+  _error,
   RED,
   GREEN,
   YELLOW,

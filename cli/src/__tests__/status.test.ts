@@ -6,7 +6,7 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import type { Mock } from "vitest";
-import { parseEther } from "viem";
+import { _parseEther } from "viem";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 

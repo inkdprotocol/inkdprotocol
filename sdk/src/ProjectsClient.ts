@@ -41,12 +41,10 @@ import {
   addRecipientToManifest,
   type AccessManifest,
 } from "./crypto.js";
-// eslint-disable-next-line @typescript-eslint/no-require-imports
 const { wrapFetchWithPayment, x402Client } = require("@x402/fetch") as {
   wrapFetchWithPayment: (f: typeof fetch, c: unknown) => typeof fetch;
   x402Client:          new () => { register: (network: string, scheme: unknown) => unknown };
 };
-// eslint-disable-next-line @typescript-eslint/no-require-imports
 const { ExactEvmScheme } = require("@x402/evm") as {
   ExactEvmScheme: new (signer: unknown) => unknown;
 };
@@ -259,7 +257,7 @@ export class ProjectsClient {
 
     const privKeyHex  = this.privateKey.replace("0x", "")
     const ownerPubKey = privateKeyToCompressedPublicKey(privKeyHex)
-    const ownerAddress = params.name // will be overridden below — we get from wallet
+    const _ownerAddress = params.name // will be overridden below — we get from wallet
 
     // 1. Generate AES key + encrypt content
     const aesKey   = generateContentKey()
@@ -268,14 +266,14 @@ export class ProjectsClient {
 
     // 2. Upload encrypted blob to Arweave
     const encryptedBlob = JSON.stringify(encrypted)
-    const contentUpload = await this.upload(Buffer.from(encryptedBlob), {
+    const _contentUpload = await this.upload(Buffer.from(encryptedBlob), {
       contentType: "application/inkd-encrypted",
       filename:    `${params.name}.enc`,
     })
 
     // 3. Build access manifest (owner only — collaborators added via addCollaborator)
     // We'll use a placeholder projectId until we get it from createProject
-    const tempManifest = buildAccessManifest(
+    const _tempManifest = buildAccessManifest(
       0, // placeholder — updated after project creation
       aesKey,
       [{ address: "0x0000000000000000000000000000000000000000" as `0x${string}`, compressedPublicKey: ownerPubKey }]

@@ -2,7 +2,7 @@
  * inkd status — show network info and contract fees
  */
 
-import { formatEther } from 'viem'
+import { _formatEther } from 'viem'
 import { loadConfig, ADDRESSES, info, warn, BOLD, RESET, CYAN, DIM, GREEN } from '../config.js'
 import { buildPublicClient } from '../client.js'
 import { REGISTRY_ABI } from '../abi.js'

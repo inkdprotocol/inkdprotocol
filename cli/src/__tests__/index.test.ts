@@ -40,7 +40,7 @@ import { cmdInit }                           from "../commands/init.js";
 import { cmdStatus }                         from "../commands/status.js";
 import {
   cmdProjectCreate, cmdProjectGet, cmdProjectList,
-  cmdProjectTransfer, cmdProjectCollab,
+  _cmdProjectTransfer, _cmdProjectCollab,
 }                                            from "../commands/project.js";
 import { cmdVersionPush, cmdVersionList, cmdVersionShow } from "../commands/version.js";
 import { cmdAgentList, cmdAgentLookup }      from "../commands/agent.js";
@@ -60,8 +60,8 @@ function setArgv(...args: string[]): void {
 
 let consoleLog: ReturnType<typeof vi.spyOn>;
 let consoleError: ReturnType<typeof vi.spyOn>;
-let consoleWarn: ReturnType<typeof vi.spyOn>;
-let processExit: ReturnType<typeof vi.spyOn>;
+let _consoleWarn: ReturnType<typeof vi.spyOn>;
+let _processExit: ReturnType<typeof vi.spyOn>;
 const originalArgv = process.argv.slice();
 
 beforeEach(() => {

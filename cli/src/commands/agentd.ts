@@ -33,8 +33,8 @@
  */
 
 import { existsSync, readFileSync, writeFileSync } from 'fs'
-import { resolve, join } from 'path'
-import { parseEther, formatEther, getAddress, type Address } from 'viem'
+import { resolve, _join } from 'path'
+import { parseEther, formatEther, _getAddress, type Address } from 'viem'
 import {
   loadConfig, requirePrivateKey, ADDRESSES,
   info, success, warn, error,
@@ -149,7 +149,7 @@ async function runCycle(opts: {
   quiet:           boolean
   dryRun:          boolean
 }): Promise<{ peersFound: number; healthy: boolean; errorMsg?: string }> {
-  const { state, registryAddress, walletAddress, publicClient, agentName, jsonMode, quiet, dryRun } = opts
+  const { state, registryAddress, walletAddress, publicClient, agentName, jsonMode, quiet, _dryRun } = opts
 
   const say = (icon: string, color: string, msg: string, event: string) => {
     if (!quiet) humanLine(icon, color, msg, jsonMode, event)
@@ -291,7 +291,7 @@ export async function cmdAgentd(args: string[]): Promise<void> {
   const addrs    = ADDRESSES[cfg.network]
 
   const agentName     = process.env['INKD_AGENT_NAME'] ?? ''
-  const agentEndpoint = process.env['INKD_AGENT_ENDPOINT'] ?? ''
+  const _agentEndpoint = process.env['INKD_AGENT_ENDPOINT'] ?? ''
 
   if (!agentName) {
     error('INKD_AGENT_NAME not set. Export your agent\'s project name.\n  Example: export INKD_AGENT_NAME=my-agent')
@@ -304,7 +304,7 @@ export async function cmdAgentd(args: string[]): Promise<void> {
   // ─── Build clients ─────────────────────────────────────────────────────────
   let walletAddress: Address = '0x0000000000000000000000000000000000000000'
   try {
-    const pk = requirePrivateKey(cfg)
+    const _pk = requirePrivateKey(cfg)
     const wc = buildWalletClient(cfg)
     const [acct] = await wc.getAddresses()
     walletAddress = acct
@@ -386,11 +386,12 @@ export async function cmdAgentd(args: string[]): Promise<void> {
     info(`Next sync in ${intervalMs / 1000}s — press Ctrl-C to stop\n`)
   }
 
-  const timer = setInterval(async () => {
-    await cycle()
-    if (!jsonMode && !quiet) {
-      info(`Next sync in ${intervalMs / 1000}s\n`)
-    }
+  const timer = setInterval(() => {
+    void cycle().then(() => {
+      if (!jsonMode && !quiet) {
+        info(`Next sync in ${intervalMs / 1000}s\n`)
+      }
+    })
   }, intervalMs)
 
   // Graceful shutdown

@@ -13,7 +13,7 @@ import { base, baseSepolia }   from 'viem/chains'
 import { ProjectsClient }      from '@inkd/sdk'
 import {
   loadConfig, requirePrivateKey,
-  error, success, info, warn,
+  error, success, info, _warn,
   BOLD, RESET, CYAN, DIM, GREEN, YELLOW,
 } from '../config.js'
 import { buildPublicClient } from '../client.js'

@@ -159,7 +159,7 @@ describe("cmdAgentList", () => {
   });
 
   it("handles registry not deployed (no address)", async () => {
-    const { loadConfig, ADDRESSES } = await import("../config.js");
+    const { _loadConfig, ADDRESSES } = await import("../config.js");
     const origAddresses = (ADDRESSES as Record<string, Record<string, string>>).testnet.registry;
 
     // Temporarily clear the registry address

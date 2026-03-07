@@ -121,7 +121,7 @@ describe("REGISTRY_ABI", () => {
   // ── ABI only contains functions (no events needed for CLI reads/writes) ──
 
   it("contains only function-type entries (CLI ABI is functions-only)", () => {
-    const nonFunctions = (REGISTRY_ABI as unknown as AbiEntry[]).filter((e) => e.type !== "function");
+    const _nonFunctions = (REGISTRY_ABI as unknown as AbiEntry[]).filter((e) => e.type !== "function");
     // CLI ABI is a minimal subset — events are not required for contract calls
     // This test documents the intentional design decision
     expect(Array.isArray(REGISTRY_ABI)).toBe(true);
