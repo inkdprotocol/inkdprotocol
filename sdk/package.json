@@ -61,6 +61,7 @@
     }
   },
   "devDependencies": {
+    "@irys/sdk": "^0.2.11",
     "@types/node": "^25.3.5",
     "@types/react": "^19.2.14",
     "@vitest/coverage-v8": "^4.0.18",

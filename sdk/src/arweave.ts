@@ -42,16 +42,19 @@ export class ArweaveClient {
 
   /** Initialize the Irys client connection. */
   async connect(): Promise<void> {
+    this.irys = await this._createIrys(this.irysUrl, this.privateKey);
+  }
+
+  /**
+   * Factory for creating the Irys client. Overridable in tests via vi.spyOn.
+   * @internal
+   */
+  async _createIrys(url: string, privateKey: string): Promise<unknown> {
     // @ts-ignore – @irys/sdk is an optional peer dep; types may not be installed
     const { default: Irys } = await import("@irys/sdk");
-
-    this.irys = new Irys({
-      url: this.irysUrl,
-      token: "ethereum",
-      key: this.privateKey,
-    });
-
-    await (this.irys as { ready: () => Promise<void> }).ready();
+    const irys = new Irys({ url, token: "ethereum", key: privateKey });
+    await (irys as { ready: () => Promise<void> }).ready();
+    return irys;
   }
 
   /** Upload data to Arweave via Irys. */
