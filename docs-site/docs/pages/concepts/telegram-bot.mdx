@@ -1,43 +1,55 @@
 ---
 title: Telegram Bot
-description: Wallet-gated inkd uploads direkt in Telegram.
+description: Wallet-gated inkd uploads directly inside Telegram.
 ---
 
 # Telegram Bot
 
-Der @inkdbot bringt inkd direkt in Telegram: Wallet verbinden, Inhalte hochladen, sofort auf Arweave speichern und als inkd-Projekt registrieren.
+Meet [@inkdbot](https://t.me/inkdbot): a wallet-gated chat interface that lets anyone push content to inkd without touching the SDK or API.
 
-## Features
-- **Wallet-gated Sign-In** – `/start` schickt eine Challenge, die du mit deiner Base-Wallet signierst. Die Adresse wird on-chain als Owner hinterlegt.
-- **Paste-to-Ship Uploads** – `/upload_text` fragt Projektname + Inhalt ab, speichert ihn permanent auf Arweave und ruft `createProjectV2` auf der inkd Registry.
-- **Projektübersicht** – `/my_projects` listet die letzten inkd-Projekte deiner Wallet (via lokalem Indexer/SQLite).
+## Highlights
+- **Wallet-authenticated** – `/start` issues a one-time challenge. Once you sign it with your Base wallet, the bot knows which on-chain identity to use.
+- **Paste-to-Ship** – `/upload_text` takes a project name and any text snippet (meme, note, code) and instantly stores it on Arweave + registers a project on Base.
+- **Project overview** – `/my_projects` lists the latest inkd projects owned by your wallet (powered by the local indexer/SQLite).
 
-## So nutzt du den Bot
-1. Öffne [@inkdbot](https://t.me/inkdbot) in Telegram.
-2. `/start` → Button „Connect Wallet“ → signiere den angezeigten Text in deiner Base-Wallet → schicke die Signatur zurück.
-3. `/upload_text` → Projektname eingeben → Content (Text/Meme, &lt;50 MB) einfach in den Chat einfügen.
-4. Der Bot antwortet mit `ar://` Hash, Arweave-URL und der Registry-Transaktion.
-5. `/my_projects` zeigt deine registrierten Projekte samt Versionen.
+## Step-by-step
+1. Open [@inkdbot](https://t.me/inkdbot) → send `/start` → tap **Connect Wallet**.
+2. The bot replies with a challenge like `inkd bot login for 7006655832 :: nonce abcd…`.
+3. In your Base wallet (Coinbase Wallet, Rabby, Rainbow, etc.):
+   - Open the menu → choose **Sign Message** (sometimes called *Verify Message* or *Sign Text*).
+   - Paste the challenge text exactly as it appears.
+   - Confirm the signature.
+4. Copy the resulting signature (it starts with `0x…`) and send it back to the bot.
+5. The bot replies with `Wallet 0x… linked`. From now on, `/my_projects` and `/upload_text` are unlocked for that wallet.
+6. Use `/upload_text` → enter a project name → paste your content (&lt;50 MB). The bot returns:
+   - `ar://…` hash + Arweave URL
+   - Base transaction hash (createProjectV2)
+7. `/my_projects` shows everything the same wallet has deployed (whether via Telegram, SDK, or API).
 
-## Deployment / Betrieb
-Der Bot läuft auf `john-server` via **pm2** (`inkd-bot`).
+> **Tip:** A wallet only needs to link once. We now persist sessions in SQLite, so even after bot restarts the mapping stays intact.
+
+## Deployment / Ops
+The bot runs on `john-server` under **pm2** as `inkd-bot`.
 
 ```bash
 ssh root@john-server
 cd /root/.openclaw/workspace/agents/telegram-bot
-pm2 status inkd-bot             # Status & Uptime
-pm2 logs inkd-bot --lines 50    # Logs einsehen
-pm2 restart inkd-bot            # Neustart bei Bedarf
+pm2 status inkd-bot             # uptime & status
+pm2 logs inkd-bot --lines 50    # inspect logs
+pm2 restart inkd-bot            # manual restart
 ```
 
-Konfiguration (`agents/telegram-bot/.env`):
+Configuration (`agents/telegram-bot/.env`):
 - `TELEGRAM_BOT_TOKEN`
 - `WALLETCONNECT_PROJECT_ID`
-- `BOT_SERVER_WALLET_KEY` (als Settler gesetzt)
+- `BOT_SERVER_WALLET_KEY` (this wallet is set as Settler on the Registry)
 - `BASE_RPC_URL`, `INKD_REGISTRY_ADDRESS`
+- `INKD_API_URL`, `INKD_INDEXER_DB`
+- `SESSION_DB_PATH` (SQLite file for persistent logins)
 
 ## Roadmap
-- GitHub-/Datei-Uploads & weitere Formate
-- Notifications / Receipts
-- Private Uploads (Encryption / Access Manifest)
-- Video-Demo & öffentliche Ankündigung
+- WalletConnect deep-link (1-tap login, no signature copy/paste)
+- GitHub/file uploads & additional content types
+- Notifications / receipts
+- Private uploads (encryption + access manifest)
+- Public video/tutorial once the UX is polished
