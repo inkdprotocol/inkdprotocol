@@ -1,4 +1,5 @@
 import { defineConfig } from 'vocs'
+import { createElement } from 'react'
 
 export default defineConfig({
   title: 'Inkd Protocol',
@@ -6,6 +7,7 @@ export default defineConfig({
   logoUrl: '/logo.jpg',
   baseUrl: 'https://inkdprotocol.com',
   ogImageUrl: 'https://inkdprotocol.com/og.png',
+  head: () => createElement('meta', { name: 'base:app_id', content: '69aeb2f7f6467f4d78d30444' }),
 
   theme: {
     accentColor: {
