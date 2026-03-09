@@ -6,6 +6,8 @@ contracts/broadcast/
 # Environment
 .env
 .env.local
+agents/telegram-bot/.env
+agents/telegram-bot/dist/
 
 # Node
 node_modules/

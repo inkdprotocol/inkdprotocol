@@ -1,0 +1,43 @@
+---
+title: Telegram Bot
+description: Wallet-gated inkd uploads direkt in Telegram.
+---
+
+# Telegram Bot
+
+Der @inkdbot bringt inkd direkt in Telegram: Wallet verbinden, Inhalte hochladen, sofort auf Arweave speichern und als inkd-Projekt registrieren.
+
+## Features
+- **Wallet-gated Sign-In** – `/start` schickt eine Challenge, die du mit deiner Base-Wallet signierst. Die Adresse wird on-chain als Owner hinterlegt.
+- **Paste-to-Ship Uploads** – `/upload_text` fragt Projektname + Inhalt ab, speichert ihn permanent auf Arweave und ruft `createProjectV2` auf der inkd Registry.
+- **Projektübersicht** – `/my_projects` listet die letzten inkd-Projekte deiner Wallet (via lokalem Indexer/SQLite).
+
+## So nutzt du den Bot
+1. Öffne [@inkdbot](https://t.me/inkdbot) in Telegram.
+2. `/start` → Button „Connect Wallet“ → signiere den angezeigten Text in deiner Base-Wallet → schicke die Signatur zurück.
+3. `/upload_text` → Projektname eingeben → Content (Text/Meme, &lt;50 MB) einfach in den Chat einfügen.
+4. Der Bot antwortet mit `ar://` Hash, Arweave-URL und der Registry-Transaktion.
+5. `/my_projects` zeigt deine registrierten Projekte samt Versionen.
+
+## Deployment / Betrieb
+Der Bot läuft auf `john-server` via **pm2** (`inkd-bot`).
+
+```bash
+ssh root@john-server
+cd /root/.openclaw/workspace/agents/telegram-bot
+pm2 status inkd-bot             # Status & Uptime
+pm2 logs inkd-bot --lines 50    # Logs einsehen
+pm2 restart inkd-bot            # Neustart bei Bedarf
+```
+
+Konfiguration (`agents/telegram-bot/.env`):
+- `TELEGRAM_BOT_TOKEN`
+- `WALLETCONNECT_PROJECT_ID`
+- `BOT_SERVER_WALLET_KEY` (als Settler gesetzt)
+- `BASE_RPC_URL`, `INKD_REGISTRY_ADDRESS`
+
+## Roadmap
+- GitHub-/Datei-Uploads & weitere Formate
+- Notifications / Receipts
+- Private Uploads (Encryption / Access Manifest)
+- Video-Demo & öffentliche Ankündigung

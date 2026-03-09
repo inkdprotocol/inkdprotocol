@@ -80,7 +80,7 @@ done
 
 # ── 4. Non-Inkd project folders ──────────────────────────────────────────────
 ALLOWED_ROOTS=(
-  "api/" "sdk/" "cli/" "contracts/" "docs/" "mcp/" "agentkit/"
+  "api/" "sdk/" "cli/" "contracts/" "docs/" "mcp/" "agentkit/" "agents/"
   "subgraph/" "specs/" "examples/" "scripts/" "assets/" ".github/" ".githooks/"
   ".gitignore" ".gitmodules" ".env.example" "package" "tsconfig"
   "vercel.json" "Makefile" "LICENSE" "README.md" "CHANGELOG"
