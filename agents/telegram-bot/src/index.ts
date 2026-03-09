@@ -1,8 +1,11 @@
 import { Bot, Context, InlineKeyboard, session, SessionFlavor } from 'grammy'
 import dotenv from 'dotenv'
+import fs from 'node:fs'
+import path from 'node:path'
 import { listProjectsByOwner } from './services/indexer'
 import { createChallenge, recoverWalletFromSignature } from './services/auth'
 import { beginTextUpload, handleUploadMessage } from './services/uploads'
+import { SqliteStorage } from './services/session'
 
 dotenv.config({ path: process.env.BOT_ENV_PATH ?? '.env' })
 
@@ -26,7 +29,12 @@ type MyContext = Context & SessionFlavor<BotSession>
 
 const bot = new Bot<MyContext>(token)
 
+const sessionDbPath = process.env.SESSION_DB_PATH
+  ?? path.join(process.cwd(), 'data', 'sessions.db')
+fs.mkdirSync(path.dirname(sessionDbPath), { recursive: true })
+
 bot.use(session({
+  storage: new SqliteStorage<BotSession>(sessionDbPath),
   initial: () => ({})
 }))
 
