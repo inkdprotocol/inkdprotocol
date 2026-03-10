@@ -8,25 +8,22 @@ description: Wallet-gated inkd uploads directly inside Telegram.
 Meet [@inkdbot](https://t.me/inkdbot): a wallet-gated chat interface that lets anyone push content to inkd without touching the SDK or API.
 
 ## Highlights
-- **Wallet-authenticated** – `/start` issues a one-time challenge. Once you sign it with your Base wallet, the bot knows which on-chain identity to use.
+- **WalletConnect login** – tap the button, scan the QR (desktop) or deep-link (mobile), approve once. The bot remembers your wallet via SQLite sessions.
 - **Paste-to-Ship** – `/upload_text` takes a project name and any text snippet (meme, note, code) and instantly stores it on Arweave + registers a project on Base.
 - **Project overview** – `/my_projects` lists the latest inkd projects owned by your wallet (powered by the local indexer/SQLite).
 
 ## Step-by-step
-1. Open [@inkdbot](https://t.me/inkdbot) → send `/start` → tap **Connect Wallet**.
-2. The bot replies with a challenge like `inkd bot login for 7006655832 :: nonce abcd…`.
-3. In your Base wallet (Coinbase Wallet, Rabby, Rainbow, etc.):
-   - Open the menu → choose **Sign Message** (sometimes called *Verify Message* or *Sign Text*).
-   - Paste the challenge text exactly as it appears.
-   - Confirm the signature.
-4. Copy the resulting signature (it starts with `0x…`) and send it back to the bot.
-5. The bot replies with `Wallet 0x… linked`. From now on, `/my_projects` and `/upload_text` are unlocked for that wallet.
-6. Use `/upload_text` → enter a project name → paste your content (&lt;50 MB). The bot returns:
+1. Open [@inkdbot](https://t.me/inkdbot) → send `/start` → tap **🔗 WalletConnect**.
+2. Telegram sends you a QR + a deep-link:
+   - **Desktop users**: scan the QR from any WalletConnect wallet (Rabby, Coinbase Wallet, Rainbow, Ledger Live, etc.).
+   - **Mobile users**: tap **Open Wallet** – your WalletConnect-compatible app opens directly.
+3. Approve the session in your wallet. The bot automatically links the Base address and replies with `Wallet 0x… linked`.
+4. Use `/upload_text` → enter a project name → paste content (&lt;50 MB). The bot returns:
    - `ar://…` hash + Arweave URL
    - Base transaction hash (createProjectV2)
-7. `/my_projects` shows everything the same wallet has deployed (whether via Telegram, SDK, or API).
+5. `/my_projects` shows everything the same wallet has deployed (Telegram, SDK, or API – the indexer only filters by owner address).
 
-> **Tip:** A wallet only needs to link once. We now persist sessions in SQLite, so even after bot restarts the mapping stays intact.
+> **Manual fallback:** Need to sign text manually (e.g., hardware wallet without WalletConnect)? Tap **✍️ Manual signature** to get the legacy challenge message, sign it once, and paste the signature back into Telegram.
 
 ## Deployment / Ops
 The bot runs on `john-server` under **pm2** as `inkd-bot`.
@@ -48,7 +45,6 @@ Configuration (`agents/telegram-bot/.env`):
 - `SESSION_DB_PATH` (SQLite file for persistent logins)
 
 ## Roadmap
-- WalletConnect deep-link (1-tap login, no signature copy/paste)
 - GitHub/file uploads & additional content types
 - Notifications / receipts
 - Private uploads (encryption + access manifest)
