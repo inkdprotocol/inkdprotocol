@@ -6,7 +6,7 @@ import QRCode from 'qrcode'
 import { getProjectById, getVersion, listProjectsByOwner, listVersions } from './services/indexer'
 import type { IndexedProject, IndexedVersion } from './services/indexer'
 import { createChallenge, recoverWalletFromSignature } from './services/auth'
-import { beginTextUpload, beginRepoUpload, handleUploadMessage } from './services/uploads'
+import { beginTextUpload, beginRepoUpload, handleUploadMessage, handleRepoCancel, handleRepoConfirm } from './services/uploads'
 import { SqliteStorage } from './services/session'
 import { createWalletConnectSession, extractAddress } from './services/walletconnect'
 
@@ -17,10 +17,7 @@ if (!token) {
   throw new Error('TELEGRAM_BOT_TOKEN missing')
 }
 
-type UploadSession = {
-  type: 'text' | 'repo'
-  projectName?: string
-}
+import type { UploadSession } from './services/uploads'
 
 type BotSession = {
   wallet?: string
@@ -74,6 +71,13 @@ bot.command('upload_repo', async ctx => {
   await beginRepoUpload(ctx)
 })
 
+bot.command('upload_repo', async ctx => {
+  if (!ctx.session.wallet) {
+    await ctx.reply('Connect your wallet first with /start.')
+    return  }
+  await beginRepoUpload(ctx)
+})
+
 bot.on('message:text', async ctx => {
   if (await handleUploadMessage(ctx)) return
   const challenge = ctx.session.pendingChallenge
@@ -89,6 +93,9 @@ bot.on('message:text', async ctx => {
     await ctx.reply('Signature invalid. Please try again.')
   }
 })
+
+bot.callbackQuery('repo_confirm', handleRepoConfirm)
+bot.callbackQuery('repo_cancel', handleRepoCancel)
 
 bot.callbackQuery('wallet_connect', async ctx => {
   if (!ctx.chat) {
