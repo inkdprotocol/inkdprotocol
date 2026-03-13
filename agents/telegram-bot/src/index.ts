@@ -466,6 +466,16 @@ bot.catch(err => {
 // ─── Start ────────────────────────────────────────────────────────────────────
 
 export async function start() {
+  // Register commands with BotFather
+  await bot.api.setMyCommands([
+    { command: 'start',        description: 'Connect or create a wallet' },
+    { command: 'wallet',       description: 'Show wallet address & USDC balance' },
+    { command: 'upload_text',  description: 'Upload text content to Arweave' },
+    { command: 'upload_repo',  description: 'Upload a GitHub repo to Arweave' },
+    { command: 'my_projects',  description: 'View your projects' },
+    { command: 'cancel',       description: 'Cancel current action' },
+    { command: 'help',         description: 'Show all commands' },
+  ])
   await bot.start({ drop_pending_updates: true })
   console.log('inkd bot running')
 }

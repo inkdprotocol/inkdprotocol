@@ -3,6 +3,9 @@ import { InlineKeyboard } from 'grammy'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+
+const MAX_TEXT_BYTES  = 512 * 1024       // 512 KB text limit
+const MAX_REPO_MB     = 100              // 100 MB repo zip limit
 import { parseRepoInput, fetchRepoDefaultBranch, downloadRepoZip } from './github.js'
 import { getUploadPriceEstimate, type PriceEstimate } from './api.js'
 import { uploadToArweave, createProject, pushVersion } from './x402.js'
@@ -415,6 +418,11 @@ export async function handleUploadMessage(ctx: MyContext) {
     const contentBytes = Buffer.from(content, 'utf8')
     const size = contentBytes.length
 
+    if (size > MAX_TEXT_BYTES) {
+      await ctx.reply(`❌ Text too large (${formatBytes(size)}). Maximum is ${formatBytes(MAX_TEXT_BYTES)}.\n\nFor large files, use /upload_repo instead.`)
+      return true
+    }
+
     try {
       const price = await getUploadPriceEstimate(size)
 
@@ -475,6 +483,12 @@ export async function handleUploadMessage(ctx: MyContext) {
 
     await ctx.reply(`Downloading ${parsed.owner}/${parsed.repo}@${ref}…`)
     const { buffer, filename, size } = await downloadRepoZip({ owner: parsed.owner, repo: parsed.repo, ref })
+
+    if (size > MAX_REPO_MB * 1024 * 1024) {
+      await ctx.reply(`❌ Repo too large (${formatBytes(size)}). Maximum is ${MAX_REPO_MB} MB.`)
+      ctx.session.upload = undefined
+      return true
+    }
 
     const price = await getUploadPriceEstimate(size)
 
