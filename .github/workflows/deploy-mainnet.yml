@@ -29,12 +29,12 @@ jobs:
     needs: validate-confirmation
     environment: mainnet
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
 
       - name: Cache Foundry
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.foundry
@@ -91,7 +91,7 @@ jobs:
           "
 
       - name: Upload deployed addresses
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: deployed-addresses-mainnet
           path: deployed-addresses.json

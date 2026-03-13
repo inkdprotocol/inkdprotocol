@@ -11,10 +11,10 @@ jobs:
     name: Lint (ESLint + Solhint)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '20'
           cache: 'npm'
@@ -38,12 +38,12 @@ jobs:
     name: Test Contracts (Foundry)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
 
       - name: Cache Foundry
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.foundry
@@ -64,7 +64,7 @@ jobs:
         run: cd contracts && forge test -v 2>&1 | tee gas-report.txt
 
       - name: Upload gas report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: gas-report
           path: gas-report.txt
@@ -74,10 +74,10 @@ jobs:
     name: Test SDK + API
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '20'
           cache: 'npm'
@@ -99,7 +99,7 @@ jobs:
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
 
@@ -120,7 +120,7 @@ jobs:
         run: slither . --json slither-report.json || true
 
       - name: Upload Slither report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: slither-report
           path: slither-report.json
@@ -130,10 +130,10 @@ jobs:
     name: Build Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '20'
           cache: 'npm'
