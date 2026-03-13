@@ -1,7 +1,7 @@
 {
-  "name": "bot",
+  "name": "@inkd/telegram-bot",
   "version": "1.0.0",
-  "description": "",
+  "description": "Inkd Protocol Telegram bot — upload to Arweave, register on Base, pay in USDC.",
   "main": "dist/index.js",
   "scripts": {
     "dev": "ts-node src/index.ts",
