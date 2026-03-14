@@ -688,7 +688,7 @@ async function showWalletInfo(ctx: MyContext) {
       `USDC: ${balance.usdc}\n\n` +
       (isExternal 
         ? `⚠️ External wallets cannot upload. Create a bot wallet with /start → "🆕 New Wallet".`
-        : `Use /upload_text or /upload_repo to upload.`),
+        : ``),
       { parse_mode: 'Markdown' }
     )
     
