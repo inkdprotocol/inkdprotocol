@@ -70,6 +70,6 @@ export default [
 
   // Ignore patterns
   {
-    ignores: ['dist/**', 'node_modules/**', 'coverage/**'],
+    ignores: ['dist/**', 'node_modules/**', 'coverage/**', '**/*.d.ts'],
   },
 ]

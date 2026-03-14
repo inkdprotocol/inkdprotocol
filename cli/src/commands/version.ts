@@ -9,6 +9,7 @@
 
 import { readFileSync, existsSync } from 'fs'
 import { createWalletClient, createPublicClient, http } from 'viem'
+import type { WalletClient, PublicClient, Transport, Chain, Account } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { base, baseSepolia }   from 'viem/chains'
 import { ProjectsClient }      from '@inkd/sdk'
@@ -81,10 +82,9 @@ export async function cmdVersionPush(args: string[]): Promise<void> {
   const cfg = loadConfig()
   const key  = requirePrivateKey(cfg)
   const { wallet, reader } = buildPayingClients(cfg)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const client = new ProjectsClient({
-    wallet:       wallet as any,
-    publicClient: reader as any,
+    wallet:       wallet as unknown as WalletClient<Transport, Chain, Account>,
+    publicClient: reader as unknown as PublicClient,
     apiUrl:       API_URL,
     privateKey:   key,
   })
