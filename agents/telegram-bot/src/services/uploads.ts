@@ -6,7 +6,7 @@ import path from 'node:path'
 
 const MAX_TEXT_BYTES  = 512 * 1024       // 512 KB text limit
 const MAX_REPO_MB     = 100              // 100 MB repo zip limit
-import { parseRepoInput, fetchRepoDefaultBranch, downloadRepoZip } from './github.js'
+import { parseRepoInput, fetchRepoDefaultBranch, downloadRepoZip, listUserRepos } from './github.js'
 import { getUploadPriceEstimate, findProjectByOwnerAndName, type PriceEstimate } from './api.js'
 import { uploadToArweave, createProject, pushVersion } from './x402.js'
 import { checkUsdcBalance, decryptPrivateKey } from './wallet.js'
@@ -44,6 +44,7 @@ interface RepoUploadSession {
   type: 'repo'
   projectName?: string
   pending?: PendingRepoUpload
+  ghUser?: string
 }
 
 interface PendingFileUpload {
@@ -167,7 +168,33 @@ export async function beginTextUpload(ctx: MyContext) {
 
 export async function beginRepoUpload(ctx: MyContext) {
   ctx.session.upload = { type: 'repo' }
-  await ctx.reply('📁 What should we call this repo?\n\nGive it a short name:')
+  await ctx.reply(
+    '🐙 *GitHub Repo Upload*\n\nSend a GitHub username to browse their repos, or paste a repo directly:\n\n• `hazarkemal` → lists repos\n• `owner/repo` → direct\n• `https://github.com/owner/repo` → direct',
+    { parse_mode: 'Markdown', reply_markup: new InlineKeyboard().text('❌ Cancel', 'nav_home') }
+  )
+}
+
+/**
+ * Handle GitHub username input → list repos as buttons
+ */
+export async function handleGithubUsername(ctx: MyContext, username: string) {
+  try {
+    const repos = await listUserRepos(username)
+    if (!repos.length) {
+      await ctx.reply(`No public repos found for @${username}.`, { reply_markup: new InlineKeyboard().text('🏠 Home', 'nav_home') })
+      return
+    }
+    const kb = new InlineKeyboard()
+    for (const r of repos.slice(0, 20)) {
+      const label = r.stars > 0 ? `${r.name} ⭐${r.stars}` : r.name
+      kb.text(label, `gh_repo:${r.fullName}`).row()
+    }
+    kb.text('❌ Cancel', 'nav_home')
+    await ctx.reply(`*@${username}'s repos* (${repos.length} public)\n\nChoose one to upload:`, { parse_mode: 'Markdown', reply_markup: kb })
+    ctx.session.upload = { type: 'repo', ghUser: username }
+  } catch (err) {
+    await ctx.reply(`${(err as Error).message}`, { reply_markup: new InlineKeyboard().text('🏠 Home', 'nav_home') })
+  }
 }
 
 export async function beginFileUpload(
@@ -582,6 +609,13 @@ export async function handleUploadMessage(ctx: MyContext) {
   const link = ctx.message?.text?.trim()
   if (!link) {
     await ctx.reply('Please send the GitHub repo link or owner/repo.')
+    return true
+  }
+
+  // If input looks like a username (no slash, no http) → list their repos
+  const isUsername = !link.includes('/') && !link.startsWith('http') && /^@?[a-zA-Z0-9_-]+$/.test(link)
+  if (isUsername) {
+    await handleGithubUsername(ctx, link.replace(/^@/, ''))
     return true
   }
 

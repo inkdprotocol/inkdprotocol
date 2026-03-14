@@ -72,3 +72,17 @@ export async function downloadRepoZip(opts: {
 
   return { buffer, filename: `${repo}-${ref}.zip`, size: buffer.length }
 }
+
+/**
+ * List public repos for a GitHub user/org (max 30)
+ */
+export async function listUserRepos(username: string): Promise<{ name: string; fullName: string; description: string | null; stars: number }[]> {
+  const url = `https://api.github.com/users/${encodeURIComponent(username)}/repos?sort=updated&per_page=30&type=public`
+  const res = await fetch(url, { headers: GH_HEADERS })
+  if (res.status === 404) throw new Error(`GitHub user "${username}" not found`)
+  if (!res.ok) throw new Error(`GitHub API error ${res.status}`)
+  const data = await res.json() as Array<{ name: string; full_name: string; description: string | null; stargazers_count: number; fork: boolean }>
+  return data
+    .filter(r => !r.fork)
+    .map(r => ({ name: r.name, fullName: r.full_name, description: r.description, stars: r.stargazers_count }))
+}
