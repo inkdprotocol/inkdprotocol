@@ -82,7 +82,8 @@ export default defineConfig({
       items: [
         { text: 'x402 Payments',   link: '/concepts/x402' },
         { text: 'Fee Model',       link: '/concepts/fees' },
-        { text: 'Arweave Storage', link: '/concepts/arweave' },
+        { text: 'Arweave Storage',  link: '/concepts/arweave' },
+        { text: 'Private Uploads', link: '/concepts/private-uploads' },
         { text: 'Contracts',       link: '/concepts/contracts' },
         { text: 'Metadata',        link: '/concepts/metadata' },
       ],

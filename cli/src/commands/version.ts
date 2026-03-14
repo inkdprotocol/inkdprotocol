@@ -29,6 +29,10 @@ function parseFlag(args: string[], flag: string): string | undefined {
   return i !== -1 && args[i + 1] ? args[i + 1] : undefined
 }
 
+function hasFlag(args: string[], flag: string): boolean {
+  return args.includes(flag)
+}
+
 function requireFlag(args: string[], flag: string, hint: string): string {
   const val = parseFlag(args, flag)
   if (!val) error(`Missing required flag ${BOLD}${flag}${RESET}\n  Example: ${DIM}${hint}${RESET}`)
@@ -52,26 +56,77 @@ function buildPayingClients(cfg: ReturnType<typeof loadConfig>) {
 // ─── push ────────────────────────────────────────────────────────────────────
 
 export async function cmdVersionPush(args: string[]): Promise<void> {
-  const idStr   = requireFlag(args, '--id',  'inkd version push --id 1 --file ./dist.tar.gz --tag v1.0.0')
-  const vTag    = requireFlag(args, '--tag', 'inkd version push --id 1 --file ./dist.tar.gz --tag v1.0.0')
+  const idStr    = requireFlag(args, '--id',  'inkd version push --id 1 --file ./dist.tar.gz --tag v1.0.0')
+  const vTag     = requireFlag(args, '--tag', 'inkd version push --id 1 --file ./dist.tar.gz --tag v1.0.0')
+  const isPrivate = hasFlag(args, '--private')
 
-  // Accepts either --file (uploads to Arweave) or --hash (pre-uploaded)
+  // Accepts either --file (uploads to Arweave) or --hash (pre-uploaded, public only)
   const filePath  = parseFlag(args, '--file')
   const arHash    = parseFlag(args, '--hash')
 
   if (!filePath && !arHash) {
     error(
       'Provide either:\n' +
-      '  --file <path>   Upload file to Arweave, then push\n' +
-      '  --hash <ar://…> Use existing Arweave hash'
+      '  --file <path>      Upload file to Arweave, then push\n' +
+      '  --hash <ar://…>    Use existing Arweave hash (public only)\n\n' +
+      'Options:\n' +
+      '  --private          Encrypt content before upload (AES-256-GCM + ECIES key wrapping)'
     )
   }
 
+  if (isPrivate && arHash) {
+    error('--private requires --file (content must be encrypted before upload, not after)')
+  }
+
   const cfg = loadConfig()
+  const key  = requirePrivateKey(cfg)
   const { wallet, reader } = buildPayingClients(cfg)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const client = new ProjectsClient({ wallet: wallet as any, publicClient: reader as any, apiUrl: API_URL })
+  const client = new ProjectsClient({
+    wallet:       wallet as any,
+    publicClient: reader as any,
+    apiUrl:       API_URL,
+    privateKey:   key,
+  })
 
+  const projectId = parseInt(idStr, 10)
+
+  // ── Private upload path ───────────────────────────────────────────────────
+  if (isPrivate && filePath) {
+    if (!existsSync(filePath)) error(`File not found: ${filePath}`)
+    const data = readFileSync(filePath)
+    const ext  = filePath.split('.').pop()?.toLowerCase() ?? ''
+    const contentType = {
+      json: 'application/json', ts: 'text/plain', js: 'text/javascript',
+      md: 'text/markdown', txt: 'text/plain',
+    }[ext] ?? 'application/octet-stream'
+
+    info(`🔒 Private upload — content will be encrypted before Arweave storage`)
+    info(`Encrypting and uploading ${CYAN}${filePath}${RESET} (${(data.length / 1024).toFixed(1)} KB)...`)
+
+    let result: Awaited<ReturnType<typeof client.pushPrivateVersion>>
+    try {
+      result = await client.pushPrivateVersion(projectId, {
+        content:     data,
+        tag:         vTag,
+        contentType,
+        filename:    filePath.split('/').pop(),
+      })
+    } catch (err) {
+      error(err instanceof Error ? err.message : String(err))
+    }
+
+    success(`Version ${BOLD}${vTag}${RESET} pushed! ${GREEN}🔒 Private${RESET}`)
+    info(`  Content (encrypted): ${DIM}${result!.contentHash}${RESET}`)
+    info(`  Access manifest:     ${DIM}${result!.metadataHash}${RESET}`)
+    info(`  TX:                  ${DIM}${result!.txHash}${RESET}`)
+    info(`  Basescan:            https://basescan.org/tx/${result!.txHash}`)
+    info(`  Decrypt with:        inkd version decrypt --id ${idStr} --index <N> --out ./decrypted`)
+    console.log()
+    return
+  }
+
+  // ── Public upload path ────────────────────────────────────────────────────
   let contentHash: string
   let contentSize = 0
 
@@ -80,7 +135,6 @@ export async function cmdVersionPush(args: string[]): Promise<void> {
     const data = readFileSync(filePath)
     contentSize = data.length
 
-    // Detect content type from extension
     const ext = filePath.split('.').pop()?.toLowerCase() ?? ''
     const contentType = {
       json: 'application/json', ts: 'text/plain', js: 'text/javascript',
@@ -115,7 +169,7 @@ export async function cmdVersionPush(args: string[]): Promise<void> {
 
   let result: Awaited<ReturnType<typeof client.pushVersion>>
   try {
-    result = await client.pushVersion(parseInt(idStr, 10), {
+    result = await client.pushVersion(projectId, {
       tag: vTag, contentHash, contentSize,
     })
   } catch (err) {

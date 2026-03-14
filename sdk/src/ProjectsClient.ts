@@ -129,14 +129,16 @@ export interface UploadOptions {
 // ─── ProjectsClient ───────────────────────────────────────────────────────────
 
 export class ProjectsClient {
-  private readonly fetchPay:   typeof fetch;
-  private readonly apiUrl:     string;
-  private readonly privateKey: `0x${string}` | undefined;
+  private readonly fetchPay:      typeof fetch;
+  private readonly apiUrl:        string;
+  private readonly privateKey:    `0x${string}` | undefined;
+  private readonly ownerAddress:  `0x${string}` | undefined;
 
   constructor(config: ProjectsClientConfig) {
     const { wallet, publicClient, apiUrl = DEFAULT_API_URL, privateKey } = config;
-    this.privateKey = privateKey;
-    this.apiUrl = apiUrl;
+    this.privateKey   = privateKey;
+    this.apiUrl       = apiUrl;
+    this.ownerAddress = wallet.account?.address as `0x${string}` | undefined;
 
     // Build a ClientEvmSigner with .address at top level (required by @x402/evm)
     const signer = {
@@ -361,6 +363,82 @@ export class ProjectsClient {
     })
 
     return { newManifestHash: upload.hash }
+  }
+
+  /**
+   * Upload content to Arweave, encrypt it, and push a private version.
+   *
+   * The content is encrypted with AES-256-GCM (random key) before upload.
+   * The AES key is ECIES-wrapped for the owner and stored in an access manifest on Arweave.
+   * The manifest hash is stored on-chain in the version metadata.
+   *
+   * Requires `privateKey` in ProjectsClientConfig.
+   *
+   * @example
+   * ```ts
+   * const result = await client.pushPrivateVersion(projectId, {
+   *   content: fs.readFileSync('./secret-model.bin'),
+   *   tag: 'v1.0.0',
+   *   contentType: 'application/octet-stream',
+   * })
+   * console.log(result.txHash) // on-chain TX
+   * // Later, decrypt:
+   * const plaintext = await client.decryptVersion(result.contentHash, result.metadataHash)
+   * ```
+   */
+  async pushPrivateVersion(
+    projectId: number,
+    params: {
+      content:      Buffer | Uint8Array;
+      tag:          string;
+      contentType?: string;
+      changelog?:   string;
+      filename?:    string;
+    }
+  ): Promise<PushVersionResult & { metadataHash: string; isPrivate: true }> {
+    if (!this.privateKey) throw new Error("privateKey required for private uploads")
+
+    const privKeyHex  = this.privateKey.replace("0x", "")
+    const ownerPubKey = privateKeyToCompressedPublicKey(privKeyHex)
+
+    // 1. Generate AES key + encrypt content
+    const aesKey    = generateContentKey()
+    const content   = Buffer.from(params.content)
+    const encrypted = encryptContent(content, aesKey)
+
+    // 2. Upload encrypted blob to Arweave (free endpoint)
+    const encryptedBlob  = JSON.stringify(encrypted)
+    const contentUpload  = await this.upload(Buffer.from(encryptedBlob), {
+      contentType: "application/inkd-encrypted",
+      filename:    params.filename ?? `private-${Date.now()}.enc`,
+    })
+
+    // 3. Build access manifest — owner only (collaborators added later via addCollaborator)
+    // We need the on-chain owner address for the manifest — fetch from wallet
+    const ownerAddress = this.ownerAddress
+    if (!ownerAddress) throw new Error("wallet account address unavailable")
+
+    const manifest = buildAccessManifest(
+      projectId,
+      aesKey,
+      [{ address: ownerAddress, compressedPublicKey: ownerPubKey }]
+    )
+
+    // 4. Upload access manifest to Arweave
+    const manifestUpload = await this.upload(Buffer.from(JSON.stringify(manifest)), {
+      contentType: "application/inkd-access-manifest",
+      filename:    `project-${projectId}-manifest.json`,
+    })
+
+    // 5. Push version on-chain with metadataHash = manifest arweave hash
+    const result = await this.pushVersion(projectId, {
+      tag:          params.tag,
+      contentHash:  contentUpload.hash,
+      metadataHash: manifestUpload.hash,
+      contentSize:  content.length,
+    })
+
+    return { ...result, metadataHash: manifestUpload.hash, isPrivate: true }
   }
 
   /**

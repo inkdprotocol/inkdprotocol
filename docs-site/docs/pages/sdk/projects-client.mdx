@@ -271,3 +271,30 @@ async function deploy() {
 
 deploy().catch(console.error)
 ```
+
+---
+
+## Private Uploads
+
+Store content end-to-end encrypted on Arweave. Only authorized wallets can decrypt.
+
+```ts
+// Upload encrypted — requires privateKey in config
+const result = await client.pushPrivateVersion(projectId, {
+  content:     fs.readFileSync("./model.bin"),
+  tag:         "v1.0.0",
+  contentType: "application/octet-stream",
+});
+
+console.log(result.isPrivate);    // true
+console.log(result.contentHash);  // ar:// of encrypted blob
+console.log(result.metadataHash); // ar:// of access manifest (wrapped keys)
+
+// Decrypt
+const plaintext = await client.decryptVersion(
+  result.contentHash,
+  result.metadataHash
+);
+```
+
+See [Private Uploads](/concepts/private-uploads) for the full security model.

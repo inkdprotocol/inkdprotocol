@@ -1,0 +1,152 @@
+---
+title: Private Uploads
+description: End-to-end encrypted content storage on Arweave. Only the owner's wallet can decrypt.
+---
+
+# Private Uploads
+
+By default, all content uploaded to Arweave is public — anyone with the hash can read it. Private uploads let you store encrypted content permanently on Arweave where only authorized wallets can decrypt it.
+
+---
+
+## How it works
+
+```
+Your content
+     │
+     ▼
+AES-256-GCM encrypt  ← random content key
+     │
+     ▼
+Upload ciphertext to Arweave   ← publicly stored, unreadable without key
+     │
+     ▼
+ECIES-wrap content key        ← encrypted for each authorized wallet's public key
+     │
+     ▼
+Upload access manifest to Arweave  ← stores wrapped keys per wallet
+     │
+     ▼
+on-chain: version.metadataHash = manifest ar:// hash
+```
+
+**What's on Arweave:** only encrypted bytes. No key, no plaintext ever leaves your device unencrypted.
+
+**What's on-chain:** the hash of the access manifest — verifiable, immutable, zero plaintext.
+
+**Who can decrypt:** any wallet whose compressed secp256k1 public key is in the access manifest.
+
+---
+
+## Security model
+
+| Threat | Protection |
+|---|---|
+| Arweave node operator | Sees only ciphertext |
+| Inkd API server | Receives encrypted blob, never the key |
+| Third-party observer | AES-256-GCM ciphertext only |
+| Unauthorized wallet | ECIES key wrapping — can't unwrap without private key |
+| Key loss | Content permanently inaccessible (no recovery) |
+
+Encryption: **AES-256-GCM** (content) + **ECIES secp256k1** (key wrapping via HKDF-SHA256).
+
+---
+
+## Telegram Bot
+
+The bot asks before every upload:
+
+```
+🔓 Public   🔒 Private
+✖️ Cancel
+```
+
+Tap **🔒 Private** — the bot encrypts using your bot-managed wallet key before upload. One tap, no extra steps.
+
+---
+
+## CLI
+
+```bash
+# Push a private version (encrypts before upload)
+inkd version push \
+  --id 10 \
+  --file ./secret-model.bin \
+  --tag v1.0.0 \
+  --private
+```
+
+Output:
+```
+🔒 Private upload — content will be encrypted before Arweave storage
+Encrypting and uploading ./secret-model.bin (14.2 KB)...
+✓ Version v1.0.0 pushed! 🔒 Private
+  Content (encrypted): ar://QmAbc123…
+  Access manifest:     ar://QmDef456…
+  TX:                  0xabc…
+  Decrypt with:        inkd version decrypt --id 10 --index 0 --out ./decrypted
+```
+
+---
+
+## SDK
+
+```ts
+import { ProjectsClient } from "@inkd/sdk";
+import { createWalletClient, http } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
+import { base } from "viem/chains";
+import fs from "fs";
+
+const account = privateKeyToAccount("0xYOUR_PRIVATE_KEY");
+const wallet  = createWalletClient({ account, chain: base, transport: http() });
+
+const client = new ProjectsClient({
+  wallet,
+  privateKey: "0xYOUR_PRIVATE_KEY",   // required for private uploads
+});
+
+// Upload and register a private version
+const result = await client.pushPrivateVersion(projectId, {
+  content:     fs.readFileSync("./secret-model.bin"),
+  tag:         "v1.0.0",
+  contentType: "application/octet-stream",
+});
+
+console.log(result.txHash);       // on-chain TX
+console.log(result.contentHash);  // ar:// of encrypted content
+console.log(result.metadataHash); // ar:// of access manifest
+console.log(result.isPrivate);    // true
+```
+
+### Decrypt a private version
+
+```ts
+// Fetch and decrypt — only works if your wallet is in the access manifest
+const plaintext = await client.decryptVersion(
+  result.contentHash,   // ar:// of encrypted content
+  result.metadataHash   // ar:// of access manifest
+);
+
+fs.writeFileSync("./decrypted.bin", plaintext);
+```
+
+### Grant access to another wallet
+
+```ts
+// Add collaborator — they can now decrypt this project's versions
+await client.addCollaborator(projectId, {
+  address:           "0xCOLLABORATOR_ADDRESS",
+  compressedPublicKey: "02abc...",   // secp256k1 compressed pubkey
+  manifestArweaveHash: result.metadataHash,
+});
+```
+
+---
+
+## Important notes
+
+- **Key loss = permanent data loss.** There is no recovery mechanism. If you lose access to your wallet, encrypted content is gone forever.
+- **`--private` requires `--file`** in the CLI. Pre-uploaded hashes cannot be retroactively encrypted.
+- **Public and private versions can coexist** in the same project — each version is independently public or private.
+- **Collaborator management** is per-project. Adding a collaborator uploads a new access manifest with their wrapped key.
