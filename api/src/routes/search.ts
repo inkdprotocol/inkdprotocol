@@ -101,20 +101,11 @@ export function buildSearchRouter(): Router {
     } catch (err) { next(err) }
   })
 
-  /** GET /v1/search/by-owner/:address — projects by wallet address */
-  router.get('/by-owner/:address', async (req, res, next) => {
-    try {
-      const { address } = req.params
-      const { limit } = SearchQuery.parse(req.query)
-
-      if (!/^0x[0-9a-fA-F]{40}$/.test(address)) {
-        return res.status(400).json({ error: { code: 'INVALID_ADDRESS', message: 'Invalid wallet address' } })
-      }
-
-      const graph = requireGraph()
-      const projects = await graph.getProjectsByOwner(address, limit)
-      res.json({ data: projects, count: projects.length, owner: address.toLowerCase() })
-    } catch (err) { next(err) }
+  /** GET /v1/search/by-owner/:address — redirect to /v1/projects?owner= */
+  router.get('/by-owner/:address', (req, res) => {
+    const { address } = req.params
+    const limit = req.query['limit'] ?? '20'
+    res.redirect(301, `/v1/projects?owner=${encodeURIComponent(address)}&limit=${limit}`)
   })
 
   return router
