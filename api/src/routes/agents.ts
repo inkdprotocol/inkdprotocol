@@ -97,7 +97,7 @@ export function agentsRouter(cfg: ApiConfig): Router {
 
       res.json({
         data:   serialized,
-        total:  serialized.length,
+        total:  serialized.length.toString(),
         offset,
         limit,
         count:  serialized.length,
