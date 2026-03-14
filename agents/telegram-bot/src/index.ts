@@ -120,22 +120,25 @@ bot.callbackQuery('home_files', async ctx => {
     await ctx.reply('Connect a wallet first.', { reply_markup: walletKeyboard })
     return
   }
+  const homeBtn = new InlineKeyboard().text('🏠 Home', 'nav_home')
   try {
     const projects = await listProjectsByOwner(ctx.session.wallet, 10)
     if (!projects.length) {
-      await ctx.reply('No uploads yet.\n\nSend any file or use /upload\\_text to get started.', { parse_mode: 'Markdown' })
+      await ctx.reply('No uploads yet.\n\nSend any file or use /upload\\_text to get started.', { parse_mode: 'Markdown', reply_markup: homeBtn })
       return
     }
     const lines = projects.map((p: any, i: number) => `${i + 1}. *${p.name}* — ${p.versionCount} version(s)`)
-    await ctx.reply(`*Your files*\n\n${lines.join('\n')}`, { parse_mode: 'Markdown' })
+    await ctx.reply(`*Your files*\n\n${lines.join('\n')}`, { parse_mode: 'Markdown', reply_markup: homeBtn })
   } catch (err) {
-    await ctx.reply(`Failed to load files: ${(err as Error).message}`)
+    await ctx.reply(`Failed to load files: ${(err as Error).message}`, { reply_markup: homeBtn })
   }
 })
 
 bot.callbackQuery('home_search', async ctx => {
   await ctx.answerCallbackQuery()
-  await ctx.reply('Send me a project name to search:')
+  await ctx.reply('Send me a project name to search:', {
+    reply_markup: new InlineKeyboard().text('🏠 Home', 'nav_home'),
+  })
   ctx.session.upload = { type: 'search_query' } as any
 })
 
@@ -157,7 +160,7 @@ bot.callbackQuery('home_help', async ctx => {
     '*Pricing*\n' +
     '• Upload: Arweave cost + 20% fee (min $0.10)\n' +
     '• Paid in USDC on Base',
-    { parse_mode: 'Markdown' }
+    { parse_mode: 'Markdown', reply_markup: new InlineKeyboard().text('🏠 Home', 'nav_home') }
   )
 })
 
@@ -752,7 +755,6 @@ async function showWalletInfo(ctx: MyContext) {
         parse_mode: 'Markdown',
         reply_markup: new InlineKeyboard()
           .text('📥 Add Funds', 'wallet_deposit').text('💸 Send', 'wallet_withdraw').row()
-          .text('⬆️ Upload', 'home_upload').text('📁 My Files', 'home_files').row()
           .text('🏠 Home', 'nav_home'),
       }
     )
