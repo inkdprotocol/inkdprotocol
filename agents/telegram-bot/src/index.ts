@@ -233,6 +233,17 @@ bot.callbackQuery('upload_text_start', async ctx => {
   await beginTextUpload(ctx)
 })
 
+bot.callbackQuery('skip_description', async ctx => {
+  await ctx.answerCallbackQuery()
+  ;(ctx.session.upload as any).awaitingDescription = false
+  const type = ctx.session.upload?.type
+  if (type === 'text') {
+    await ctx.reply('✏️ Paste the text you want to store permanently:')
+  } else if (type === 'file') {
+    await ctx.reply('Send the file now.')
+  }
+})
+
 bot.callbackQuery('upload_repo_start', async ctx => {
   await ctx.answerCallbackQuery()
   ctx.session.upload = { type: 'repo' }
