@@ -110,3 +110,25 @@ export async function getUploadPriceEstimate(bytes: number): Promise<PriceEstima
   }
   return res.json() as Promise<PriceEstimate>
 }
+
+/**
+ * Search projects by name
+ */
+export async function searchProjects(query: string, limit = 5): Promise<ApiProject[]> {
+  // Try search endpoint first
+  const url = `${API_URL}/v1/search/projects?q=${encodeURIComponent(query)}&limit=${limit}`
+  const res = await fetch(url)
+  
+  if (res.status === 404 || !res.ok) {
+    // Fallback: try by-name lookup
+    const byName = await fetch(`${API_URL}/v1/search/by-name/${encodeURIComponent(query)}`)
+    if (byName.ok) {
+      const d = await byName.json() as { data: ApiProject }
+      return d.data ? [d.data] : []
+    }
+    return []
+  }
+  
+  const json = await res.json() as { data: ApiProject[] }
+  return json.data ?? []
+}
