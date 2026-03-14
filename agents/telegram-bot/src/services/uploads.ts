@@ -143,17 +143,17 @@ export async function ensureSufficientBalance(
 
 export function buildSuccessKeyboard(txHash: string, arweaveHash: string): InlineKeyboard {
   return new InlineKeyboard()
-    .url('🔍 Basescan', `https://basescan.org/tx/${txHash}`)
-    .url('📄 Arweave', `https://arweave.net/${arweaveHash}`)
+    .url('🔗 View File', `https://arweave.net/${arweaveHash}`)
+    .url('⛓ On-chain', `https://basescan.org/tx/${txHash}`)
     .row()
-    .url('🌐 inkdprotocol.com', 'https://inkdprotocol.com')
+    .url('📁 My Files', 'https://inkdprotocol.com')
 }
 
 /** Public/Private visibility buttons shown before every upload confirm. */
 function buildVisibilityKeyboard(confirmPublic: string, confirmPrivate: string, cancelCb: string): InlineKeyboard {
   return new InlineKeyboard()
-    .text('🔓 Public', confirmPublic)
-    .text('🔒 Private', confirmPrivate)
+    .text('🌍 Public', confirmPublic)
+    .text('🔒 Only me', confirmPrivate)
     .row()
     .text('✖️ Cancel', cancelCb)
 }
@@ -162,12 +162,12 @@ function buildVisibilityKeyboard(confirmPublic: string, confirmPrivate: string, 
 
 export async function beginTextUpload(ctx: MyContext) {
   ctx.session.upload = { type: 'text' }
-  await ctx.reply('Send me the project name for this upload:')
+  await ctx.reply('📁 What should we call this?\n\nGive it a short name like "my-resume" or "q4-report":')
 }
 
 export async function beginRepoUpload(ctx: MyContext) {
   ctx.session.upload = { type: 'repo' }
-  await ctx.reply('Send me the project name for this repo upload:')
+  await ctx.reply('📁 What should we call this repo?\n\nGive it a short name:')
 }
 
 export async function beginFileUpload(
@@ -184,7 +184,7 @@ export async function beginFileUpload(
     mimeType,
     fileSize,
   }
-  await ctx.reply(`📎 File received: *${fileName}* (${formatBytes(fileSize)})\n\nSend me the project name for this upload:`, { parse_mode: 'Markdown' })
+  await ctx.reply(`📎 *${fileName}* received · ${formatBytes(fileSize)}\n\n📁 What should we call this file?\n\nGive it a short name like \`my-resume\` or \`q4-report\`:`, { parse_mode: 'Markdown' })
 }
 
 // ─── Begin Version Push Flow ──────────────────────────────────────────────────
@@ -240,17 +240,16 @@ export async function handleVersionPushMessage(ctx: MyContext): Promise<boolean>
       const estimateLine = `Estimated cost: ${formatUsdc(price.total)} USDC (${price.totalUsd})`
       
       const summary = [
-        `📝 Push Version`,
-        `Version: ${push.versionTag}`,
-        `Changelog: ${push.changelog || '(none)'}`,
-        `Size: ${formatBytes(push.contentSize)}`,
-        estimateLine,
-        '',
-        'Continue?',
+        `📦 *Add version ${push.versionTag}*`,
+        ``,
+        `📝 ${formatBytes(push.contentSize)}`,
+        `💵 ${price.totalUsd} USDC`,
+        ``,
+        `Ready to store permanently?`,
       ].join('\n')
 
       const keyboard = new InlineKeyboard()
-        .text('✅ Push', `push_confirm:${push.projectId}`)
+        .text('✅ Confirm', `push_confirm:${push.projectId}`)
         .text('✖️ Cancel', 'push_cancel')
 
       await ctx.reply(summary, { reply_markup: keyboard })
@@ -281,18 +280,17 @@ export async function handleVersionPushMessage(ctx: MyContext): Promise<boolean>
       const estimateLine = `Estimated cost: ${formatUsdc(price.total)} USDC (${price.totalUsd})`
 
       const summary = [
-        `📦 Push Version`,
-        `Source: ${parsed.owner}/${parsed.repo}@${ref}`,
-        `Version: ${push.versionTag}`,
-        `Changelog: ${push.changelog || '(none)'}`,
-        `Size: ${formatBytes(size)}`,
-        estimateLine,
-        '',
-        'Continue?',
+        `📦 *Add version ${push.versionTag}*`,
+        ``,
+        `🐙 ${parsed.owner}/${parsed.repo}@${ref}`,
+        `📦 ${formatBytes(size)}`,
+        `💵 ${price.totalUsd} USDC`,
+        ``,
+        `Ready to store permanently?`,
       ].join('\n')
 
       const keyboard = new InlineKeyboard()
-        .text('✅ Push', `push_confirm:${push.projectId}`)
+        .text('✅ Confirm', `push_confirm:${push.projectId}`)
         .text('✖️ Cancel', 'push_cancel')
 
       await ctx.reply(summary, { reply_markup: keyboard })
@@ -472,9 +470,9 @@ export async function handleUploadMessage(ctx: MyContext) {
     }
     
     if (upload.type === 'repo') {
-      await ctx.reply('Paste the GitHub repo URL or owner/repo (optionally @ref):')
+      await ctx.reply('🔗 Paste the GitHub repo URL:\n\n`owner/repo` or `https://github.com/owner/repo`', { parse_mode: 'Markdown' })
     } else {
-      await ctx.reply('Great. Now paste the content you want to store (text).')
+      await ctx.reply('✏️ Paste the text you want to store permanently:')
     }
     return true
   }
@@ -511,26 +509,17 @@ export async function handleUploadMessage(ctx: MyContext) {
       const estimateLine = `Estimated cost: ${formatUsdc(price.total)} USDC (${price.totalUsd})`
       const breakdownLine = `Includes ${formatUsdc(price.arweaveCost)} USDC storage + ${formatUsdc(price.markup)} USDC protocol fee.`
       const summary = [
-        `📎 File Upload`,
-        `Project: ${upload.projectName}`,
-        `File: ${fileUpload.fileName}`,
-        `Size: ${formatBytes(fileUpload.fileSize)}`,
-        `Type: ${fileUpload.mimeType ?? 'unknown'}`,
-        `Version: v1.0.0`,
-        estimateLine,
-        breakdownLine,
-        '',
-        'This will:',
-        '1. Download file from Telegram',
-        '2. Upload to Arweave',
-        '3. Create project on Inkd Registry',
-        '4. Push version with content',
-        '',
-        'Continue?',
+        `📋 *Ready to store*`,
+        ``,
+        `📄 ${fileUpload.fileName}`,
+        `📦 ${formatBytes(fileUpload.fileSize)}`,
+        `💵 ${price.totalUsd} USDC`,
+        ``,
+        `Choose who can see this file:`,
       ].join('\n')
 
       const keyboard = buildVisibilityKeyboard('file_confirm_public', 'file_confirm_private', 'file_cancel')
-      await ctx.reply(summary, { reply_markup: keyboard })
+      await ctx.reply(summary, { parse_mode: 'Markdown', reply_markup: keyboard })
     } catch (err) {
       await ctx.reply(formatApiError(err))
       ctx.session.upload = undefined
@@ -564,26 +553,18 @@ export async function handleUploadMessage(ctx: MyContext) {
         price,
       }
 
-      const estimateLine = `Estimated cost: ${formatUsdc(price.total)} USDC (${price.totalUsd})`
-      const breakdownLine = `Includes ${formatUsdc(price.arweaveCost)} USDC storage + ${formatUsdc(price.markup)} USDC protocol fee.`
       const summary = [
-        `📝 Text Upload`,
-        `Project: ${upload.projectName}`,
-        `Size: ${formatBytes(size)}`,
-        `Version: v1.0.0`,
-        estimateLine,
-        breakdownLine,
-        '',
-        'This will:',
-        '1. Upload content to Arweave',
-        '2. Create project on Inkd Registry',
-        '3. Push version with content',
-        '',
-        'Continue?',
+        `📋 *Ready to store*`,
+        ``,
+        `✏️ Text · ${upload.projectName}`,
+        `📦 ${formatBytes(size)}`,
+        `💵 ${price.totalUsd} USDC`,
+        ``,
+        `Choose who can see this:`,
       ].join('\n')
 
       const keyboard = buildVisibilityKeyboard('text_confirm_public', 'text_confirm_private', 'text_cancel')
-      await ctx.reply(summary, { reply_markup: keyboard })
+      await ctx.reply(summary, { parse_mode: 'Markdown', reply_markup: keyboard })
     } catch (err) {
       await ctx.reply(formatApiError(err))
       ctx.session.upload = undefined
@@ -635,21 +616,18 @@ export async function handleUploadMessage(ctx: MyContext) {
       price,
     }
 
-    const estimateLine = `Estimated cost: ${formatUsdc(price.total)} USDC (${price.totalUsd})`
-    const breakdownLine = `Includes ${formatUsdc(price.arweaveCost)} USDC storage + ${formatUsdc(price.markup)} USDC protocol fee.`
     const summary = [
-      `📦 ${parsed.owner}/${parsed.repo}@${ref}`,
-      `Project: ${projectName}`,
-      `Size: ${formatBytes(size)}`,
-      `Version: v1.0.0`,
-      estimateLine,
-      breakdownLine,
-      '',
-      'Upload with these details?',
+      `📋 *Ready to store*`,
+      ``,
+      `🐙 ${parsed.owner}/${parsed.repo}@${ref}`,
+      `📦 ${formatBytes(size)}`,
+      `💵 ${price.totalUsd} USDC`,
+      ``,
+      `Choose who can see this:`,
     ].join('\n')
 
     const keyboard = buildVisibilityKeyboard('repo_confirm_public', 'repo_confirm_private', 'repo_cancel')
-    await ctx.reply(summary, { reply_markup: keyboard })
+    await ctx.reply(summary, { parse_mode: 'Markdown', reply_markup: keyboard })
   } catch (err) {
     upload.pending && cleanupPending(upload.pending)
     upload.pending = undefined
@@ -685,8 +663,11 @@ export async function handleTextConfirm(ctx: MyContext, isPrivate = false) {
     return // Don't clear session - user might fund wallet and retry
   }
 
-  const privacyLabel = isPrivate ? '🔒 Private' : '🔓 Public'
-  const statusMsg = await ctx.reply(`⏳ Step 1/3: Uploading to Arweave… (${privacyLabel})`)
+  const privacyIcon = isPrivate ? '🔒' : '🌍'
+  const statusMsg = await ctx.reply(
+    `⏳ *Storing your file...*\n\n▪ Uploading ⏳\n▪ Creating record ○\n▪ Confirming on Base ○`,
+    { parse_mode: 'Markdown' }
+  )
 
   try {
     // Step 1: Upload content to Arweave (encrypt if private)
@@ -700,11 +681,9 @@ export async function handleTextConfirm(ctx: MyContext, isPrivate = false) {
     const arweaveResult = await uploadToArweave(contentBuffer, contentType, `${projectName}.txt`)
 
     await ctx.api.editMessageText(
-      ctx.chat!.id,
-      statusMsg.message_id,
-      `✅ Step 1/3: Uploaded to Arweave\n` +
-        `   Hash: ${arweaveResult.hash}\n\n` +
-        `⏳ Step 2/3: Creating project…`
+      ctx.chat!.id, statusMsg.message_id,
+      `⏳ *Storing your file...*\n\n✅ Uploaded\n▪ Creating record ⏳\n▪ Confirming on Base ○`,
+      { parse_mode: 'Markdown' }
     )
 
     // Step 2: Create project with x402 payment
@@ -715,13 +694,9 @@ export async function handleTextConfirm(ctx: MyContext, isPrivate = false) {
     })
 
     await ctx.api.editMessageText(
-      ctx.chat!.id,
-      statusMsg.message_id,
-      `✅ Step 1/3: Uploaded to Arweave\n` +
-        `   Hash: ${arweaveResult.hash}\n\n` +
-        `✅ Step 2/3: Project created\n` +
-        `   ID: #${projectResult.projectId}\n\n` +
-        `⏳ Step 3/3: Pushing version…`
+      ctx.chat!.id, statusMsg.message_id,
+      `⏳ *Storing your file...*\n\n✅ Uploaded\n✅ Record created (#${projectResult.projectId})\n▪ Confirming on Base ⏳`,
+      { parse_mode: 'Markdown' }
     )
 
     // Step 3: Push version with x402 payment
@@ -732,20 +707,20 @@ export async function handleTextConfirm(ctx: MyContext, isPrivate = false) {
       contentSize: pending.size,
     })
 
-    // Success - show with buttons
+    // Success
     ctx.session.upload = undefined
     const keyboard = buildSuccessKeyboard(versionResult.txHash, arweaveResult.hash)
 
     await ctx.api.editMessageText(
-      ctx.chat!.id,
-      statusMsg.message_id,
-      `✅ Upload Complete! ${isPrivate ? '🔒 Private' : '🔓 Public'}\n\n` +
-        `📂 Project: ${projectName} (#${projectResult.projectId})\n` +
-        `📦 Version: ${versionResult.versionTag}\n` +
-        (isPrivate ? `🔑 Encrypted with your wallet key\n` : '') +
-        `\nUse /my_projects to view your projects.`
+      ctx.chat!.id, statusMsg.message_id,
+      `✅ *Stored forever!*\n\n` +
+        `✏️ ${projectName}\n` +
+        `${privacyIcon} ${isPrivate ? 'Private' : 'Public'}\n` +
+        `🔗 \`${arweaveResult.hash}\`\n\n` +
+        `#${projectResult.projectId} · ${projectName}`,
+      { parse_mode: 'Markdown' }
     )
-    await ctx.reply('🎉 Success!', { reply_markup: keyboard })
+    await ctx.reply('🎉', { reply_markup: keyboard })
   } catch (err) {
     ctx.session.upload = undefined
     await ctx.api.editMessageText(
@@ -794,8 +769,11 @@ export async function handleFileConfirm(ctx: MyContext, isPrivate = false) {
     return // Don't clear session - user might fund wallet and retry
   }
 
-  const privacyLabel = isPrivate ? '🔒 Private' : '🔓 Public'
-  const statusMsg = await ctx.reply(`⏳ Step 1/4: Downloading file from Telegram… (${privacyLabel})`)
+  const privacyIcon = isPrivate ? '🔒' : '🌍'
+  const statusMsg = await ctx.reply(
+    `⏳ *Storing your file...*\n\n▪ Downloading ⏳\n▪ Uploading ○\n▪ Creating record ○\n▪ Confirming ○`,
+    { parse_mode: 'Markdown' }
+  )
 
   try {
     // Step 1: Download file from Telegram
@@ -817,22 +795,18 @@ export async function handleFileConfirm(ctx: MyContext, isPrivate = false) {
     }
 
     await ctx.api.editMessageText(
-      ctx.chat!.id,
-      statusMsg.message_id,
-      `✅ Step 1/4: Downloaded from Telegram\n   Size: ${formatBytes(fileBuffer.length)}\n\n⏳ Step 2/4: Uploading to Arweave…`
+      ctx.chat!.id, statusMsg.message_id,
+      `⏳ *Storing your file...*\n\n✅ Downloaded (${formatBytes(fileBuffer.length)})\n▪ Uploading ⏳\n▪ Creating record ○\n▪ Confirming ○`,
+      { parse_mode: 'Markdown' }
     )
 
     // Step 2: Upload to Arweave
     const arweaveResult = await uploadToArweave(fileBuffer, mimeType, pending.fileName)
 
     await ctx.api.editMessageText(
-      ctx.chat!.id,
-      statusMsg.message_id,
-      `✅ Step 1/4: Downloaded from Telegram\n` +
-        `   Size: ${formatBytes(fileBuffer.length)}\n\n` +
-        `✅ Step 2/4: Uploaded to Arweave\n` +
-        `   Hash: ${arweaveResult.hash}\n\n` +
-        `⏳ Step 3/4: Creating project…`
+      ctx.chat!.id, statusMsg.message_id,
+      `⏳ *Storing your file...*\n\n✅ Downloaded\n✅ Uploaded\n▪ Creating record ⏳\n▪ Confirming ○`,
+      { parse_mode: 'Markdown' }
     )
 
     // Step 3: Create project with x402 payment
@@ -843,15 +817,9 @@ export async function handleFileConfirm(ctx: MyContext, isPrivate = false) {
     })
 
     await ctx.api.editMessageText(
-      ctx.chat!.id,
-      statusMsg.message_id,
-      `✅ Step 1/4: Downloaded from Telegram\n` +
-        `   Size: ${formatBytes(fileBuffer.length)}\n\n` +
-        `✅ Step 2/4: Uploaded to Arweave\n` +
-        `   Hash: ${arweaveResult.hash}\n\n` +
-        `✅ Step 3/4: Project created\n` +
-        `   ID: #${projectResult.projectId}\n\n` +
-        `⏳ Step 4/4: Pushing version…`
+      ctx.chat!.id, statusMsg.message_id,
+      `⏳ *Storing your file...*\n\n✅ Downloaded\n✅ Uploaded\n✅ Record created (#${projectResult.projectId})\n▪ Confirming ⏳`,
+      { parse_mode: 'Markdown' }
     )
 
     // Step 4: Push version with x402 payment
@@ -862,21 +830,20 @@ export async function handleFileConfirm(ctx: MyContext, isPrivate = false) {
       contentSize: pending.fileSize,
     })
 
-    // Success - show with buttons
+    // Success
     ctx.session.upload = undefined
     const keyboard = buildSuccessKeyboard(versionResult.txHash, arweaveResult.hash)
 
     await ctx.api.editMessageText(
-      ctx.chat!.id,
-      statusMsg.message_id,
-      `✅ Upload Complete! ${isPrivate ? '🔒 Private' : '🔓 Public'}\n\n` +
-        `📂 Project: ${projectName} (#${projectResult.projectId})\n` +
-        `📎 File: ${pending.fileName}\n` +
-        `📦 Version: ${versionResult.versionTag}\n` +
-        (isPrivate ? `🔑 Encrypted with your wallet key\n` : '') +
-        `\nUse /my_projects to view your projects.`
+      ctx.chat!.id, statusMsg.message_id,
+      `✅ *Stored forever!*\n\n` +
+        `📄 ${pending.fileName}\n` +
+        `${privacyIcon} ${isPrivate ? 'Private' : 'Public'}\n` +
+        `🔗 \`${arweaveResult.hash}\`\n\n` +
+        `#${projectResult.projectId} · ${projectName}`,
+      { parse_mode: 'Markdown' }
     )
-    await ctx.reply('🎉 Success!', { reply_markup: keyboard })
+    await ctx.reply('🎉', { reply_markup: keyboard })
   } catch (err) {
     ctx.session.upload = undefined
     await ctx.api.editMessageText(
@@ -925,8 +892,11 @@ export async function handleRepoConfirm(ctx: MyContext, isPrivate = false) {
     return // Don't clear session - user might fund wallet and retry
   }
 
-  const privacyLabel = isPrivate ? '🔒 Private' : '🔓 Public'
-  const statusMsg = await ctx.reply(`⏳ Step 1/3: Uploading to Arweave… (${privacyLabel})`)
+  const privacyIcon = isPrivate ? '🔒' : '🌍'
+  const statusMsg = await ctx.reply(
+    `⏳ *Storing your repo...*\n\n▪ Uploading ⏳\n▪ Creating record ○\n▪ Confirming ○`,
+    { parse_mode: 'Markdown' }
+  )
 
   try {
     // Step 1: Upload ZIP to Arweave (encrypt if private)
@@ -940,11 +910,9 @@ export async function handleRepoConfirm(ctx: MyContext, isPrivate = false) {
     const arweaveResult = await uploadToArweave(zipBuffer, mimeType, pending.filename)
 
     await ctx.api.editMessageText(
-      ctx.chat!.id,
-      statusMsg.message_id,
-      `✅ Step 1/3: Uploaded to Arweave\n` +
-        `   Hash: ${arweaveResult.hash}\n\n` +
-        `⏳ Step 2/3: Creating project…`
+      ctx.chat!.id, statusMsg.message_id,
+      `⏳ *Storing your repo...*\n\n✅ Uploaded\n▪ Creating record ⏳\n▪ Confirming ○`,
+      { parse_mode: 'Markdown' }
     )
 
     // Step 2: Create project with x402 payment
@@ -955,13 +923,9 @@ export async function handleRepoConfirm(ctx: MyContext, isPrivate = false) {
     })
 
     await ctx.api.editMessageText(
-      ctx.chat!.id,
-      statusMsg.message_id,
-      `✅ Step 1/3: Uploaded to Arweave\n` +
-        `   Hash: ${arweaveResult.hash}\n\n` +
-        `✅ Step 2/3: Project created\n` +
-        `   ID: #${projectResult.projectId}\n\n` +
-        `⏳ Step 3/3: Pushing version…`
+      ctx.chat!.id, statusMsg.message_id,
+      `⏳ *Storing your repo...*\n\n✅ Uploaded\n✅ Record created (#${projectResult.projectId})\n▪ Confirming ⏳`,
+      { parse_mode: 'Markdown' }
     )
 
     // Step 3: Push version with x402 payment
@@ -972,21 +936,20 @@ export async function handleRepoConfirm(ctx: MyContext, isPrivate = false) {
       contentSize: pending.size,
     })
 
-    // Success - show with buttons
+    // Success
     ctx.session.upload = undefined
     const keyboard = buildSuccessKeyboard(versionResult.txHash, arweaveResult.hash)
 
     await ctx.api.editMessageText(
-      ctx.chat!.id,
-      statusMsg.message_id,
-      `✅ Upload Complete! ${isPrivate ? '🔒 Private' : '🔓 Public'}\n\n` +
-        `📂 Project: ${pending.projectName} (#${projectResult.projectId})\n` +
-        `📦 Version: ${versionResult.versionTag}\n` +
-        `📁 Source: ${pending.owner}/${pending.repo}@${pending.ref}\n` +
-        (isPrivate ? `🔑 Encrypted with your wallet key\n` : '') +
-        `\nUse /my_projects to view your projects.`
+      ctx.chat!.id, statusMsg.message_id,
+      `✅ *Stored forever!*\n\n` +
+        `🐙 ${pending.owner}/${pending.repo}@${pending.ref}\n` +
+        `${privacyIcon} ${isPrivate ? 'Private' : 'Public'}\n` +
+        `🔗 \`${arweaveResult.hash}\`\n\n` +
+        `#${projectResult.projectId} · ${pending.projectName}`,
+      { parse_mode: 'Markdown' }
     )
-    await ctx.reply('🎉 Success!', { reply_markup: keyboard })
+    await ctx.reply('🎉', { reply_markup: keyboard })
   } catch (err) {
     await ctx.api.editMessageText(
       ctx.chat!.id,
