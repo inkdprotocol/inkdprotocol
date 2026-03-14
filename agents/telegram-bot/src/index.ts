@@ -76,10 +76,9 @@ const walletKeyboard = new InlineKeyboard()
 
 // ─── Commands ─────────────────────────────────────────────────────────────────
 
-const LOGO_URL = 'https://inkdprotocol.com/logo.jpg'
+const INTRO_URL = 'https://inkdprotocol.com/intro.mp4'
 
 async function showHomeMenu(ctx: MyContext) {
-  const hasWallet = !!ctx.session.wallet
   const keyboard = new InlineKeyboard()
     .text('⬆️ Upload a File', 'home_upload').row()
     .text('💼 Wallet', 'home_wallet').text('📁 My Files', 'home_files').row()
@@ -91,13 +90,12 @@ async function showHomeMenu(ctx: MyContext) {
     '[💻 GitHub](https://github.com/inkdprotocol/inkd-protocol)'
 
   try {
-    await ctx.replyWithPhoto(LOGO_URL, {
+    await ctx.replyWithAnimation(INTRO_URL, {
       caption,
       parse_mode: 'Markdown',
       reply_markup: keyboard,
     })
   } catch {
-    // Fallback to text if photo fails
     await ctx.reply(caption, { parse_mode: 'Markdown', reply_markup: keyboard })
   }
 }
