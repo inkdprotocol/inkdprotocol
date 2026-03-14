@@ -127,10 +127,44 @@ bot.callbackQuery('home_files', async ctx => {
       await ctx.reply('No uploads yet.\n\nSend any file or use /upload\\_text to get started.', { parse_mode: 'Markdown', reply_markup: homeBtn })
       return
     }
-    const lines = projects.map((p: any, i: number) => `${i + 1}. *${p.name}* — ${p.versionCount} version(s)`)
-    await ctx.reply(`*Your files*\n\n${lines.join('\n')}`, { parse_mode: 'Markdown', reply_markup: homeBtn })
+    // Build a keyboard where each project is a button
+    const kb = new InlineKeyboard()
+    for (const p of projects) {
+      const icon = p.isPublic ? '🌍' : '🔒'
+      const label = `${icon} ${p.name}${Number(p.versionCount) > 0 ? ` · v${p.versionCount}` : ''}`
+      kb.text(label, `project:${p.id}`).row()
+    }
+    kb.text('🏠 Home', 'nav_home')
+    await ctx.reply(`*Your files* (${projects.length})`, { parse_mode: 'Markdown', reply_markup: kb })
   } catch (err) {
     await ctx.reply(`Failed to load files: ${(err as Error).message}`, { reply_markup: homeBtn })
+  }
+})
+
+// Project detail view
+bot.callbackQuery(/^project:(\d+)$/, async ctx => {
+  await ctx.answerCallbackQuery()
+  const projectId = parseInt(ctx.match[1])
+  const homeBtn = new InlineKeyboard().text('◀️ Back', 'home_files').text('🏠 Home', 'nav_home')
+  try {
+    const project = await getProjectById(projectId)
+    if (!project) { await ctx.reply('Project not found.', { reply_markup: homeBtn }); return }
+
+    const visibility = project.isPublic ? '🌍 Public' : '🔒 Private'
+    const versions = await listVersions(projectId).catch(() => [])
+    const latestVersion = versions[versions.length - 1]
+    const arweaveLink = latestVersion?.arweaveHash
+      ? `[View on Arweave](https://arweave.net/${latestVersion.arweaveHash})`
+      : null
+
+    let text = `*${project.name}*\n\n`
+    text += `${visibility}  ·  ${project.versionCount} version(s)\n`
+    if (project.description) text += `\n${project.description}\n`
+    if (arweaveLink) text += `\n${arweaveLink}`
+
+    await ctx.reply(text, { parse_mode: 'Markdown', reply_markup: homeBtn, link_preview_options: { is_disabled: true } })
+  } catch (err) {
+    await ctx.reply(`Error: ${(err as Error).message}`, { reply_markup: homeBtn })
   }
 })
 
