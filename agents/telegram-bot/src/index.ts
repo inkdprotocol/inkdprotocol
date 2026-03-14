@@ -141,32 +141,7 @@ bot.callbackQuery('home_files', async ctx => {
   }
 })
 
-// Project detail view
-bot.callbackQuery(/^project:(\d+)$/, async ctx => {
-  await ctx.answerCallbackQuery()
-  const projectId = parseInt(ctx.match[1])
-  const homeBtn = new InlineKeyboard().text('◀️ Back', 'home_files').text('🏠 Home', 'nav_home')
-  try {
-    const project = await getProjectById(projectId)
-    if (!project) { await ctx.reply('Project not found.', { reply_markup: homeBtn }); return }
 
-    const visibility = project.isPublic ? '🌍 Public' : '🔒 Private'
-    const versions = await listVersions(projectId).catch(() => [])
-    const latestVersion = versions[versions.length - 1]
-    const arweaveLink = latestVersion?.arweaveHash
-      ? `[View on Arweave](https://arweave.net/${latestVersion.arweaveHash})`
-      : null
-
-    let text = `*${project.name}*\n\n`
-    text += `${visibility}  ·  ${project.versionCount} version(s)\n`
-    if (project.description) text += `\n${project.description}\n`
-    if (arweaveLink) text += `\n${arweaveLink}`
-
-    await ctx.reply(text, { parse_mode: 'Markdown', reply_markup: homeBtn, link_preview_options: { is_disabled: true } })
-  } catch (err) {
-    await ctx.reply(`Error: ${(err as Error).message}`, { reply_markup: homeBtn })
-  }
-})
 
 bot.callbackQuery('home_search', async ctx => {
   await ctx.answerCallbackQuery()
@@ -335,11 +310,11 @@ bot.command('my_projects', async ctx => {
         // ignore - just won't show arweave link
       }
       const summary = formatProjectSummary(project, latestArweave)
-      const keyboard = new InlineKeyboard().text('📂 Details', `project:${project.id}`)
+      const keyboard = new InlineKeyboard().text('📂 Details', `project:${project.id}`).text('🏠 Home', 'nav_home')
       await ctx.reply(summary, { reply_markup: keyboard })
     }
   } catch (err) {
-    await ctx.reply(formatApiError(err))
+    await ctx.reply(formatApiError(err), { reply_markup: new InlineKeyboard().text('🏠 Home', 'nav_home') })
   }
 })
 
@@ -347,7 +322,7 @@ bot.command('cancel', async ctx => {
   ctx.session.upload = undefined
   ctx.session.pendingChallenge = undefined
   ctx.session.pendingVersionPush = undefined
-  await ctx.reply('Cancelled. Use /start to begin again.')
+  await ctx.reply('Cancelled.', { reply_markup: new InlineKeyboard().text('🏠 Home', 'nav_home') })
 })
 
 bot.command('export_key', async ctx => {
@@ -421,16 +396,16 @@ bot.command('search', async ctx => {
   try {
     const results = await searchProjects(query)
     if (!results.length) {
-      await ctx.reply(`No projects found for "${query}".`)
+      await ctx.reply(`No projects found for "${query}".`, { reply_markup: new InlineKeyboard().text('🏠 Home', 'nav_home') })
       return
     }
     
     for (const project of results.slice(0, 5)) {
-      const keyboard = new InlineKeyboard().text('📂 Details', `project:${project.id}`)
+      const keyboard = new InlineKeyboard().text('📂 Details', `project:${project.id}`).text('🏠 Home', 'nav_home')
       await ctx.reply(formatProjectSummary(project), { reply_markup: keyboard })
     }
   } catch (err) {
-    await ctx.reply(formatApiError(err))
+    await ctx.reply(formatApiError(err), { reply_markup: new InlineKeyboard().text('🏠 Home', 'nav_home') })
   }
 })
 
@@ -455,7 +430,7 @@ bot.command('help', async ctx => {
     `*Pricing*\n` +
     `Create project: $0.10 USDC\n` +
     `Push version: Arweave cost + 20% (min $0.10)`,
-    { parse_mode: 'Markdown' }
+    { parse_mode: 'Markdown', reply_markup: new InlineKeyboard().text('🏠 Home', 'nav_home') }
   )
 })
 
@@ -686,6 +661,8 @@ bot.callbackQuery(/^project:(\d+)$/, async ctx => {
         .text(`⬇ v${v.versionIndex} · ${v.versionTag}`, `download:${projectId}:${v.versionIndex}`)
         .row()
     }
+
+    keyboard.text('◀️ My Files', 'home_files').text('🏠 Home', 'nav_home')
 
     await ctx.reply(message, { reply_markup: keyboard })
   } catch (err) {
