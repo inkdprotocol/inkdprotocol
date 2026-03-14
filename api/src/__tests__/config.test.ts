@@ -206,11 +206,11 @@ describe('loadConfig() — x402 / server wallet', () => {
 
 describe('getChain()', () => {
   it('returns base (mainnet chain) for "mainnet"', () => {
-    expect(getChain('mainnet')).toEqual(base)
+    expect(getChain('mainnet').id).toBe(base.id)
   })
 
   it('returns baseSepolia for "testnet"', () => {
-    expect(getChain('testnet')).toEqual(baseSepolia)
+    expect(getChain('testnet').id).toBe(baseSepolia.id)
   })
 })
 

@@ -63,6 +63,12 @@ const baseCfg: ApiConfig = {
   x402Enabled: false,
   usdcAddress: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' as `0x${string}`,
   treasuryAddress: null,
+  cdpApiKeyId: null,
+  cdpApiKeySecret: null,
+  graphEndpoint: null,
+  indexerDbPath: null,
+  registryAddress: '0xEd3067dDa601f19A5737babE7Dd3AbfD4a783e5d' as any,
+  tokenAddress: '0xa6f64A0D23e9d6eC918929af53df1C7b0D819B07' as any,
 }
 
 const rawProject = {

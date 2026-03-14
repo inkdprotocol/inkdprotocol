@@ -188,13 +188,13 @@ function serializeIndexedVersion(v: IndexerVersion) {
 
 export function projectsRouter(cfg: ApiConfig): Router {
   const router = Router()
-  const addrs  = ADDRESSES[cfg.network]
 
   function requireRegistry(): Address {
-    if (!addrs.registry) throw new ServiceUnavailableError(
+    const addr = cfg.registryAddress ?? ADDRESSES[cfg.network].registry
+    if (!addr) throw new ServiceUnavailableError(
       'Registry contract not deployed yet. Set INKD_REGISTRY_ADDRESS env var.'
     )
-    return addrs.registry as Address
+    return addr as Address
   }
 
   const publicClient = buildPublicClient(cfg)
