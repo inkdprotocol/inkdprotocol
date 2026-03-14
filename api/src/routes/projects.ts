@@ -30,19 +30,13 @@ interface IndexerVersion {
   changelog: string; pushed_by: string; agent_address: string | null; meta_hash: string; pushed_at: number;
 }
 
-// ─── Safe indexer loader (avoids native module crash on Vercel) ───────────────
-// Uses dynamic import path to prevent esbuild from bundling better-sqlite3
+// ─── Indexer disabled on Vercel (better-sqlite3 native module incompatible) ──
+// For local use, install better-sqlite3 separately and use indexer/client.ts directly
 
-function buildIndexerClientSafe(dbPath: string) {
-  try {
-    // Dynamic path prevents static analysis bundling
-    const modulePath = '../indexer/client' + '.js'
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const mod = require(modulePath)
-    return mod.buildIndexerClient(dbPath)
-  } catch {
-    return null
-  }
+function buildIndexerClientSafe(_dbPath: string) {
+  // Disabled to prevent Vercel Turbo Build crash
+  // The indexer feature requires a local SQLite database which isn't available on serverless
+  return null
 }
 import { getGraphClient, type GraphProject, type GraphVersion } from '../graph.js'
 
@@ -223,7 +217,9 @@ export function projectsRouter(cfg: ApiConfig): Router {
   }
 
   const publicClient = buildPublicClient(cfg)
-  const indexer      = cfg.indexerDbPath ? buildIndexerClientSafe(cfg.indexerDbPath) : null
+  // IndexerClient is disabled on Vercel (better-sqlite3 native module crash)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const indexer: any = null
 
   // ── GET /v1/projects ────────────────────────────────────────────────────────
   router.get('/', async (req, res) => {
