@@ -35,6 +35,12 @@ const baseCfg: ApiConfig = {
   x402FacilitatorUrl: 'https://x402.org/facilitator',
   x402Enabled: false,
     treasuryAddress: null,
+  cdpApiKeyId: null,
+  cdpApiKeySecret: null,
+  graphEndpoint: null,
+  indexerDbPath: null,
+  registryAddress: '0xEd3067dDa601f19A5737babE7Dd3AbfD4a783e5d' as any,
+  tokenAddress: '0xa6f64A0D23e9d6eC918929af53df1C7b0D819B07' as any,
 }
 
 const cfgWithContracts: ApiConfig = {
