@@ -765,8 +765,7 @@ async function showWalletInfo(ctx: MyContext) {
     
     await ctx.reply(
       `*Your Wallet*\n\n` +
-      `Address: \`${wallet}\`\n` +
-      `Type: ${walletType}\n\n` +
+      `Address: \`${wallet}\`\n\n` +
       `*Balance (Base)*\n` +
       `ETH: ${balance.eth}\n` +
       `USDC: ${balance.usdc}\n\n` +
