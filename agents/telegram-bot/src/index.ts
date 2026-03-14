@@ -38,6 +38,7 @@ export type BotSession = {
   pendingChallenge?: string
   upload?: UploadSession
   pendingVersionPush?: PendingVersionPush
+  tutorialStep?: number
 }
 
 type MyContext = Context & SessionFlavor<BotSession>
@@ -70,12 +71,24 @@ const walletKeyboard = new InlineKeyboard()
 
 bot.command('start', async ctx => {
   await ctx.reply(
-    `Welcome to inkd bot 🫟\n\n` +
-    `Store code, data, and files permanently on Arweave.\n` +
-    `Registered on Base. Paid in USDC. No accounts needed.\n\n` +
-    `Connect or create a wallet to get started:`,
-    { reply_markup: walletKeyboard }
+    'Welcome to inkd bot 🫟\n\nStore files permanently on Arweave. Registered on Base. Paid in USDC. No accounts needed.',
+    {
+      reply_markup: new InlineKeyboard()
+        .text('🗺 Take a tour', 'start_tour').row()
+        .text('🚀 Explore on my own', 'start_explore')
+    }
   )
+})
+
+bot.callbackQuery('start_tour', async ctx => {
+  await ctx.answerCallbackQuery()
+  ctx.session.tutorialStep = 1
+  await sendTutorialStep(ctx)
+})
+
+bot.callbackQuery('start_explore', async ctx => {
+  await ctx.answerCallbackQuery()
+  await ctx.reply('Connect or create a wallet to get started.', { reply_markup: walletKeyboard })
 })
 
 bot.command('wallet', async ctx => {
@@ -168,6 +181,8 @@ bot.command('help', async ctx => {
     `/upload_text — Upload text content\n` +
     `/upload_repo — Upload a GitHub repo\n` +
     `/my_projects — View your projects\n` +
+    `/tutorial — Interactive guided tour\n` +
+    `/links — Website, socials, buy $INKD\n` +
     `/cancel — Cancel current action\n` +
     `/help — Show this message\n\n` +
     `💡 *How it works*\n` +
@@ -177,6 +192,26 @@ bot.command('help', async ctx => {
     `Create project: $0.10 USDC\n` +
     `Push version: Arweave cost + 20% (min $0.10)`,
     { parse_mode: 'Markdown' }
+  )
+})
+
+bot.command('tutorial', async ctx => {
+  ctx.session.tutorialStep = 1
+  await sendTutorialStep(ctx)
+})
+
+bot.command('links', async ctx => {
+  await ctx.reply(
+    '*inkd Protocol*\n\nAll links in one place.',
+    {
+      parse_mode: 'Markdown',
+      reply_markup: new InlineKeyboard()
+        .url('🌐 Website', 'https://inkdprotocol.com').row()
+        .url('🐦 Twitter / X', 'https://x.com/inkdprotocol').row()
+        .url('🪙 Buy $INKD on Clanker', 'https://clanker.world/clanker/0x103013851D4475d7D1610C7941E2a16534a1eB07').row()
+        .url('📊 Chart', 'https://dexscreener.com/base/0x096D02F26091c24387D914Cb7CffAC7eD44aa7F0').row()
+        .url('📄 Docs', 'https://inkdprotocol.com')
+    }
   )
 })
 
@@ -455,6 +490,148 @@ function formatVersionLine(version: ApiVersion) {
   return `v${version.versionIndex} · ${version.versionTag} (${date})\nArweave: ${ar}\n${link}`
 }
 
+// ─── Tutorial ─────────────────────────────────────────────────────────────────
+
+async function sendTutorialStep(ctx: MyContext) {
+  const step = ctx.session.tutorialStep ?? 1
+
+  if (step === 1) {
+    await ctx.reply(
+      `📖 Step 1/4 — What is inkd?\n\n` +
+      `inkd is a permaweb registry. Upload files to Arweave (permanent storage) and register them on Base as projects.\n\n` +
+      `Pay in USDC. No accounts, no API keys — your wallet is your identity.\n\n` +
+      `Think: npm, but permanent and on-chain.`,
+      {
+        reply_markup: new InlineKeyboard().text('Next ➡️', 'tutorial_2')
+      }
+    )
+  } else if (step === 2) {
+    if (ctx.session.wallet) {
+      await ctx.reply(
+        `🔑 Step 2/4 — Wallet\n\nYou're all set: \`${ctx.session.wallet}\``,
+        {
+          parse_mode: 'Markdown',
+          reply_markup: new InlineKeyboard().text('Next ➡️', 'tutorial_3')
+        }
+      )
+    } else {
+      await ctx.reply(
+        `🔑 Step 2/4 — Set up your wallet\n\nYou need a wallet to own projects and pay for uploads.`,
+        {
+          reply_markup: new InlineKeyboard()
+            .text('🆕 Create Wallet', 'tutorial_create_wallet')
+            .text('Skip →', 'tutorial_3')
+        }
+      )
+    }
+  } else if (step === 3) {
+    const walletDisplay = ctx.session.wallet ? `\`${ctx.session.wallet}\`` : 'create a wallet first'
+    await ctx.reply(
+      `💰 Step 3/4 — Fund your wallet\n\n` +
+      `Send USDC to your wallet on Base:\n${walletDisplay}\n\n` +
+      `Minimum: ~$0.20 USDC. Use /wallet to check balance.`,
+      {
+        parse_mode: 'Markdown',
+        reply_markup: new InlineKeyboard().text("✅ I'm ready", 'tutorial_4')
+      }
+    )
+  } else if (step === 4) {
+    await ctx.reply(
+      `🚀 Step 4/4 — First upload\n\n` +
+      `You're ready. Choose:\n\n` +
+      `• /upload_text — store any text permanently\n` +
+      `• /upload_repo — archive a GitHub repo\n\n` +
+      `Files live on Arweave forever. Registered on Base. Owned by your wallet.`,
+      {
+        reply_markup: new InlineKeyboard()
+          .text('📝 Upload Text', 'tutorial_upload_text')
+          .text('📦 Upload Repo', 'tutorial_upload_repo')
+          .row()
+          .text('Done ✅', 'tutorial_done')
+      }
+    )
+  }
+}
+
+bot.callbackQuery('tutorial_2', async ctx => {
+  await ctx.answerCallbackQuery()
+  ctx.session.tutorialStep = 2
+  await sendTutorialStep(ctx)
+})
+
+bot.callbackQuery('tutorial_3', async ctx => {
+  await ctx.answerCallbackQuery()
+  ctx.session.tutorialStep = 3
+  await sendTutorialStep(ctx)
+})
+
+bot.callbackQuery('tutorial_4', async ctx => {
+  await ctx.answerCallbackQuery()
+  ctx.session.tutorialStep = 4
+  await sendTutorialStep(ctx)
+})
+
+bot.callbackQuery('tutorial_done', async ctx => {
+  await ctx.answerCallbackQuery()
+  ctx.session.tutorialStep = undefined
+  await ctx.reply("You're all set! Use /help to see all commands.")
+})
+
+bot.callbackQuery('tutorial_create_wallet', async ctx => {
+  await ctx.answerCallbackQuery()
+  
+  try {
+    const { address, privateKey } = generateWallet()
+    const encryptedKey = encryptPrivateKey(privateKey)
+    
+    ctx.session.wallet = address
+    ctx.session.encryptedKey = encryptedKey
+    ctx.session.pendingChallenge = undefined
+    
+    await ctx.reply(
+      `🆕 *New Wallet Created*\n\n` +
+      `Address: \`${address}\`\n\n` +
+      `🔐 *Private Key* (SAVE THIS, shown only once!):\n` +
+      `\`${privateKey}\`\n\n` +
+      `⚠️ This is your bot wallet. Fund it with ETH (for gas) and USDC (for uploads) on Base.`,
+      { parse_mode: 'Markdown' }
+    )
+    
+    ctx.session.tutorialStep = 3
+    await sendTutorialStep(ctx)
+  } catch (err) {
+    await ctx.reply(formatApiError(err))
+  }
+})
+
+bot.callbackQuery('tutorial_upload_text', async ctx => {
+  await ctx.answerCallbackQuery()
+  ctx.session.tutorialStep = undefined
+  if (!ctx.session.wallet) {
+    await ctx.reply('Connect your wallet first with /start.')
+    return
+  }
+  if (!ctx.session.encryptedKey) {
+    await ctx.reply('⚠️ You connected an external wallet. Uploads require a bot-managed wallet with USDC balance.\n\nUse /start → "🆕 New Wallet" to create one.')
+    return
+  }
+  await beginTextUpload(ctx)
+})
+
+bot.callbackQuery('tutorial_upload_repo', async ctx => {
+  await ctx.answerCallbackQuery()
+  ctx.session.tutorialStep = undefined
+  if (!ctx.session.wallet) {
+    await ctx.reply('Connect your wallet first with /start.')
+    return
+  }
+  if (!ctx.session.encryptedKey) {
+    await ctx.reply('⚠️ You connected an external wallet. Uploads require a bot-managed wallet with USDC balance.\n\nUse /start → "🆕 New Wallet" to create one.')
+    return
+  }
+  await beginRepoUpload(ctx)
+})
+
 // ─── Error Handler ────────────────────────────────────────────────────────────
 
 bot.catch(err => {
@@ -471,6 +648,8 @@ export async function start() {
     { command: 'upload_text',  description: 'Upload text content to Arweave' },
     { command: 'upload_repo',  description: 'Upload a GitHub repo to Arweave' },
     { command: 'my_projects',  description: 'View your projects' },
+    { command: 'tutorial',     description: 'Interactive guided tour' },
+    { command: 'links',        description: 'Website, socials, buy $INKD' },
     { command: 'cancel',       description: 'Cancel current action' },
     { command: 'help',         description: 'Show all commands' },
   ])
