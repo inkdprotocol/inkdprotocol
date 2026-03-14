@@ -23,7 +23,7 @@ import {
   type PendingVersionPush,
 } from './services/uploads'
 import { SqliteStorage } from './services/session'
-import { generateWallet, encryptPrivateKey, getWalletBalance } from './services/wallet'
+import { generateWallet, encryptPrivateKey, decryptPrivateKey, getWalletBalance } from './services/wallet'
 import { listProjectsByOwner, getProjectById, listVersions, getVersion, type ApiProject, type ApiVersion } from './services/api'
 
 dotenv.config({ path: process.env.BOT_ENV_PATH ?? '.env' })
@@ -176,6 +176,28 @@ bot.command('cancel', async ctx => {
   await ctx.reply('Cancelled. Use /start to begin again.')
 })
 
+bot.command('export_key', async ctx => {
+  if (!ctx.session.encryptedKey) {
+    await ctx.reply('No bot-managed wallet. External wallets manage their own keys.\n\nCreate a bot wallet with /start → "🆕 New Wallet".')
+    return
+  }
+  
+  await ctx.reply(
+    `⚠️ *SECURITY WARNING*\n\n` +
+    `Your private key gives *full access* to your wallet.\n\n` +
+    `• Never share it with anyone\n` +
+    `• Store it offline securely\n` +
+    `• Delete this message after saving\n\n` +
+    `Are you sure you want to view your private key?`,
+    {
+      parse_mode: 'Markdown',
+      reply_markup: new InlineKeyboard()
+        .text('Yes, show key 🔓', 'export_key_confirm')
+        .text('Cancel', 'export_key_cancel')
+    }
+  )
+})
+
 bot.command('help', async ctx => {
   await ctx.reply(
     `📋 *Commands*\n\n` +
@@ -184,6 +206,7 @@ bot.command('help', async ctx => {
     `/upload_text — Upload text content\n` +
     `/upload_repo — Upload a GitHub repo\n` +
     `/my_projects — View your projects\n` +
+    `/export_key — Export your private key\n` +
     `/tutorial — Interactive guided tour\n` +
     `/links — Website, socials, buy $INKD\n` +
     `/cancel — Cancel current action\n` +
@@ -320,6 +343,32 @@ bot.callbackQuery('text_confirm', handleTextConfirm)
 bot.callbackQuery('text_cancel', handleTextCancel)
 bot.callbackQuery('file_confirm', handleFileConfirm)
 bot.callbackQuery('file_cancel', handleFileCancel)
+
+bot.callbackQuery('export_key_confirm', async ctx => {
+  await ctx.answerCallbackQuery()
+  if (!ctx.session.encryptedKey) {
+    await ctx.reply('No bot-managed wallet.')
+    return
+  }
+  
+  try {
+    const privateKey = decryptPrivateKey(ctx.session.encryptedKey)
+    await ctx.reply(
+      `🔑 *Your Private Key*\n\n` +
+      `\`${privateKey}\`\n\n` +
+      `⚠️ Save this immediately. Delete this message after saving.\n` +
+      `Never share this with anyone.`,
+      { parse_mode: 'Markdown' }
+    )
+  } catch (err) {
+    await ctx.reply('Failed to decrypt key. Please contact support.')
+  }
+})
+
+bot.callbackQuery('export_key_cancel', async ctx => {
+  await ctx.answerCallbackQuery()
+  await ctx.reply('Cancelled.')
+})
 
 // Version push handlers
 bot.callbackQuery(/^push_version:(\d+)$/, async ctx => {
@@ -678,6 +727,7 @@ export async function start() {
     { command: 'upload_text',  description: 'Upload text content to Arweave' },
     { command: 'upload_repo',  description: 'Upload a GitHub repo to Arweave' },
     { command: 'my_projects',  description: 'View your projects' },
+    { command: 'export_key',   description: 'Export your private key (bot wallets only)' },
     { command: 'tutorial',     description: 'Interactive guided tour' },
     { command: 'links',        description: 'Website, socials, buy $INKD' },
     { command: 'cancel',       description: 'Cancel current action' },
