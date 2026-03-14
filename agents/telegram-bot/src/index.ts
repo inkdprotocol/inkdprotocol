@@ -75,19 +75,74 @@ const walletKeyboard = new InlineKeyboard()
 
 // ─── Commands ─────────────────────────────────────────────────────────────────
 
+async function showHomeMenu(ctx: MyContext) {
+  const hasWallet = !!ctx.session.wallet
+  const keyboard = new InlineKeyboard()
+    .text('💼 Wallet', 'home_wallet').text('📁 My Files', 'home_files').row()
+    .text('🔍 Search', 'home_search').text('❓ Help', 'home_help').row()
+    .text('🎓 Tutorial', 'start_tour')
+
+  await ctx.reply(
+    hasWallet
+      ? `🫟 inkd\n\nWallet: \`${ctx.session.wallet}\``
+      : '🫟 inkd\n\nStore files permanently on Arweave.\nRegistered on Base. Paid in USDC.',
+    { parse_mode: 'Markdown', reply_markup: keyboard }
+  )
+}
+
 bot.command('start', async ctx => {
-  // If user already has a wallet, go straight to wallet view
-  if (ctx.session.wallet) {
-    await showWalletInfo(ctx)
+  await showHomeMenu(ctx)
+})
+
+bot.callbackQuery('home_wallet', async ctx => {
+  await ctx.answerCallbackQuery()
+  if (!ctx.session.wallet) {
+    await ctx.reply('No wallet yet.', { reply_markup: walletKeyboard })
     return
   }
+  await showWalletInfo(ctx)
+})
+
+bot.callbackQuery('home_files', async ctx => {
+  await ctx.answerCallbackQuery()
+  if (!ctx.session.wallet) {
+    await ctx.reply('Connect a wallet first.', { reply_markup: walletKeyboard })
+    return
+  }
+  const projects = await listProjectsByOwner(ctx.session.wallet, 10)
+  if (!projects.length) {
+    await ctx.reply('No uploads yet. Use ⬆️ Upload from your wallet menu.')
+    return
+  }
+  const lines = projects.map((p: any, i: number) => `${i + 1}. *${p.name}* — ${p.versionCount} version(s)`)
+  await ctx.reply(`*Your files*\n\n${lines.join('\n')}`, { parse_mode: 'Markdown' })
+})
+
+bot.callbackQuery('home_search', async ctx => {
+  await ctx.answerCallbackQuery()
+  await ctx.reply('Send me a project name to search:')
+  ctx.session.upload = { type: 'search_query' } as any
+})
+
+bot.callbackQuery('home_help', async ctx => {
+  await ctx.answerCallbackQuery()
   await ctx.reply(
-    'Welcome to inkd bot 🫟\n\nStore files permanently on Arweave. Registered on Base. Paid in USDC. No accounts needed.',
-    {
-      reply_markup: new InlineKeyboard()
-        .text('🗺 Take a tour', 'start_tour').row()
-        .text('✨ Get Started', 'start_explore')
-    }
+    '*inkd help*\n\n' +
+    '*Files*\n' +
+    '• Send any file, text, or /upload\\_text to upload\n' +
+    '• /my\\_projects — view your uploads\n' +
+    '• /history — recent activity\n\n' +
+    '*Wallet*\n' +
+    '• /wallet — view balance & address\n' +
+    '• /export\\_key — export private key\n\n' +
+    '*Other*\n' +
+    '• /search <name> — find public projects\n' +
+    '• /tutorial — 4-step intro\n' +
+    '• /cancel — cancel current action\n\n' +
+    '*Pricing*\n' +
+    '• Upload: Arweave cost + 20% fee (min $0.10)\n' +
+    '• Paid in USDC on Base',
+    { parse_mode: 'Markdown' }
   )
 })
 
@@ -409,11 +464,11 @@ bot.callbackQuery('wallet_connect', async ctx => {
   )
 })
 
-bot.callbackQuery('repo_confirm', handleRepoConfirm)
+bot.callbackQuery('repo_confirm', ctx => handleRepoConfirm(ctx))
 bot.callbackQuery('repo_cancel', handleRepoCancel)
-bot.callbackQuery('text_confirm', handleTextConfirm)
+bot.callbackQuery('text_confirm', ctx => handleTextConfirm(ctx))
 bot.callbackQuery('text_cancel', handleTextCancel)
-bot.callbackQuery('file_confirm', handleFileConfirm)
+bot.callbackQuery('file_confirm', ctx => handleFileConfirm(ctx))
 bot.callbackQuery('file_cancel', handleFileCancel)
 
 bot.callbackQuery('export_key_confirm', async ctx => {
