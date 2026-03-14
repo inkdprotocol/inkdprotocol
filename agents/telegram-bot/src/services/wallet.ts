@@ -128,6 +128,48 @@ export async function checkUsdcBalance(address: string, requiredUsdc: bigint): P
 }
 
 /**
+ * Send USDC to a recipient address.
+ * Returns the transaction hash.
+ */
+export async function sendUsdc(
+  encryptedKey: string,
+  to: string,
+  amountUsdc: number,
+): Promise<string> {
+  const wallet = getWalletFromEncrypted(encryptedKey)
+  const usdc = new Contract(USDC_ADDRESS, [
+    'function transfer(address to, uint256 amount) returns (bool)',
+    'function decimals() view returns (uint8)',
+  ], wallet)
+
+  const decimals: number = await usdc.decimals()
+  const amount = BigInt(Math.round(amountUsdc * 10 ** decimals))
+  const tx = await usdc.transfer(to, amount)
+  const receipt = await tx.wait()
+  if (!receipt) throw new Error('Transaction receipt unavailable')
+  return receipt.hash
+}
+
+/**
+ * Send ETH to a recipient address.
+ * Returns the transaction hash.
+ */
+export async function sendEth(
+  encryptedKey: string,
+  to: string,
+  amountEth: number,
+): Promise<string> {
+  const wallet = getWalletFromEncrypted(encryptedKey)
+  const tx = await wallet.sendTransaction({
+    to,
+    value: BigInt(Math.round(amountEth * 1e18)),
+  })
+  const receipt = await tx.wait()
+  if (!receipt) throw new Error('Transaction receipt unavailable')
+  return receipt.hash
+}
+
+/**
  * Get a Wallet instance from encrypted key (ethers)
  */
 export function getWalletFromEncrypted(encryptedKey: string): Wallet {

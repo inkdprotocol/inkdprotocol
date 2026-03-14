@@ -24,7 +24,7 @@ import {
   type PendingVersionPush,
 } from './services/uploads'
 import { SqliteStorage } from './services/session'
-import { generateWallet, encryptPrivateKey, decryptPrivateKey, getWalletBalance } from './services/wallet'
+import { generateWallet, encryptPrivateKey, decryptPrivateKey, getWalletBalance, sendUsdc, sendEth } from './services/wallet'
 import QRCode from 'qrcode'
 import { listProjectsByOwner, getProjectById, listVersions, getVersion, searchProjects, findProjectByOwnerAndName, type ApiProject, type ApiVersion } from './services/api'
 
@@ -45,6 +45,12 @@ export type BotSession = {
   pendingVersionPush?: PendingVersionPush
   suggestedProjectId?: string  // For auto-version detection when project name matches
   tutorialStep?: number
+  withdraw?: {
+    step: 'asset' | 'address' | 'amount' | 'confirm'
+    asset?: 'usdc' | 'eth'
+    to?: string
+    amount?: number
+  }
 }
 
 type MyContext = Context & SessionFlavor<BotSession>
@@ -76,6 +82,11 @@ const walletKeyboard = new InlineKeyboard()
 // ─── Commands ─────────────────────────────────────────────────────────────────
 
 bot.command('start', async ctx => {
+  // If wallet already set up → skip onboarding, go straight to wallet
+  if (ctx.session.wallet) {
+    await showWalletInfo(ctx)
+    return
+  }
   await ctx.reply(
     'Welcome to inkd bot 🫟\n\nStore files permanently on Arweave. Registered on Base. Paid in USDC. No accounts needed.',
     {
@@ -176,7 +187,91 @@ bot.command('cancel', async ctx => {
   ctx.session.upload = undefined
   ctx.session.pendingChallenge = undefined
   ctx.session.pendingVersionPush = undefined
+  ctx.session.withdraw = undefined
   await ctx.reply('Cancelled. Use /start to begin again.')
+})
+
+// ─── /withdraw ────────────────────────────────────────────────────────────────
+
+bot.command('withdraw', async ctx => {
+  if (!ctx.session.wallet) {
+    await ctx.reply('No wallet connected. Use /start first.')
+    return
+  }
+  if (!ctx.session.encryptedKey) {
+    await ctx.reply('⚠️ External wallets cannot send from here. Use your own wallet app.')
+    return
+  }
+  ctx.session.withdraw = { step: 'asset' }
+  await ctx.reply(
+    '💸 *Withdraw*\n\nWhat do you want to send?',
+    {
+      parse_mode: 'Markdown',
+      reply_markup: new InlineKeyboard()
+        .text('💵 USDC', 'withdraw_asset_usdc')
+        .text('⟠ ETH', 'withdraw_asset_eth')
+        .row()
+        .text('✖️ Cancel', 'withdraw_cancel'),
+    }
+  )
+})
+
+bot.callbackQuery('withdraw_asset_usdc', async ctx => {
+  await ctx.answerCallbackQuery()
+  ctx.session.withdraw = { step: 'address', asset: 'usdc' }
+  await ctx.reply('Send USDC to which address?\n\nEnter the recipient wallet address (0x…):')
+})
+
+bot.callbackQuery('withdraw_asset_eth', async ctx => {
+  await ctx.answerCallbackQuery()
+  ctx.session.withdraw = { step: 'address', asset: 'eth' }
+  await ctx.reply('Send ETH to which address?\n\nEnter the recipient wallet address (0x…):')
+})
+
+bot.callbackQuery('withdraw_cancel', async ctx => {
+  await ctx.answerCallbackQuery()
+  ctx.session.withdraw = undefined
+  await ctx.reply('Cancelled.')
+})
+
+bot.callbackQuery('withdraw_confirm', async ctx => {
+  await ctx.answerCallbackQuery()
+  const w = ctx.session.withdraw
+  if (!w || w.step !== 'confirm' || !w.to || !w.amount || !w.asset) {
+    await ctx.reply('Nothing to confirm.')
+    return
+  }
+  if (!ctx.session.encryptedKey) {
+    ctx.session.withdraw = undefined
+    await ctx.reply('Wallet not available.')
+    return
+  }
+  ctx.session.withdraw = undefined
+
+  const statusMsg = await ctx.reply(`⏳ Sending ${w.amount} ${w.asset.toUpperCase()} to ${w.to.slice(0,6)}…${w.to.slice(-4)}…`)
+
+  try {
+    let txHash: string
+    if (w.asset === 'usdc') {
+      txHash = await sendUsdc(ctx.session.encryptedKey, w.to, w.amount)
+    } else {
+      txHash = await sendEth(ctx.session.encryptedKey, w.to, w.amount)
+    }
+    await ctx.api.editMessageText(
+      ctx.chat!.id, statusMsg.message_id,
+      `✅ Sent!\n\n` +
+      `Amount: ${w.amount} ${w.asset.toUpperCase()}\n` +
+      `To: \`${w.to}\`\n` +
+      `TX: [Basescan](https://basescan.org/tx/${txHash})`,
+      { parse_mode: 'Markdown' }
+    )
+  } catch (err) {
+    ctx.session.withdraw = undefined
+    await ctx.api.editMessageText(
+      ctx.chat!.id, statusMsg.message_id,
+      `❌ Failed: ${(err as Error).message}`
+    )
+  }
 })
 
 bot.command('export_key', async ctx => {
@@ -268,6 +363,7 @@ bot.command('help', async ctx => {
     `📋 *Commands*\n\n` +
     `/start — Connect or create wallet\n` +
     `/wallet — Show wallet address & balance\n` +
+    `/withdraw — Send USDC or ETH to another wallet\n` +
     `/upload_text — Upload text content\n` +
     `/upload_repo — Upload a GitHub repo\n` +
     `/my_projects — View your projects\n` +
@@ -337,7 +433,48 @@ bot.on('message:document', async ctx => {
 
 bot.on('message:text', async ctx => {
   if (await handleUploadMessage(ctx)) return
-  
+
+  // ── Withdraw flow ──────────────────────────────────────────────────────────
+  const wd = ctx.session.withdraw
+  if (wd) {
+    const text = ctx.message.text.trim()
+
+    if (wd.step === 'address') {
+      if (!text.match(/^0x[0-9a-fA-F]{40}$/)) {
+        await ctx.reply('Invalid address. Send a valid 0x… Ethereum address.')
+        return
+      }
+      ctx.session.withdraw = { ...wd, step: 'amount', to: text }
+      const assetLabel = wd.asset === 'usdc' ? 'USDC' : 'ETH'
+      await ctx.reply(`How much ${assetLabel} do you want to send?\n\nEnter a number (e.g. 10 or 0.001):`)
+      return
+    }
+
+    if (wd.step === 'amount') {
+      const amount = parseFloat(text.replace(',', '.'))
+      if (isNaN(amount) || amount <= 0) {
+        await ctx.reply('Invalid amount. Enter a positive number.')
+        return
+      }
+      ctx.session.withdraw = { ...wd, step: 'confirm', amount }
+      const assetLabel = wd.asset!.toUpperCase()
+      await ctx.reply(
+        `*Confirm withdrawal*\n\n` +
+        `Send: ${amount} ${assetLabel}\n` +
+        `To: \`${wd.to}\`\n\n` +
+        `This cannot be undone.`,
+        {
+          parse_mode: 'Markdown',
+          reply_markup: new InlineKeyboard()
+            .text(`✅ Send ${amount} ${assetLabel}`, 'withdraw_confirm')
+            .row()
+            .text('✖️ Cancel', 'withdraw_cancel'),
+        }
+      )
+      return
+    }
+  }
+
   const challenge = ctx.session.pendingChallenge
   if (!challenge) return
   
@@ -925,6 +1062,7 @@ export async function start() {
   await bot.api.setMyCommands([
     { command: 'start',        description: 'Connect or create a wallet' },
     { command: 'wallet',       description: 'Show wallet address & USDC balance' },
+    { command: 'withdraw',     description: 'Send USDC or ETH to another wallet' },
     { command: 'upload_text',  description: 'Upload text content to Arweave' },
     { command: 'upload_repo',  description: 'Upload a GitHub repo to Arweave' },
     { command: 'my_projects',  description: 'View your projects' },
