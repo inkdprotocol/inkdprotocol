@@ -1,0 +1,48 @@
+---
+title: Wallet Setup
+description: Create or connect a wallet to use inkd bot.
+---
+
+# Wallet Setup
+
+inkd bot supports two wallet modes. Use `/start` to get started.
+
+## Bot-Managed Wallet (recommended)
+
+Tap **🆕 New Wallet**. The bot generates an Ethereum wallet and stores the private key encrypted in your session (AES-256-GCM).
+
+- You get the address and private key (shown **once**)
+- Save the private key offline immediately
+- The bot can sign USDC payments on your behalf
+- Full upload access (`/upload_text`, `/upload_repo`, file uploads)
+
+### Export your key
+
+```
+/export_key
+```
+
+Shows your private key after a confirmation step. Use this if you need to import your wallet into MetaMask or another app.
+
+### Fund your wallet
+
+After creating a wallet, send USDC to your address on Base. Minimum ~$0.20 USDC for uploads.
+
+Check balance anytime:
+
+```
+/wallet
+```
+
+This shows your ETH and USDC balance + a QR code for easy deposits.
+
+## Connected Wallet (read-only)
+
+Tap **🔑 Connect Wallet**. The bot gives you a challenge message. Sign it with your Base wallet and send the signature back.
+
+- Read-only: can view projects and history
+- Cannot upload (bot needs the key to sign USDC payments)
+
+## Session storage
+
+Sessions are stored in SQLite on the server. Your encrypted key is tied to your Telegram chat ID. No one else can access it.

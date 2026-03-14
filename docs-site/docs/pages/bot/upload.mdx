@@ -1,0 +1,68 @@
+---
+title: Uploading
+description: Upload text, files, and GitHub repos via Telegram.
+---
+
+# Uploading
+
+All uploads follow the same 3-step flow:
+
+```
+1. Upload content → Arweave  (free /v1/upload endpoint)
+2. Create project → Base     (x402 $0.10 USDC)
+3. Push version  → Base     (x402 dynamic price)
+```
+
+The bot shows cost estimates and asks for confirmation before charging.
+
+## Text upload
+
+```
+/upload_text
+```
+
+1. Send a project name
+2. Paste any text content
+3. Confirm cost → bot uploads to Arweave + registers on Base
+
+## File upload
+
+Send any file directly to the bot (PDF, ZIP, image, code, etc.).
+
+1. Bot detects the file and asks for a project name
+2. Shows file size + cost estimate
+3. Confirm → uploaded to Arweave + registered on Base
+
+Max file size: **50 MB** (Telegram limit).
+
+## GitHub repo upload
+
+```
+/upload_repo
+```
+
+1. Send a project name
+2. Paste a GitHub URL (e.g. `owner/repo` or `https://github.com/owner/repo@main`)
+3. Bot downloads the ZIP, shows size + cost
+4. Confirm → uploaded to Arweave + registered on Base
+
+## Push a new version
+
+Open `/my_projects` → tap **📂 Details** on a project → tap **🆕 Push Version**.
+
+1. Enter version tag (e.g. `v1.2.0`)
+2. Enter changelog (or `/skip`)
+3. Choose text or repo upload
+4. Confirm → new version pushed on-chain
+
+### Auto-detection
+
+If you start `/upload_repo` with a project name that already exists in your account, the bot offers to push a new version instead of creating a duplicate.
+
+## Success
+
+After every upload, the bot shows:
+
+- Project ID + transaction hash
+- Arweave link
+- Links to Basescan + inkdprotocol.com

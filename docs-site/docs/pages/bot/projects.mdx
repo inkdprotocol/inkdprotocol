@@ -1,0 +1,62 @@
+---
+title: Projects & Discovery
+description: View, search, and share projects via inkd bot.
+---
+
+# Projects & Discovery
+
+## Your projects
+
+```
+/my_projects
+```
+
+Lists your 5 most recent projects. Tap **📂 Details** to see versions, download files, push a new version, or share.
+
+## Search
+
+```
+/search <name>
+```
+
+Searches public projects by name across all wallets. Returns up to 5 results.
+
+## History
+
+```
+/history
+```
+
+Shows your last 5 uploaded versions across all projects — with date and Arweave link.
+
+## Project details
+
+Tap **📂 Details** on any project to see:
+
+- Owner address
+- Version count
+- All versions with Arweave links + timestamps
+- Download buttons per version (bot fetches from Arweave and sends the file)
+
+## Share
+
+In project details, tap **🔗 Share** to get a formatted message with:
+
+- Project name + owner
+- Version count
+- Latest Arweave link
+- inkdprotocol.com attribution
+
+Ready to forward to anyone.
+
+## Download
+
+Tap **⬇ v1.0.0** on any version. The bot fetches the file from Arweave and sends it directly in chat.
+
+Files over 48 MB get a direct Arweave link instead (Telegram upload limit).
+
+## Inline search
+
+Type `@inkdbot <query>` in any Telegram chat to search inkd projects without opening the bot.
+
+> **Note:** Inline mode must be enabled via @BotFather → `/setinline`.

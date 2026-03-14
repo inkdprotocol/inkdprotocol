@@ -41,7 +41,15 @@ export default defineConfig({
       items: [
         { text: 'Introduction',    link: '/introduction' },
         { text: 'Quickstart',      link: '/quickstart' },
-        { text: 'Telegram Bot',    link: '/concepts/telegram-bot' },
+      ],
+    },
+    {
+      text: 'Telegram Bot',
+      items: [
+        { text: 'Overview',        link: '/bot/overview' },
+        { text: 'Wallet Setup',    link: '/bot/wallet' },
+        { text: 'Uploading',       link: '/bot/upload' },
+        { text: 'Projects',        link: '/bot/projects' },
       ],
     },
     {
