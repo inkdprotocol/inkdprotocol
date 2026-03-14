@@ -7,7 +7,7 @@ import path from 'node:path'
 const MAX_TEXT_BYTES  = 512 * 1024       // 512 KB text limit
 const MAX_REPO_MB     = 100              // 100 MB repo zip limit
 import { parseRepoInput, fetchRepoDefaultBranch, downloadRepoZip } from './github.js'
-import { getUploadPriceEstimate, type PriceEstimate } from './api.js'
+import { getUploadPriceEstimate, findProjectByOwnerAndName, type PriceEstimate } from './api.js'
 import { uploadToArweave, createProject, pushVersion } from './x402.js'
 import { checkUsdcBalance, decryptPrivateKey } from './wallet.js'
 import { privateKeyToAccount } from 'viem/accounts'
@@ -86,6 +86,7 @@ interface BotSession {
   encryptedKey?: string
   upload?: UploadSession
   pendingVersionPush?: PendingVersionPush
+  suggestedProjectId?: string
 }
 
 type MyContext = Context & SessionFlavor<BotSession>
@@ -434,6 +435,29 @@ export async function handleUploadMessage(ctx: MyContext) {
       return true
     }
     upload.projectName = text
+    
+    // Auto version detection: check if project with same name exists
+    if (upload.type === 'repo' && ctx.session.wallet) {
+      try {
+        const existing = await findProjectByOwnerAndName(ctx.session.wallet, text)
+        if (existing) {
+          ctx.session.suggestedProjectId = existing.id
+          await ctx.reply(
+            `📦 You already have a project named "${text}" (#${existing.id}).\n\nWhat do you want to do?`,
+            {
+              reply_markup: new InlineKeyboard()
+                .text(`🔄 Push new version to #${existing.id}`, `push_existing:${existing.id}`)
+                .row()
+                .text('🆕 Create new project', 'create_new_project')
+            }
+          )
+          return true
+        }
+      } catch {
+        // Ignore errors - continue with normal flow
+      }
+    }
+    
     if (upload.type === 'repo') {
       await ctx.reply('Paste the GitHub repo URL or owner/repo (optionally @ref):')
     } else {

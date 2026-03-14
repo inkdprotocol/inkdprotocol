@@ -112,6 +112,14 @@ export async function getUploadPriceEstimate(bytes: number): Promise<PriceEstima
 }
 
 /**
+ * Find a project by owner and name (case-insensitive)
+ */
+export async function findProjectByOwnerAndName(owner: string, name: string): Promise<ApiProject | null> {
+  const projects = await listProjectsByOwner(owner, 50)
+  return projects.find(p => p.name.toLowerCase() === name.toLowerCase()) ?? null
+}
+
+/**
  * Search projects by name
  */
 export async function searchProjects(query: string, limit = 5): Promise<ApiProject[]> {
