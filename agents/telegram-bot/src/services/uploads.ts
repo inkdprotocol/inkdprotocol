@@ -262,8 +262,14 @@ export async function handleVersionPushMessage(ctx: MyContext): Promise<boolean>
 
   // Step 4: Handle repo URL
   if (push.type === 'repo' && !push.pending) {
+    let parsed
     try {
-      const parsed = parseRepoInput(text)
+      parsed = parseRepoInput(text)
+    } catch {
+      await ctx.reply('Please paste a GitHub repo like `owner/repo` or `https://github.com/owner/repo`.', { parse_mode: 'Markdown' })
+      return true
+    }
+    try {
       const ref = parsed.ref ?? (await fetchRepoDefaultBranch(parsed.owner, parsed.repo))
 
       await ctx.reply(`Downloading ${parsed.owner}/${parsed.repo}@${ref}…`)
@@ -587,7 +593,13 @@ export async function handleUploadMessage(ctx: MyContext) {
       upload.pending = undefined
     }
 
-    const parsed = parseRepoInput(link)
+    const parsed = (() => {
+      try { return parseRepoInput(link) } catch { return null }
+    })()
+    if (!parsed) {
+      await ctx.reply('Please paste a repo like `owner/repo` or `https://github.com/owner/repo`.', { parse_mode: 'Markdown' })
+      return true
+    }
     const ref = parsed.ref ?? (await fetchRepoDefaultBranch(parsed.owner, parsed.repo))
 
     await ctx.reply(`Downloading ${parsed.owner}/${parsed.repo}@${ref}…`)

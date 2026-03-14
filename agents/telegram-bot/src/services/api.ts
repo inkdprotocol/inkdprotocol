@@ -51,14 +51,14 @@ export interface PriceEstimate {
  * Get projects by owner address
  */
 export async function listProjectsByOwner(owner: string, limit = 10): Promise<ApiProject[]> {
-  const url = `${API_URL}/v1/search/by-owner/${owner}?limit=${limit}`
+  const url = `${API_URL}/v1/projects?owner=${owner}&limit=${limit}`
   const res = await fetch(url)
   if (!res.ok) {
     const text = await res.text()
     throw new Error(`API error ${res.status}: ${text}`)
   }
   const json = await res.json() as { data: ApiProject[] }
-  return json.data
+  return json.data ?? []
 }
 
 /**

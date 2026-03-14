@@ -119,13 +119,17 @@ bot.callbackQuery('home_files', async ctx => {
     await ctx.reply('Connect a wallet first.', { reply_markup: walletKeyboard })
     return
   }
-  const projects = await listProjectsByOwner(ctx.session.wallet, 10)
-  if (!projects.length) {
-    await ctx.reply('No uploads yet. Use ⬆️ Upload from your wallet menu.')
-    return
+  try {
+    const projects = await listProjectsByOwner(ctx.session.wallet, 10)
+    if (!projects.length) {
+      await ctx.reply('No uploads yet.\n\nSend any file or use /upload\\_text to get started.', { parse_mode: 'Markdown' })
+      return
+    }
+    const lines = projects.map((p: any, i: number) => `${i + 1}. *${p.name}* — ${p.versionCount} version(s)`)
+    await ctx.reply(`*Your files*\n\n${lines.join('\n')}`, { parse_mode: 'Markdown' })
+  } catch (err) {
+    await ctx.reply(`Failed to load files: ${(err as Error).message}`)
   }
-  const lines = projects.map((p: any, i: number) => `${i + 1}. *${p.name}* — ${p.versionCount} version(s)`)
-  await ctx.reply(`*Your files*\n\n${lines.join('\n')}`, { parse_mode: 'Markdown' })
 })
 
 bot.callbackQuery('home_search', async ctx => {
