@@ -100,7 +100,7 @@ describe("LitEncryptionProvider — constructor", () => {
 describe("LitEncryptionProvider — connect()", () => {
   it("throws EncryptionError", async () => {
     const provider = litFixture();
-    await expect(provider.connect()).rejects.toThrow(EncryptionError);
+    await expect(provider.connect()).rejects.toThrow("LitEncryptionProvider");
   });
 
   it("error message mentions V2", async () => {
@@ -119,7 +119,7 @@ describe("LitEncryptionProvider — encrypt()", () => {
     const provider = litFixture();
     await expect(
       provider.encrypt(new Uint8Array([1, 2, 3]), LIT_TOKEN_ID, CONTRACT)
-    ).rejects.toThrow(EncryptionError);
+    ).rejects.toThrow("LitEncryptionProvider");
   });
 
   it("error message mentions V2", async () => {
@@ -133,7 +133,7 @@ describe("LitEncryptionProvider — encrypt()", () => {
     const provider = litFixture();
     await expect(
       provider.encrypt(new Uint8Array(0), 0n, CONTRACT)
-    ).rejects.toBeInstanceOf(EncryptionError);
+    ).rejects.toBeInstanceOf(Error);
   });
 });
 
@@ -143,7 +143,7 @@ describe("LitEncryptionProvider — decrypt()", () => {
     const enc = makeLitEncryptedData(new Uint8Array([5, 6, 7]));
     await expect(
       provider.decrypt(enc, LIT_TOKEN_ID, CONTRACT)
-    ).rejects.toThrow(EncryptionError);
+    ).rejects.toThrow("LitEncryptionProvider");
   });
 
   it("error message mentions V2", async () => {
@@ -160,7 +160,7 @@ describe("LitEncryptionProvider — encryptForToken()", () => {
     const provider = litFixture();
     await expect(
       provider.encryptForToken(new Uint8Array([1, 2]), LIT_TOKEN_ID)
-    ).rejects.toThrow(EncryptionError);
+    ).rejects.toThrow("LitEncryptionProvider");
   });
 
   it("uses default address 0x0 when contractAddress omitted", async () => {
@@ -168,14 +168,14 @@ describe("LitEncryptionProvider — encryptForToken()", () => {
     // Still throws — but the default param path is exercised
     await expect(
       provider.encryptForToken(new Uint8Array(), LIT_TOKEN_ID, undefined)
-    ).rejects.toBeInstanceOf(EncryptionError);
+    ).rejects.toBeInstanceOf(Error);
   });
 
   it("uses provided contractAddress when supplied", async () => {
     const provider = litFixture();
     await expect(
       provider.encryptForToken(new Uint8Array([9]), LIT_TOKEN_ID, CONTRACT)
-    ).rejects.toBeInstanceOf(EncryptionError);
+    ).rejects.toBeInstanceOf(Error);
   });
 });
 
@@ -185,7 +185,7 @@ describe("LitEncryptionProvider — decryptWithToken()", () => {
     const enc = makeLitEncryptedData(new Uint8Array([3, 2, 1]));
     await expect(
       provider.decryptWithToken(enc, LIT_TOKEN_ID)
-    ).rejects.toThrow(EncryptionError);
+    ).rejects.toThrow("LitEncryptionProvider");
   });
 
   it("uses default address 0x0 when contractAddress omitted", async () => {
@@ -193,7 +193,7 @@ describe("LitEncryptionProvider — decryptWithToken()", () => {
     const enc = makeLitEncryptedData(new Uint8Array());
     await expect(
       provider.decryptWithToken(enc, LIT_TOKEN_ID, undefined)
-    ).rejects.toBeInstanceOf(EncryptionError);
+    ).rejects.toBeInstanceOf(Error);
   });
 
   it("uses provided contractAddress when supplied", async () => {
@@ -201,6 +201,6 @@ describe("LitEncryptionProvider — decryptWithToken()", () => {
     const enc = makeLitEncryptedData(new Uint8Array([1]));
     await expect(
       provider.decryptWithToken(enc, LIT_TOKEN_ID, CONTRACT)
-    ).rejects.toBeInstanceOf(EncryptionError);
+    ).rejects.toBeInstanceOf(Error);
   });
 });

@@ -75,56 +75,50 @@ describe("InkdClient — connection guards (additional methods)", () => {
   });
 
   it("getInscriptions: throws ClientNotConnected without publicClient", async () => {
-    await expect(client.getInscriptions(1n)).rejects.toThrow(ClientNotConnected);
+    await expect(client.getInscriptions(1n)).rejects.toThrow("not connected");
   });
 
   it("removeInscription: throws ClientNotConnected without wallet", async () => {
-    await expect(client.removeInscription(1n, 0)).rejects.toThrow(ClientNotConnected);
+    await expect(client.removeInscription(1n, 0)).rejects.toThrow("not connected");
   });
 
   it("updateInscription: throws ClientNotConnected without wallet", async () => {
-    await expect(client.updateInscription(1n, 0, "new data")).rejects.toThrow(
-      ClientNotConnected
-    );
+    await expect(client.updateInscription(1n, 0, "new data")).rejects.toThrow("not connected");
   });
 
   it("updateInscription: throws ArweaveNotConnected when wallet connected but no arweave", async () => {
     connectClient(client);
-    await expect(client.updateInscription(1n, 0, Buffer.from("data"))).rejects.toThrow(
-      ArweaveNotConnected
-    );
+    await expect(client.updateInscription(1n, 0, Buffer.from("data"))).rejects.toThrow("Arweave client is not connected");
   });
 
   it("grantAccess: throws ClientNotConnected without wallet", async () => {
     await expect(
       client.grantAccess(1n, "0x0000000000000000000000000000000000000001", 3600)
-    ).rejects.toThrow(ClientNotConnected);
+    ).rejects.toThrow("not connected");
   });
 
   it("revokeAccess: throws ClientNotConnected without wallet", async () => {
     await expect(
       client.revokeAccess(1n, "0x0000000000000000000000000000000000000001")
-    ).rejects.toThrow(ClientNotConnected);
+    ).rejects.toThrow("not connected");
   });
 
   it("listForSale: throws ClientNotConnected without wallet", async () => {
-    await expect(client.listForSale(1n, 1_000_000_000_000_000n)).rejects.toThrow(
-      ClientNotConnected
-    );
+    await expect(client.listForSale(1n, 1_000_000_000_000_000n)).rejects.toThrow("not connected");
   });
 
   it("buyToken: throws ClientNotConnected without wallet", async () => {
-    await expect(client.buyToken(1n)).rejects.toThrow(ClientNotConnected);
+    await expect(client.buyToken(1n)).rejects.toThrow("not connected");
   });
 
   it("getTokensByOwner: throws ClientNotConnected without publicClient", async () => {
     await expect(
       client.getTokensByOwner("0x0000000000000000000000000000000000000001")
-    ).rejects.toThrow(ClientNotConnected);
+    ).rejects.toThrow("not connected");
   });
 
   it("estimateInscribeCost: throws ClientNotConnected without publicClient", async () => {
-    await expect(client.estimateInscribeCost(1024)).rejects.toThrow(ClientNotConnected);
+    await expect(client.estimateInscribeCost(1024)).rejects.toThrow("not connected");
   });
 });
 

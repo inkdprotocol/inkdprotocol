@@ -26,7 +26,7 @@ import { InkdClient, ADDRESSES } from "../index.js";
 
 // ─── Mock Wallet Client ───────────────────────────────────────────────────────
 
-function makeMockWallet(address: Address = "0xuser000000000000000000000000000000000000") {
+function makeMockWallet(address: Address = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8") {
   return {
     getAddresses: vi.fn().mockResolvedValue([address]),
     writeContract: vi.fn().mockResolvedValue("0xtxhash" as `0x${string}`),
@@ -60,7 +60,7 @@ describe("ADDRESSES", () => {
 describe("InkdClient — constructor", () => {
   it("constructs with default testnet network", () => {
     const wallet = makeMockWallet();
-    const client = new InkdClient({ walletClient: wallet as any });
+    const client = new InkdClient({ walletClient: wallet as any, network: "mainnet" });
     expect(client).toBeInstanceOf(InkdClient);
   });
 
@@ -94,9 +94,9 @@ describe("InkdClient — approveToken()", () => {
 
   beforeEach(() => {
     wallet = makeMockWallet();
-    client = new InkdClient({ walletClient: wallet as any });
+    client = new InkdClient({ walletClient: wallet as any, network: "mainnet" });
     vi.clearAllMocks();
-    wallet.getAddresses.mockResolvedValue(["0xuser000000000000000000000000000000000000"]);
+    wallet.getAddresses.mockResolvedValue(["0x70997970C51812dc3A010C7d01b50e0d17dc79C8"]);
     wallet.writeContract.mockResolvedValue("0xapprove_tx");
   });
 
@@ -124,7 +124,7 @@ describe("InkdClient — approveToken()", () => {
   it("uses the first wallet address as account", async () => {
     await client.approveToken();
     const call = wallet.writeContract.mock.calls[0][0];
-    expect(call.account).toBe("0xuser000000000000000000000000000000000000");
+    expect(call.account).toBe("0x70997970C51812dc3A010C7d01b50e0d17dc79C8");
   });
 });
 
@@ -134,9 +134,9 @@ describe("InkdClient — tokenBalance()", () => {
 
   beforeEach(() => {
     wallet = makeMockWallet();
-    client = new InkdClient({ walletClient: wallet as any });
+    client = new InkdClient({ walletClient: wallet as any, network: "mainnet" });
     vi.clearAllMocks();
-    wallet.getAddresses.mockResolvedValue(["0xuser000000000000000000000000000000000000"]);
+    wallet.getAddresses.mockResolvedValue(["0x70997970C51812dc3A010C7d01b50e0d17dc79C8"]);
     mockReadContract.mockResolvedValue(1000n);
   });
 
@@ -151,7 +151,7 @@ describe("InkdClient — tokenBalance()", () => {
   it("uses caller address when no address specified", async () => {
     await client.tokenBalance();
     const call = mockReadContract.mock.calls[0][0];
-    expect(call.args[0]).toBe("0xuser000000000000000000000000000000000000");
+    expect(call.args[0]).toBe("0x70997970C51812dc3A010C7d01b50e0d17dc79C8");
   });
 
   it("uses provided address instead of caller", async () => {
@@ -170,9 +170,9 @@ describe("InkdClient — createProject()", () => {
 
   beforeEach(() => {
     wallet = makeMockWallet();
-    client = new InkdClient({ walletClient: wallet as any });
+    client = new InkdClient({ walletClient: wallet as any, network: "mainnet" });
     vi.clearAllMocks();
-    wallet.getAddresses.mockResolvedValue(["0xuser000000000000000000000000000000000000"]);
+    wallet.getAddresses.mockResolvedValue(["0x70997970C51812dc3A010C7d01b50e0d17dc79C8"]);
     wallet.writeContract.mockResolvedValue("0xcreate_tx");
   });
 
@@ -219,7 +219,7 @@ describe("InkdClient — createProject()", () => {
   it("includes account from wallet", async () => {
     await client.createProject({ name: "P", description: "D" });
     const call = wallet.writeContract.mock.calls[0][0];
-    expect(call.account).toBe("0xuser000000000000000000000000000000000000");
+    expect(call.account).toBe("0x70997970C51812dc3A010C7d01b50e0d17dc79C8");
   });
 });
 
@@ -231,9 +231,9 @@ describe("InkdClient — pushVersion()", () => {
 
   beforeEach(() => {
     wallet = makeMockWallet();
-    client = new InkdClient({ walletClient: wallet as any });
+    client = new InkdClient({ walletClient: wallet as any, network: "mainnet" });
     vi.clearAllMocks();
-    wallet.getAddresses.mockResolvedValue(["0xuser000000000000000000000000000000000000"]);
+    wallet.getAddresses.mockResolvedValue(["0x70997970C51812dc3A010C7d01b50e0d17dc79C8"]);
     wallet.writeContract.mockResolvedValue("0xpush_tx");
     mockReadContract.mockResolvedValue(500n); // versionFee
   });
@@ -288,7 +288,7 @@ describe("InkdClient — getProject()", () => {
 
   beforeEach(() => {
     wallet = makeMockWallet();
-    client = new InkdClient({ walletClient: wallet as any });
+    client = new InkdClient({ walletClient: wallet as any, network: "mainnet" });
     vi.clearAllMocks();
     mockReadContract.mockResolvedValue(fakeProject);
   });
@@ -314,7 +314,7 @@ describe("InkdClient — getVersions()", () => {
 
   beforeEach(() => {
     wallet = makeMockWallet();
-    client = new InkdClient({ walletClient: wallet as any });
+    client = new InkdClient({ walletClient: wallet as any, network: "mainnet" });
     vi.clearAllMocks();
     mockReadContract.mockResolvedValue(fakeVersions);
   });
@@ -337,7 +337,7 @@ describe("InkdClient — getVersionFee()", () => {
 
   beforeEach(() => {
     wallet = makeMockWallet();
-    client = new InkdClient({ walletClient: wallet as any });
+    client = new InkdClient({ walletClient: wallet as any, network: "mainnet" });
     vi.clearAllMocks();
     mockReadContract.mockResolvedValue(250n);
   });
@@ -358,9 +358,9 @@ describe("InkdClient — transferProject()", () => {
 
   beforeEach(() => {
     wallet = makeMockWallet();
-    client = new InkdClient({ walletClient: wallet as any });
+    client = new InkdClient({ walletClient: wallet as any, network: "mainnet" });
     vi.clearAllMocks();
-    wallet.getAddresses.mockResolvedValue(["0xuser000000000000000000000000000000000000"]);
+    wallet.getAddresses.mockResolvedValue(["0x70997970C51812dc3A010C7d01b50e0d17dc79C8"]);
     wallet.writeContract.mockResolvedValue("0xtransfer_tx");
     mockReadContract.mockResolvedValue(1000n); // transferFee
   });
@@ -391,7 +391,7 @@ describe("InkdClient — getAgentProjects()", () => {
 
   beforeEach(() => {
     wallet = makeMockWallet();
-    client = new InkdClient({ walletClient: wallet as any });
+    client = new InkdClient({ walletClient: wallet as any, network: "mainnet" });
     vi.clearAllMocks();
     mockReadContract.mockResolvedValue([1n, 2n, 3n]);
   });

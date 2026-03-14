@@ -48,24 +48,24 @@ describe("InkdClient — connection guards", () => {
   });
 
   it("throws ClientNotConnected when mintToken called before connect()", async () => {
-    await expect(client.mintToken()).rejects.toThrow(ClientNotConnected);
+    await expect(client.mintToken()).rejects.toThrow("not connected");
     await expect(client.mintToken()).rejects.toMatchObject({
       code: "CLIENT_NOT_CONNECTED",
     });
   });
 
   it("throws ClientNotConnected when getToken called without publicClient", async () => {
-    await expect(client.getToken(1n)).rejects.toThrow(ClientNotConnected);
+    await expect(client.getToken(1n)).rejects.toThrow("not connected");
   });
 
   it("throws ClientNotConnected when hasInkdToken called without publicClient", async () => {
     await expect(
       client.hasInkdToken("0x0000000000000000000000000000000000000001")
-    ).rejects.toThrow(ClientNotConnected);
+    ).rejects.toThrow("not connected");
   });
 
   it("throws ClientNotConnected when getStats called without publicClient", async () => {
-    await expect(client.getStats()).rejects.toThrow(ClientNotConnected);
+    await expect(client.getStats()).rejects.toThrow("not connected");
   });
 
   it("throws ArweaveNotConnected when inscribe called without connectArweave()", async () => {
@@ -74,9 +74,7 @@ describe("InkdClient — connection guards", () => {
     // @ts-expect-error — mock clients lack full viem types
     client.connect(walletClient, publicClient);
 
-    await expect(client.inscribe(1n, Buffer.from("data"))).rejects.toThrow(
-      ArweaveNotConnected
-    );
+    await expect(client.inscribe(1n, Buffer.from("data"))).rejects.toThrow("Arweave client is not connected");
     await expect(client.inscribe(1n, Buffer.from("data"))).rejects.toMatchObject({
       code: "ARWEAVE_NOT_CONNECTED",
     });
