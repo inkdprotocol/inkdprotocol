@@ -220,7 +220,9 @@ export function projectsRouter(cfg: ApiConfig): Router {
       // 2. Indexer fallback
       if (indexer) {
         const totalIndexed = indexer.countProjects()
-        const rows = indexer.listProjects(offset, limit).map(serializeIndexedProject)
+        let rows = indexer.listProjects(offset, limit).map(serializeIndexedProject)
+        if (owner) rows = rows.filter(p => p.owner.toLowerCase() === owner.toLowerCase())
+        if (isAgent !== undefined) rows = rows.filter(p => p.isAgent === isAgent)
         res.setHeader('Cache-Control', 'public, max-age=10')
         return res.json({ data: rows, total: totalIndexed.toString(), offset, limit, source: 'indexer' })
       }
@@ -240,7 +242,10 @@ export function projectsRouter(cfg: ApiConfig): Router {
           functionName: 'getProject',
           args:         [BigInt(i)],
         }) as unknown as RawProject
-        if (p.exists) results.push(serializeProject(p))
+        if (!p.exists) continue
+        if (owner && p.owner.toLowerCase() !== owner.toLowerCase()) continue
+        if (isAgent !== undefined && p.isAgent !== isAgent) continue
+        results.push(serializeProject(p))
       }
 
       res.setHeader('Cache-Control', 'public, max-age=10')
