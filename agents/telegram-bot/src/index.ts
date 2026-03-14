@@ -217,8 +217,7 @@ bot.callbackQuery('home_upload', async ctx => {
   }
   await ctx.reply(
     '*What do you want to store?*\n\n' +
-    '📎 Send any *image, video, PDF or file* directly here — the bot will pick it up automatically.\n\n' +
-    'Or choose:',
+    '📎 You can also send any *image, video, PDF or file* directly — the bot picks it up automatically.',
     {
       parse_mode: 'Markdown',
       reply_markup: new InlineKeyboard()
@@ -236,7 +235,11 @@ bot.callbackQuery('upload_text_start', async ctx => {
 
 bot.callbackQuery('upload_repo_start', async ctx => {
   await ctx.answerCallbackQuery()
-  await beginRepoUpload(ctx)
+  ctx.session.upload = { type: 'repo' }
+  await ctx.reply(
+    '🐙 Send a GitHub username or profile link:\n\n`inkdprotocol` or `github.com/inkdprotocol`\n\nOr paste a direct repo link: `owner/repo`',
+    { parse_mode: 'Markdown', reply_markup: new InlineKeyboard().text('❌ Cancel', 'nav_home') }
+  )
 })
 
 // User picks a repo from the GitHub username list
