@@ -377,40 +377,42 @@ bot.command('export_key', async ctx => {
 
 bot.command('history', async ctx => {
   if (!ctx.session.wallet) {
-    await ctx.reply('Connect your wallet first with /start.')
+    await ctx.reply('Connect your wallet first with /start.', {
+      reply_markup: new InlineKeyboard().text('🏠 Home', 'nav_home')
+    })
     return
   }
   
   try {
     const projects = await listProjectsByOwner(ctx.session.wallet, 10)
     if (!projects.length) {
-      await ctx.reply('No upload history yet.')
+      await ctx.reply('No uploads yet.\n\nSend a file or use /upload\\_text to get started.', {
+        parse_mode: 'Markdown',
+        reply_markup: new InlineKeyboard()
+          .text('⬆️ Upload', 'upload_menu')
+          .text('🏠 Home', 'nav_home')
+      })
       return
     }
-    
-    // Get latest version from each project, sort by date, show top 5
-    const versionPromises = projects.slice(0, 10).map(async p => {
-      const versions = await listVersions(Number(p.id), 1)
-      return versions.map(v => ({ ...v, projectName: p.name, projectId: p.id }))
+
+    const lines = projects.slice(0, 8).map(p => {
+      const shareUrl = `https://api.inkdprotocol.com/p/${p.id}`
+      const vis = p.isPublic ? '🌍' : '🔒'
+      return `${vis} *${p.name}* — [view](${shareUrl})`
     })
-    
-    const allVersions = (await Promise.all(versionPromises)).flat()
-    allVersions.sort((a, b) => Number(b.pushedAt) - Number(a.pushedAt))
-    
-    const recent = allVersions.slice(0, 5)
-    if (!recent.length) {
-      await ctx.reply('No versions uploaded yet.')
-      return
-    }
-    
-    const lines = recent.map(v => {
-      const date = new Date(Number(v.pushedAt) * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-      return `📄 *${v.projectName}* v${v.versionIndex} — ${date}\n↳ [Arweave](https://arweave.net/${v.arweaveHash})`
-    })
-    
-    await ctx.reply(`*Recent uploads*\n\n${lines.join('\n\n')}`, { parse_mode: 'Markdown' })
+
+    const keyboard = new InlineKeyboard()
+      .text('📁 My Files', 'home_files')
+      .text('🏠 Home', 'nav_home')
+
+    await ctx.reply(
+      `*Recent uploads* (${projects.length})\n\n${lines.join('\n')}`,
+      { parse_mode: 'Markdown', reply_markup: keyboard }
+    )
   } catch (err) {
-    await ctx.reply(formatApiError(err))
+    await ctx.reply(formatApiError(err), {
+      reply_markup: new InlineKeyboard().text('🏠 Home', 'nav_home')
+    })
   }
 })
 
@@ -1011,25 +1013,23 @@ bot.callbackQuery(/^share:(\d+)$/, async ctx => {
       return
     }
     
-    const versions = await listVersions(projectId, 1)
-    const latestHash = versions[0]?.arweaveHash ?? ''
+    const shareUrl = `https://api.inkdprotocol.com/p/${projectId}`
     
     const shareText = [
       `📦 *${project.name}*`,
       ``,
-      `Owner: \`${project.owner}\``,
-      `Versions: ${project.versionCount}`,
-      latestHash ? `Latest: [Arweave](https://arweave.net/${latestHash})` : '',
+      `${project.versionCount} version${Number(project.versionCount) !== 1 ? 's' : ''} • stored forever on Arweave`,
       ``,
-      `Built with inkd Protocol — permanent storage on Arweave, registered on Base.`,
-      `🌐 inkdprotocol.com`,
-    ].filter(Boolean).join('\n')
+      shareUrl,
+    ].join('\n')
     
     await ctx.reply(shareText, {
       parse_mode: 'Markdown',
       reply_markup: new InlineKeyboard()
-        .url('🌐 inkdprotocol.com', 'https://inkdprotocol.com')
-        .url('📄 Arweave', latestHash ? `https://arweave.net/${latestHash}` : 'https://arweave.net')
+        .url('📄 View content', shareUrl)
+        .url('🔍 Basescan', `https://basescan.org/address/${project.owner}`)
+        .row()
+        .text('🏠 Home', 'nav_home')
     })
   } catch (err) {
     await ctx.reply(formatApiError(err))
