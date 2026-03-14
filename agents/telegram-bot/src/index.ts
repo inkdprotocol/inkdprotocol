@@ -161,6 +161,65 @@ bot.callbackQuery('home_help', async ctx => {
   )
 })
 
+bot.callbackQuery('nav_home', async ctx => {
+  await ctx.answerCallbackQuery()
+  await showHomeMenu(ctx)
+})
+
+bot.callbackQuery('wallet_deposit', async ctx => {
+  await ctx.answerCallbackQuery()
+  const wallet = ctx.session.wallet
+  if (!wallet) { await ctx.reply('No wallet.'); return }
+  await ctx.reply(
+    `*Add funds to your wallet*\n\n` +
+    `Send USDC or ETH on Base to:\n\`${wallet}\`\n\n` +
+    `You can get USDC on Base at [Coinbase](https://coinbase.com) or [Uniswap](https://app.uniswap.org).`,
+    {
+      parse_mode: 'Markdown',
+      reply_markup: new InlineKeyboard().text('🏠 Home', 'nav_home'),
+    }
+  )
+})
+
+bot.callbackQuery('wallet_withdraw', async ctx => {
+  await ctx.answerCallbackQuery()
+  if (!ctx.session.encryptedKey) {
+    await ctx.reply('External wallets manage their own funds.', {
+      reply_markup: new InlineKeyboard().text('🏠 Home', 'nav_home'),
+    })
+    return
+  }
+  await ctx.reply('Send to which address?', {
+    reply_markup: new InlineKeyboard().text('❌ Cancel', 'nav_home'),
+  })
+  ctx.session.upload = { type: 'withdraw_address' } as any
+})
+
+bot.callbackQuery('home_upload', async ctx => {
+  await ctx.answerCallbackQuery()
+  if (!ctx.session.encryptedKey) {
+    await ctx.reply('You need a bot-managed wallet to upload.\n\nCreate one via /start → 🎓 Tutorial.', {
+      reply_markup: new InlineKeyboard().text('🏠 Home', 'nav_home'),
+    })
+    return
+  }
+  await ctx.reply('What do you want to upload?', {
+    reply_markup: new InlineKeyboard()
+      .text('📝 Text', 'upload_text_start').text('🐙 GitHub Repo', 'upload_repo_start').row()
+      .text('🏠 Home', 'nav_home'),
+  })
+})
+
+bot.callbackQuery('upload_text_start', async ctx => {
+  await ctx.answerCallbackQuery()
+  await beginTextUpload(ctx)
+})
+
+bot.callbackQuery('upload_repo_start', async ctx => {
+  await ctx.answerCallbackQuery()
+  await beginRepoUpload(ctx)
+})
+
 bot.callbackQuery('start_tour', async ctx => {
   await ctx.answerCallbackQuery()
   ctx.session.tutorialStep = 1
@@ -689,7 +748,13 @@ async function showWalletInfo(ctx: MyContext) {
       (isExternal 
         ? `⚠️ External wallets cannot upload. Create a bot wallet with /start → "🆕 New Wallet".`
         : ``),
-      { parse_mode: 'Markdown' }
+      {
+        parse_mode: 'Markdown',
+        reply_markup: new InlineKeyboard()
+          .text('📥 Add Funds', 'wallet_deposit').text('💸 Send', 'wallet_withdraw').row()
+          .text('⬆️ Upload', 'home_upload').text('📁 My Files', 'home_files').row()
+          .text('🏠 Home', 'nav_home'),
+      }
     )
     
 
