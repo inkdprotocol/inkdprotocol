@@ -504,8 +504,11 @@ bot.callbackQuery(/^project:(\d+)$/, async ctx => {
 
     const keyboard = new InlineKeyboard()
     
-    // Add push version button at the top
-    keyboard.text('🆕 Push Version', `push_version:${projectId}`).row()
+    // Add push version and share buttons at the top
+    keyboard
+      .text('🆕 Push Version', `push_version:${projectId}`)
+      .text('🔗 Share', `share:${projectId}`)
+      .row()
     
     for (const v of versions) {
       keyboard
@@ -815,6 +818,44 @@ bot.callbackQuery('tutorial_upload_repo', async ctx => {
     return
   }
   await beginRepoUpload(ctx)
+})
+
+// ─── Share ────────────────────────────────────────────────────────────────────
+
+bot.callbackQuery(/^share:(\d+)$/, async ctx => {
+  await ctx.answerCallbackQuery()
+  const projectId = Number(ctx.match[1])
+  
+  try {
+    const project = await getProjectById(projectId)
+    if (!project) {
+      await ctx.reply('Project not found.')
+      return
+    }
+    
+    const versions = await listVersions(projectId, 1)
+    const latestHash = versions[0]?.arweaveHash ?? ''
+    
+    const shareText = [
+      `📦 *${project.name}*`,
+      ``,
+      `Owner: \`${project.owner}\``,
+      `Versions: ${project.versionCount}`,
+      latestHash ? `Latest: [Arweave](https://arweave.net/${latestHash})` : '',
+      ``,
+      `Built with inkd Protocol — permanent storage on Arweave, registered on Base.`,
+      `🌐 inkdprotocol.com`,
+    ].filter(Boolean).join('\n')
+    
+    await ctx.reply(shareText, {
+      parse_mode: 'Markdown',
+      reply_markup: new InlineKeyboard()
+        .url('🌐 inkdprotocol.com', 'https://inkdprotocol.com')
+        .url('📄 Arweave', latestHash ? `https://arweave.net/${latestHash}` : 'https://arweave.net')
+    })
+  } catch (err) {
+    await ctx.reply(formatApiError(err))
+  }
 })
 
 // ─── Inline Mode ──────────────────────────────────────────────────────────────
