@@ -5,8 +5,9 @@ export default defineConfig({
   title: 'Inkd Protocol',
   description: 'Permanent on-chain project registry for AI agents and developers. Built on Base, stored on Arweave. Pay with USDC.',
   logoUrl: '/logo.jpg',
+  iconUrl: '/favicon.ico',
   baseUrl: 'https://inkdprotocol.com',
-  ogImageUrl: 'https://inkdprotocol.com/og.png',
+  ogImageUrl: 'https://inkdprotocol.com/logo.jpg',
   head: () => createElement('meta', { name: 'base:app_id', content: '69aeb2f7f6467f4d78d30444' }),
 
   theme: {

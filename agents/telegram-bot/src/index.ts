@@ -75,6 +75,8 @@ const walletKeyboard = new InlineKeyboard()
 
 // ─── Commands ─────────────────────────────────────────────────────────────────
 
+const LOGO_URL = 'https://inkdprotocol.com/logo.jpg'
+
 async function showHomeMenu(ctx: MyContext) {
   const hasWallet = !!ctx.session.wallet
   const keyboard = new InlineKeyboard()
@@ -82,12 +84,20 @@ async function showHomeMenu(ctx: MyContext) {
     .text('🔍 Search', 'home_search').text('❓ Help', 'home_help').row()
     .text('🎓 Tutorial', 'start_tour')
 
-  await ctx.reply(
-    hasWallet
-      ? `🫟 inkd\n\nWallet: \`${ctx.session.wallet}\``
-      : '🫟 inkd\n\nStore files permanently on Arweave.\nRegistered on Base. Paid in USDC.',
-    { parse_mode: 'Markdown', reply_markup: keyboard }
-  )
+  const caption = hasWallet
+    ? `🫟 *inkd*\n\nWallet: \`${ctx.session.wallet}\``
+    : '🫟 *inkd*\n\nStore files permanently on Arweave.\nRegistered on Base. Paid in USDC.'
+
+  try {
+    await ctx.replyWithPhoto(LOGO_URL, {
+      caption,
+      parse_mode: 'Markdown',
+      reply_markup: keyboard,
+    })
+  } catch {
+    // Fallback to text if photo fails
+    await ctx.reply(caption, { parse_mode: 'Markdown', reply_markup: keyboard })
+  }
 }
 
 bot.command('start', async ctx => {
