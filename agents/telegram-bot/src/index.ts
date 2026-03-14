@@ -25,6 +25,7 @@ import {
 } from './services/uploads'
 import { SqliteStorage } from './services/session'
 import { generateWallet, encryptPrivateKey, decryptPrivateKey, getWalletBalance } from './services/wallet'
+import QRCode from 'qrcode'
 import { listProjectsByOwner, getProjectById, listVersions, getVersion, searchProjects, findProjectByOwnerAndName, type ApiProject, type ApiVersion } from './services/api'
 
 dotenv.config({ path: process.env.BOT_ENV_PATH ?? '.env' })
@@ -612,6 +613,16 @@ async function showWalletInfo(ctx: MyContext) {
         : `Use /upload_text or /upload_repo to upload.`),
       { parse_mode: 'Markdown' }
     )
+    
+    // Send QR code for easy wallet address sharing
+    try {
+      const qrBuffer = await QRCode.toBuffer(wallet, { width: 256 })
+      await ctx.replyWithPhoto(new InputFile(qrBuffer, 'wallet-qr.png'), {
+        caption: `Scan to send to ${shortenAddress(wallet)}`
+      })
+    } catch {
+      // QR generation failed silently
+    }
   } catch (err) {
     await ctx.reply(`Wallet: \`${wallet}\`\n\nFailed to fetch balance: ${(err as Error).message}`, { parse_mode: 'Markdown' })
   }

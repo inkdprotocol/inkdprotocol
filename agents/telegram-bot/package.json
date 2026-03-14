@@ -12,12 +12,14 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@types/qrcode": "^1.5.6",
     "@x402/evm": "^2.6.0",
     "@x402/fetch": "^2.6.0",
     "better-sqlite3": "^12.6.2",
     "dotenv": "^17.3.1",
     "ethers": "^6.16.0",
     "grammy": "^1.41.1",
+    "qrcode": "^1.5.4",
     "viem": "^2.47.2"
   },
   "devDependencies": {
