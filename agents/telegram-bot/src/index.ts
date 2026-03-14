@@ -22,6 +22,7 @@ import {
   handlePushCancel,
   formatApiError,
   handleGithubUsername,
+  handleGithubRepoSelected,
   type PendingVersionPush,
 } from './services/uploads'
 import { SqliteStorage } from './services/session'
@@ -235,10 +236,7 @@ bot.callbackQuery('upload_repo_start', async ctx => {
 bot.callbackQuery(/^gh_repo:(.+)$/, async ctx => {
   await ctx.answerCallbackQuery()
   const fullName = ctx.match[1] // e.g. "inkdprotocol/inkd-protocol"
-  ctx.session.upload = { type: 'repo' }
-  // Inject the repo name as a text message and process it
-  ;(ctx as any).message = { ...(ctx.message ?? {}), text: fullName }
-  await handleUploadMessage(ctx as any)
+  await handleGithubRepoSelected(ctx, fullName)
 })
 
 bot.callbackQuery('start_tour', async ctx => {

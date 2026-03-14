@@ -175,6 +175,58 @@ export async function beginRepoUpload(ctx: MyContext) {
 }
 
 /**
+ * Handle a selected GitHub repo (owner/repo) — download + show confirm
+ */
+export async function handleGithubRepoSelected(ctx: MyContext, fullName: string) {
+  ctx.session.upload = { type: 'repo' }
+  const upload = ctx.session.upload as RepoUploadSession
+
+  try {
+    const parsed = parseRepoInput(fullName)
+    if (!parsed) {
+      await ctx.reply('Invalid repo.', { reply_markup: new InlineKeyboard().text('🏠 Home', 'nav_home') })
+      return
+    }
+
+    const ref = parsed.ref ?? (await fetchRepoDefaultBranch(parsed.owner, parsed.repo))
+    await ctx.reply(`Downloading ${parsed.owner}/${parsed.repo}@${ref}…`)
+    const { buffer, filename, size } = await downloadRepoZip({ owner: parsed.owner, repo: parsed.repo, ref })
+
+    if (size > MAX_REPO_MB * 1024 * 1024) {
+      await ctx.reply(`❌ Repo too large (${formatBytes(size)}). Maximum is ${MAX_REPO_MB} MB.`, {
+        reply_markup: new InlineKeyboard().text('🏠 Home', 'nav_home'),
+      })
+      ctx.session.upload = undefined
+      return
+    }
+
+    const price = await getUploadPriceEstimate(size)
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'inkd-repo-'))
+    const filePath = path.join(tempDir, filename)
+    fs.writeFileSync(filePath, buffer)
+
+    upload.pending = { owner: parsed.owner, repo: parsed.repo, ref, projectName: parsed.repo, filename, filePath, size, price }
+
+    const summary = [
+      `📋 *Ready to store*`,
+      ``,
+      `🐙 ${parsed.owner}/${parsed.repo}@${ref}`,
+      `📦 ${formatBytes(size)}`,
+      `💵 ${price.totalUsd} USDC`,
+      ``,
+      `Choose who can see this:`,
+    ].join('\n')
+
+    const keyboard = buildVisibilityKeyboard('repo_confirm_public', 'repo_confirm_private', 'repo_cancel')
+    await ctx.reply(summary, { parse_mode: 'Markdown', reply_markup: keyboard })
+  } catch (err) {
+    upload.pending && cleanupPending(upload.pending as PendingRepoUpload)
+    ctx.session.upload = undefined
+    await ctx.reply(formatApiError(err), { reply_markup: new InlineKeyboard().text('🏠 Home', 'nav_home') })
+  }
+}
+
+/**
  * Handle GitHub username input → list repos as buttons
  */
 export async function handleGithubUsername(ctx: MyContext, username: string) {
@@ -186,7 +238,7 @@ export async function handleGithubUsername(ctx: MyContext, username: string) {
     }
     const kb = new InlineKeyboard()
     for (const r of repos.slice(0, 20)) {
-      const label = r.stars > 0 ? `${r.name} ⭐${r.stars}` : r.name
+      const label = `${r.name} ⭐${r.stars}`
       kb.text(label, `gh_repo:${r.fullName}`).row()
     }
     kb.text('❌ Cancel', 'nav_home')
