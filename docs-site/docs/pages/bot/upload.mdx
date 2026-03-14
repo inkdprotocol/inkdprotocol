@@ -1,83 +1,109 @@
 ---
 title: Uploading
-description: Upload text, files, and GitHub repos via Telegram.
+description: Store text, files, and GitHub repos permanently via the inkd Telegram bot.
 ---
 
 # Uploading
 
-All uploads follow the same 3-step flow:
+Everything you store goes permanently to Arweave and is registered on-chain on Base.
 
-```
-1. Upload content → Arweave  (free /v1/upload endpoint)
-2. Create project → Base     (x402 $0.10 USDC)
-3. Push version  → Base     (x402 dynamic price)
-```
+---
 
-The bot shows cost estimates and asks for confirmation before charging.
-
-## Text upload
+## Text
 
 ```
 /upload_text
 ```
 
-1. Send a project name
-2. Paste any text content
-3. Confirm cost → bot uploads to Arweave + registers on Base
+1. Give it a name (e.g. `my-notes`)
+2. Paste the text
+3. See cost + choose visibility
+4. Done
 
-## File upload
+---
 
-Send any file directly to the bot (PDF, ZIP, image, code, etc.).
+## File (PDF, ZIP, image, code…)
 
-1. Bot detects the file and asks for a project name
-2. Shows file size + cost estimate
-3. Confirm → uploaded to Arweave + registered on Base
+Send any file directly to the bot. Telegram handles up to 50 MB.
 
-Max file size: **50 MB** (Telegram limit).
+1. Send the file
+2. Give it a name
+3. See cost + choose visibility
+4. Done
 
-## GitHub repo upload
+---
+
+## GitHub repo
 
 ```
 /upload_repo
 ```
 
-1. Send a project name
-2. Paste a GitHub URL (e.g. `owner/repo` or `https://github.com/owner/repo@main`)
+1. Give it a name
+2. Paste a GitHub URL: `owner/repo` or `https://github.com/owner/repo`
 3. Bot downloads the ZIP, shows size + cost
-4. Confirm → uploaded to Arweave + registered on Base
+4. Choose visibility
+5. Done
+
+---
 
 ## Push a new version
 
-Open `/my_projects` → tap **📂 Details** on a project → tap **🆕 Push Version**.
+Open `/my_projects` → tap **Details** on any file → tap **Add version**.
 
 1. Enter version tag (e.g. `v1.2.0`)
-2. Enter changelog (or `/skip`)
-3. Choose text or repo upload
-4. Confirm → new version pushed on-chain
+2. Enter changelog (optional)
+3. Choose text or repo
+4. Done
 
 ### Auto-detection
 
-If you start `/upload_repo` with a project name that already exists in your account, the bot offers to push a new version instead of creating a duplicate.
+If you upload something with the same name as an existing file, the bot asks:
+- **Add version** to the existing file, or
+- **Create new file**
+
+---
 
 ## Public vs Private
 
-Every upload asks:
+Before every upload:
 
 ```
-🔓 Public   🔒 Private
+🌍 Public   🔒 Only me
 ✖️ Cancel
 ```
 
-- **Public** — anyone with the Arweave hash can read the content
-- **Private** — content is encrypted with AES-256-GCM before upload. Only your wallet can decrypt it.
+- **🌍 Public** — anyone with the link can read it
+- **🔒 Only me** — encrypted with AES-256-GCM before upload. Only your wallet can decrypt.
 
 See [Private Uploads](/concepts/private-uploads) for the full security model.
 
-## Success
+---
 
-After every upload, the bot shows:
+## Progress
 
-- Project ID + transaction hash
-- Arweave link
-- Privacy status (🔓 Public / 🔒 Private)
-- Links to Basescan + inkdprotocol.com
+While storing, the bot shows live progress:
+
+```
+⏳ Storing your file...
+
+✅ Uploaded
+✅ Record created (#12)
+▪ Confirming ⏳
+```
+
+---
+
+## After upload
+
+```
+✅ Stored forever!
+
+📄 my-document.pdf
+🌍 Public
+🔗 ar://QmAbc123…
+
+#12 · my-document
+```
+
+Buttons: **🔗 View File · ⛓ On-chain · 📁 My Files**

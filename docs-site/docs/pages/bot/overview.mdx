@@ -1,13 +1,13 @@
 ---
 title: Telegram Bot
-description: Upload to Arweave, register on Base, pay in USDC — all inside Telegram.
+description: Store files permanently on Arweave via Telegram. No accounts, no API keys — just your wallet.
 ---
 
 # Telegram Bot
 
-[@inkdbot](https://t.me/inkdbot) is the easiest way to use inkd. No SDK, no CLI, no terminal. Just Telegram.
+[@inkdbot](https://t.me/inkdbot) is the simplest way to use inkd. No SDK, no CLI, no terminal.
 
-You send a file or text. The bot uploads it to Arweave, registers it on Base, and charges your wallet in USDC — all in one flow.
+Send a file or text. Choose public or private. Done — stored forever on Arweave, registered on Base, paid in USDC.
 
 ---
 
@@ -15,48 +15,67 @@ You send a file or text. The bot uploads it to Arweave, registers it on Base, an
 
 | Command | Description |
 |---|---|
-| `/start` | Set up wallet (skips straight to your wallet if already connected) |
-| `/tutorial` | Interactive guided tour (4 steps) |
-| `/wallet` | Show address, ETH & USDC balance, QR code |
+| `/start` | Set up wallet — goes straight to your wallet if already connected |
+| `/wallet` | Balance, address, QR code, and quick actions |
+| `/deposit` | Get your deposit address + QR code to add funds |
 | `/withdraw` | Send USDC or ETH to any address |
-| `/export_key` | Export your private key (bot-managed wallets) |
-| `/upload_text` | Upload text content to Arweave |
+| `/upload_text` | Store text permanently |
 | `/upload_repo` | Archive a GitHub repo permanently |
-| `/my_projects` | View your on-chain projects |
-| `/search <name>` | Search public projects |
-| `/history` | View your last 5 uploads |
+| `/my_projects` | See all your stored files |
+| `/history` | Recent uploads |
+| `/search <name>` | Find public files |
+| `/export_key` | Export your wallet private key |
+| `/tutorial` | Interactive 4-step tour |
 | `/links` | Website, Twitter, buy $INKD |
 | `/cancel` | Cancel current action |
 | `/help` | Show all commands |
 
 ---
 
-## Upload privacy
+## Upload flow
 
-Every upload asks before proceeding:
+Every upload follows the same simple steps:
+
+1. Run `/upload_text`, `/upload_repo`, or send a file directly
+2. Give it a name
+3. Bot shows: file size + exact USDC cost
+4. Choose visibility:
 
 ```
-🔓 Public   🔒 Private
+🌍 Public   🔒 Only me
 ✖️ Cancel
 ```
 
-**Public** — content stored as-is on Arweave, anyone with the hash can read it.
+5. Bot stores it — progress shown live:
 
-**Private** — content encrypted with AES-256-GCM before upload. Only your wallet can decrypt. See [Private Uploads](/concepts/private-uploads).
+```
+⏳ Storing your file...
+
+✅ Uploaded
+▪ Creating record ⏳
+▪ Confirming on Base ○
+```
+
+6. Done:
+
+```
+✅ Stored forever!
+
+📄 my-document.pdf
+🌍 Public
+🔗 ar://QmAbc123…
+
+#12 · my-document
+```
 
 ---
 
-## How it works
+## Public vs Private
 
-```
-User → Telegram Bot
-           │
-           ├── /v1/upload  ──────────→ Arweave (permanent storage)
-           ├── /v1/projects ─────────→ InkdRegistry on Base (x402 USDC)
-           └── /v1/projects/*/versions → same
-```
+- **🌍 Public** — anyone with the Arweave link can view the content
+- **🔒 Only me** — content is encrypted before upload (AES-256-GCM). Only your wallet can decrypt it.
 
-You pay in USDC on Base. The bot holds a bot-managed wallet for you (encrypted, AES-256-GCM). No custody risk — you own the key.
+See [Private Uploads](/concepts/private-uploads) for the full security model.
 
 ---
 
@@ -64,20 +83,13 @@ You pay in USDC on Base. The bot holds a bot-managed wallet for you (encrypted, 
 
 | Action | Cost |
 |---|---|
-| Create project | $0.10 USDC |
-| Push version | Arweave cost × 1.20 (min $0.10) |
+| Store file / text | from $0.10 USDC |
+| Store GitHub repo | Arweave cost × 1.20 (min $0.10) |
 
-Prices are on-chain. The bot shows the exact cost and asks for confirmation before every upload.
+Exact cost is shown before every upload. You confirm before any charge.
 
 ---
 
 ## Infrastructure
 
-Running on `john-server` (DigitalOcean FRA1) under pm2 as `inkd-bot`.
-
-```bash
-ssh root@167.172.102.246
-pm2 status inkd-bot
-pm2 logs inkd-bot --lines 50
-pm2 restart inkd-bot
-```
+Running on `john-server` (DigitalOcean FRA1, Base Mainnet) under pm2 as `inkd-bot`.
