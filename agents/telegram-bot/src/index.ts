@@ -24,7 +24,7 @@ import {
   type PendingVersionPush,
 } from './services/uploads'
 import { SqliteStorage } from './services/session'
-import { generateWallet, encryptPrivateKey, decryptPrivateKey, getWalletBalance, sendUsdc, sendEth } from './services/wallet'
+import { generateWallet, encryptPrivateKey, decryptPrivateKey, getWalletBalance } from './services/wallet'
 import QRCode from 'qrcode'
 import { listProjectsByOwner, getProjectById, listVersions, getVersion, searchProjects, findProjectByOwnerAndName, type ApiProject, type ApiVersion } from './services/api'
 
@@ -45,12 +45,6 @@ export type BotSession = {
   pendingVersionPush?: PendingVersionPush
   suggestedProjectId?: string  // For auto-version detection when project name matches
   tutorialStep?: number
-  withdraw?: {
-    step: 'asset' | 'address' | 'amount' | 'confirm'
-    asset?: 'usdc' | 'eth'
-    to?: string
-    amount?: number
-  }
 }
 
 type MyContext = Context & SessionFlavor<BotSession>
@@ -82,16 +76,16 @@ const walletKeyboard = new InlineKeyboard()
 // ─── Commands ─────────────────────────────────────────────────────────────────
 
 bot.command('start', async ctx => {
-  // If wallet already set up → skip onboarding, go straight to wallet
+  // If user already has a wallet, go straight to wallet view
   if (ctx.session.wallet) {
     await showWalletInfo(ctx)
     return
   }
   await ctx.reply(
-    '🫟 *inkd*\n\nStore anything. Forever.\n\nYour files, your wallet. No accounts. No servers. Permanent on Base.',
+    'Welcome to inkd bot 🫟\n\nStore files permanently on Arweave. Registered on Base. Paid in USDC. No accounts needed.',
     {
-      parse_mode: 'Markdown',
       reply_markup: new InlineKeyboard()
+        .text('🗺 Take a tour', 'start_tour').row()
         .text('✨ Get Started', 'start_explore')
     }
   )
@@ -105,15 +99,7 @@ bot.callbackQuery('start_tour', async ctx => {
 
 bot.callbackQuery('start_explore', async ctx => {
   await ctx.answerCallbackQuery()
-  await ctx.reply(
-    '🔐 *First, set up your wallet.*\n\nYour wallet is your identity. It holds your funds and signs every upload.\n\nNo email. No password. Just your wallet.',
-    {
-      parse_mode: 'Markdown',
-      reply_markup: new InlineKeyboard()
-        .text('✨ Create Wallet', 'wallet_new').row()
-        .text('🔑 I already have one', 'wallet_connect')
-    }
-  )
+  await ctx.reply('Connect or create a wallet to get started.', { reply_markup: walletKeyboard })
 })
 
 bot.command('wallet', async ctx => {
@@ -124,30 +110,6 @@ bot.command('wallet', async ctx => {
     return
   }
   await showWalletInfo(ctx)
-})
-
-bot.command('deposit', async ctx => {
-  if (!ctx.session.wallet) {
-    await ctx.reply('No wallet connected. Use /start first.')
-    return
-  }
-  const wallet = ctx.session.wallet
-  await ctx.reply(
-    `*Deposit USDC or ETH*\n\n` +
-    `Your wallet address on Base:\n\`${wallet}\`\n\n` +
-    `Send USDC or ETH to this address on the *Base* network.\n\n` +
-    `Get USDC on Base:\n` +
-    `• [Coinbase](https://coinbase.com) → buy + send to Base\n` +
-    `• [bridge.base.org](https://bridge.base.org) → bridge from Ethereum\n\n` +
-    `Minimum for uploads: ~$0.20 USDC`,
-    { parse_mode: 'Markdown' }
-  )
-  try {
-    const qrBuffer = await QRCode.toBuffer(wallet, { width: 300 })
-    await ctx.replyWithPhoto(new InputFile(qrBuffer, 'deposit-qr.png'), {
-      caption: `Scan to deposit to ${wallet.slice(0,6)}…${wallet.slice(-4)}`
-    })
-  } catch { /* QR failed silently */ }
 })
 
 bot.command('my_wallet', async ctx => {
@@ -162,7 +124,7 @@ bot.command('my_wallet', async ctx => {
 
 bot.command('upload_text', async ctx => {
   if (!ctx.session.wallet) {
-    await ctx.reply('No wallet yet. Use /start to get one.')
+    await ctx.reply('Connect your wallet first with /start.')
     return
   }
   if (!ctx.session.encryptedKey) {
@@ -174,7 +136,7 @@ bot.command('upload_text', async ctx => {
 
 bot.command('upload_repo', async ctx => {
   if (!ctx.session.wallet) {
-    await ctx.reply('No wallet yet. Use /start to get one.')
+    await ctx.reply('Connect your wallet first with /start.')
     return
   }
   if (!ctx.session.encryptedKey) {
@@ -186,7 +148,7 @@ bot.command('upload_repo', async ctx => {
 
 bot.command('my_projects', async ctx => {
   if (!ctx.session.wallet) {
-    await ctx.reply('No wallet yet. Use /start to get one.')
+    await ctx.reply('Connect your wallet first with /start.')
     return
   }
   try {
@@ -219,91 +181,7 @@ bot.command('cancel', async ctx => {
   ctx.session.upload = undefined
   ctx.session.pendingChallenge = undefined
   ctx.session.pendingVersionPush = undefined
-  ctx.session.withdraw = undefined
   await ctx.reply('Cancelled. Use /start to begin again.')
-})
-
-// ─── /withdraw ────────────────────────────────────────────────────────────────
-
-bot.command('withdraw', async ctx => {
-  if (!ctx.session.wallet) {
-    await ctx.reply('No wallet connected. Use /start first.')
-    return
-  }
-  if (!ctx.session.encryptedKey) {
-    await ctx.reply('⚠️ External wallets cannot send from here. Use your own wallet app.')
-    return
-  }
-  ctx.session.withdraw = { step: 'asset' }
-  await ctx.reply(
-    '💸 *Send funds*\n\nWhat do you want to send?',
-    {
-      parse_mode: 'Markdown',
-      reply_markup: new InlineKeyboard()
-        .text('💵 USDC', 'withdraw_asset_usdc')
-        .text('⟠ ETH', 'withdraw_asset_eth')
-        .row()
-        .text('✖️ Cancel', 'withdraw_cancel'),
-    }
-  )
-})
-
-bot.callbackQuery('withdraw_asset_usdc', async ctx => {
-  await ctx.answerCallbackQuery()
-  ctx.session.withdraw = { step: 'address', asset: 'usdc' }
-  await ctx.reply('💵 *Send USDC*\n\nEnter the recipient address (0x…):', { parse_mode: 'Markdown' })
-})
-
-bot.callbackQuery('withdraw_asset_eth', async ctx => {
-  await ctx.answerCallbackQuery()
-  ctx.session.withdraw = { step: 'address', asset: 'eth' }
-  await ctx.reply('⟠ *Send ETH*\n\nEnter the recipient address (0x…):', { parse_mode: 'Markdown' })
-})
-
-bot.callbackQuery('withdraw_cancel', async ctx => {
-  await ctx.answerCallbackQuery()
-  ctx.session.withdraw = undefined
-  await ctx.reply('Cancelled.')
-})
-
-bot.callbackQuery('withdraw_confirm', async ctx => {
-  await ctx.answerCallbackQuery()
-  const w = ctx.session.withdraw
-  if (!w || w.step !== 'confirm' || !w.to || !w.amount || !w.asset) {
-    await ctx.reply('Nothing to confirm.')
-    return
-  }
-  if (!ctx.session.encryptedKey) {
-    ctx.session.withdraw = undefined
-    await ctx.reply('Wallet not available.')
-    return
-  }
-  ctx.session.withdraw = undefined
-
-  const statusMsg = await ctx.reply(`⏳ Sending ${w.amount} ${w.asset.toUpperCase()} to ${w.to.slice(0,6)}…${w.to.slice(-4)}…`)
-
-  try {
-    let txHash: string
-    if (w.asset === 'usdc') {
-      txHash = await sendUsdc(ctx.session.encryptedKey, w.to, w.amount)
-    } else {
-      txHash = await sendEth(ctx.session.encryptedKey, w.to, w.amount)
-    }
-    await ctx.api.editMessageText(
-      ctx.chat!.id, statusMsg.message_id,
-      `✅ Sent!\n\n` +
-      `Amount: ${w.amount} ${w.asset.toUpperCase()}\n` +
-      `To: \`${w.to}\`\n` +
-      `TX: [Basescan](https://basescan.org/tx/${txHash})`,
-      { parse_mode: 'Markdown' }
-    )
-  } catch (err) {
-    ctx.session.withdraw = undefined
-    await ctx.api.editMessageText(
-      ctx.chat!.id, statusMsg.message_id,
-      `❌ Failed: ${(err as Error).message}`
-    )
-  }
 })
 
 bot.command('export_key', async ctx => {
@@ -330,7 +208,7 @@ bot.command('export_key', async ctx => {
 
 bot.command('history', async ctx => {
   if (!ctx.session.wallet) {
-    await ctx.reply('No wallet yet. Use /start to get one.')
+    await ctx.reply('Connect your wallet first with /start.')
     return
   }
   
@@ -392,25 +270,25 @@ bot.command('search', async ctx => {
 
 bot.command('help', async ctx => {
   await ctx.reply(
-    `🫟 *inkd — Store anything forever*\n\n` +
-    `📁 *Files*\n` +
-    `/upload\_text — Store text permanently\n` +
-    `/upload\_repo — Archive a GitHub repo\n` +
-    `/my\_projects — Your stored files\n` +
-    `/history — Recent uploads\n` +
-    `/search — Find public files\n\n` +
-    `💳 *Wallet*\n` +
-    `/wallet — Balance & address\n` +
-    `/deposit — Add funds (QR code)\n` +
-    `/withdraw — Send USDC or ETH\n` +
-    `/export\_key — Export your key\n\n` +
-    `⚙️ *Other*\n` +
-    `/tutorial — How it works\n` +
-    `/links — Website & socials\n` +
-    `/cancel — Cancel anything\n\n` +
-    `💵 *Pricing*\n` +
-    `Store file: from $0.10 USDC\n` +
-    `Exact cost shown before every upload`,
+    `📋 *Commands*\n\n` +
+    `/start — Connect or create wallet\n` +
+    `/wallet — Show wallet address & balance\n` +
+    `/upload_text — Upload text content\n` +
+    `/upload_repo — Upload a GitHub repo\n` +
+    `/my_projects — View your projects\n` +
+    `/history — View recent uploads\n` +
+    `/search <name> — Search public projects\n` +
+    `/export_key — Export your private key\n` +
+    `/tutorial — Interactive guided tour\n` +
+    `/links — Website, socials, buy $INKD\n` +
+    `/cancel — Cancel current action\n` +
+    `/help — Show this message\n\n` +
+    `💡 *How it works*\n` +
+    `inkd stores files on Arweave and registers them on Base.\n` +
+    `You pay in USDC. No API key needed — your wallet is your identity.\n\n` +
+    `*Pricing*\n` +
+    `Create project: $0.10 USDC\n` +
+    `Push version: Arweave cost + 20% (min $0.10)`,
     { parse_mode: 'Markdown' }
   )
 })
@@ -441,7 +319,7 @@ const MAX_FILE_BYTES = 50 * 1024 * 1024 // 50 MB Telegram bot API limit
 
 bot.on('message:document', async ctx => {
   if (!ctx.session.wallet) {
-    await ctx.reply('No wallet yet. Use /start to get one.')
+    await ctx.reply('Connect your wallet first with /start.')
     return
   }
   if (!ctx.session.encryptedKey) {
@@ -464,48 +342,7 @@ bot.on('message:document', async ctx => {
 
 bot.on('message:text', async ctx => {
   if (await handleUploadMessage(ctx)) return
-
-  // ── Withdraw flow ──────────────────────────────────────────────────────────
-  const wd = ctx.session.withdraw
-  if (wd) {
-    const text = ctx.message.text.trim()
-
-    if (wd.step === 'address') {
-      if (!text.match(/^0x[0-9a-fA-F]{40}$/)) {
-        await ctx.reply('Invalid address. Send a valid 0x… Ethereum address.')
-        return
-      }
-      ctx.session.withdraw = { ...wd, step: 'amount', to: text }
-      const assetLabel = wd.asset === 'usdc' ? 'USDC' : 'ETH'
-      await ctx.reply(`How much ${assetLabel} do you want to send?\n\nEnter a number (e.g. 10 or 0.001):`)
-      return
-    }
-
-    if (wd.step === 'amount') {
-      const amount = parseFloat(text.replace(',', '.'))
-      if (isNaN(amount) || amount <= 0) {
-        await ctx.reply('Invalid amount. Enter a positive number.')
-        return
-      }
-      ctx.session.withdraw = { ...wd, step: 'confirm', amount }
-      const assetLabel = wd.asset!.toUpperCase()
-      const toShort = `${wd.to!.slice(0,6)}…${wd.to!.slice(-4)}`
-      await ctx.reply(
-        `📤 *Confirm send*\n\n` +
-        `${assetLabel === 'USDC' ? '💵' : '⟠'} ${amount} ${assetLabel}\n` +
-        `→ \`${toShort}\`\n\n` +
-        `This cannot be undone.`,
-        {
-          parse_mode: 'Markdown',
-          reply_markup: new InlineKeyboard()
-            .text(`✅ Send now`, 'withdraw_confirm')
-            .text('✖️ Cancel', 'withdraw_cancel'),
-        }
-      )
-      return
-    }
-  }
-
+  
   const challenge = ctx.session.pendingChallenge
   if (!challenge) return
   
@@ -544,13 +381,16 @@ bot.callbackQuery('wallet_new', async ctx => {
     ctx.session.pendingChallenge = undefined
     
     await ctx.reply(
-      `✅ *Wallet created!*\n\n` +
-      `Your address:\n\`${address}\`\n\n` +
-      `🔑 *Save your key — shown once:*\n` +
+      `🆕 *New Wallet Created*\n\n` +
+      `Address: \`${address}\`\n\n` +
+      `🔐 *Private Key* (SAVE THIS, shown only once!):\n` +
       `\`${privateKey}\`\n\n` +
-      `Keep this somewhere safe. Anyone with this key controls your wallet.`,
-      { parse_mode: 'Markdown',
-        reply_markup: new InlineKeyboard().text('📥 Add Funds', 'wallet_deposit') }
+      `⚠️ This is your bot wallet. Fund it with ETH (for gas) and USDC (for uploads) on Base.\n\n` +
+      `💡 *Next steps:*\n` +
+      `• Fund this wallet with USDC on Base\n` +
+      `• Use /wallet to check your balance\n` +
+      `• Use /upload_text or /upload_repo to start`,
+      { parse_mode: 'Markdown' }
     )
   } catch (err) {
     await ctx.reply(formatApiError(err))
@@ -569,21 +409,12 @@ bot.callbackQuery('wallet_connect', async ctx => {
   )
 })
 
-// Public/Private visibility callbacks
-bot.callbackQuery('repo_confirm_public',  ctx => handleRepoConfirm(ctx, false))
-bot.callbackQuery('repo_confirm_private', ctx => handleRepoConfirm(ctx, true))
-bot.callbackQuery('repo_confirm',         ctx => handleRepoConfirm(ctx, false)) // legacy
-bot.callbackQuery('repo_cancel',          handleRepoCancel)
-
-bot.callbackQuery('text_confirm_public',  ctx => handleTextConfirm(ctx, false))
-bot.callbackQuery('text_confirm_private', ctx => handleTextConfirm(ctx, true))
-bot.callbackQuery('text_confirm',         ctx => handleTextConfirm(ctx, false)) // legacy
-bot.callbackQuery('text_cancel',          handleTextCancel)
-
-bot.callbackQuery('file_confirm_public',  ctx => handleFileConfirm(ctx, false))
-bot.callbackQuery('file_confirm_private', ctx => handleFileConfirm(ctx, true))
-bot.callbackQuery('file_confirm',         ctx => handleFileConfirm(ctx, false)) // legacy
-bot.callbackQuery('file_cancel',          handleFileCancel)
+bot.callbackQuery('repo_confirm', handleRepoConfirm)
+bot.callbackQuery('repo_cancel', handleRepoCancel)
+bot.callbackQuery('text_confirm', handleTextConfirm)
+bot.callbackQuery('text_cancel', handleTextCancel)
+bot.callbackQuery('file_confirm', handleFileConfirm)
+bot.callbackQuery('file_cancel', handleFileCancel)
 
 bot.callbackQuery('export_key_confirm', async ctx => {
   await ctx.answerCallbackQuery()
@@ -623,7 +454,7 @@ bot.callbackQuery(/^push_existing:(\d+)$/, async ctx => {
   ctx.session.upload = undefined
   ctx.session.suggestedProjectId = undefined
   if (!ctx.session.encryptedKey) {
-    await ctx.reply('⚠️ You need a wallet to upload. Use /start → Create Wallet.')
+    await ctx.reply('⚠️ You need a bot-managed wallet for uploads. Use /start → "🆕 New Wallet".')
     return
   }
   await beginVersionPush(ctx, projectId)
@@ -649,7 +480,7 @@ bot.callbackQuery(/^push_version:(\d+)$/, async ctx => {
     return
   }
   if (!ctx.session.encryptedKey) {
-    await ctx.reply('⚠️ You need a wallet to upload. Use /start → Create Wallet.')
+    await ctx.reply('⚠️ You need a bot-managed wallet for uploads. Use /start → "🆕 New Wallet".')
     return
   }
   await beginVersionPush(ctx, projectId)
@@ -777,32 +608,21 @@ async function showWalletInfo(ctx: MyContext) {
   try {
     const balance = await getWalletBalance(wallet)
     const walletType = isExternal ? '🔑 Connected (read-only)' : '🆕 Bot-managed'
-
-    // Build action keyboard for bot-managed wallets
-    const shortAddr = `${wallet.slice(0,6)}…${wallet.slice(-4)}`
-    const keyboard = !isExternal
-      ? new InlineKeyboard()
-          .text('📥 Add Funds', 'wallet_deposit')
-          .text('💸 Send', 'wallet_send_usdc')
-          .row()
-          .text('📁 My Files', 'wallet_projects')
-          .text('⬆️ Upload', 'wallet_upload')
-      : undefined
-
+    
     await ctx.reply(
-      `💳 *Your Wallet*\n\n` +
-      `\`${shortAddr}\`\n` +
-      `─────────────────\n` +
-      `💵 USDC  ${balance.usdc}\n` +
-      `⟠  ETH   ${balance.eth}\n` +
-      `─────────────────\n\n` +
-      (isExternal
-        ? `🔑 Read-only wallet. To upload, create a wallet with /start.`
-        : `What do you want to do?`),
-      { parse_mode: 'Markdown', reply_markup: keyboard }
+      `*Your Wallet*\n\n` +
+      `Address: \`${wallet}\`\n` +
+      `Type: ${walletType}\n\n` +
+      `*Balance (Base)*\n` +
+      `ETH: ${balance.eth}\n` +
+      `USDC: ${balance.usdc}\n\n` +
+      (isExternal 
+        ? `⚠️ External wallets cannot upload. Create a bot wallet with /start → "🆕 New Wallet".`
+        : `Use /upload_text or /upload_repo to upload.`),
+      { parse_mode: 'Markdown' }
     )
     
-    // QR code for easy deposits
+    // Send QR code for easy wallet address sharing
     try {
       const qrBuffer = await QRCode.toBuffer(wallet, { width: 256 })
       await ctx.replyWithPhoto(new InputFile(qrBuffer, 'wallet-qr.png'), {
@@ -815,86 +635,6 @@ async function showWalletInfo(ctx: MyContext) {
     await ctx.reply(`Wallet: \`${wallet}\`\n\nFailed to fetch balance: ${(err as Error).message}`, { parse_mode: 'Markdown' })
   }
 }
-
-// Wallet action shortcuts from /wallet buttons
-bot.callbackQuery('wallet_deposit', async ctx => {
-  await ctx.answerCallbackQuery()
-  if (ctx.session.wallet) {
-    const wallet = ctx.session.wallet
-    await ctx.reply(
-      `*Deposit Address*\n\n\`${wallet}\`\n\nSend USDC or ETH on the *Base* network to this address.`,
-      { parse_mode: 'Markdown' }
-    )
-    try {
-      const qrBuffer = await QRCode.toBuffer(wallet, { width: 300 })
-      await ctx.replyWithPhoto(new InputFile(qrBuffer, 'deposit-qr.png'), {
-        caption: `Scan to deposit to ${wallet.slice(0,6)}…${wallet.slice(-4)}`
-      })
-    } catch { /* silently fail */ }
-  }
-})
-
-bot.callbackQuery('wallet_send_usdc', async ctx => {
-  await ctx.answerCallbackQuery()
-  if (!ctx.session.encryptedKey) { await ctx.reply('Bot-managed wallet required.'); return }
-  ctx.session.withdraw = { step: 'address', asset: 'usdc' }
-  await ctx.reply('Send USDC to which address?\n\nEnter the recipient wallet address (0x…):')
-})
-
-bot.callbackQuery('wallet_send_eth', async ctx => {
-  await ctx.answerCallbackQuery()
-  if (!ctx.session.encryptedKey) { await ctx.reply('Bot-managed wallet required.'); return }
-  ctx.session.withdraw = { step: 'address', asset: 'eth' }
-  await ctx.reply('Send ETH to which address?\n\nEnter the recipient wallet address (0x…):')
-})
-
-bot.callbackQuery('wallet_upload', async ctx => {
-  await ctx.answerCallbackQuery()
-  if (!ctx.session.encryptedKey) { await ctx.reply('Bot-managed wallet required.'); return }
-  await ctx.reply(
-    'What do you want to upload?',
-    { reply_markup: new InlineKeyboard()
-        .text('📝 Text', 'quick_upload_text')
-        .text('📁 File', 'quick_upload_file')
-        .text('🐙 Repo', 'quick_upload_repo') }
-  )
-})
-
-bot.callbackQuery('quick_upload_text', async ctx => {
-  await ctx.answerCallbackQuery()
-  await beginTextUpload(ctx)
-})
-
-bot.callbackQuery('quick_upload_repo', async ctx => {
-  await ctx.answerCallbackQuery()
-  await beginRepoUpload(ctx)
-})
-
-bot.callbackQuery('quick_upload_file', async ctx => {
-  await ctx.answerCallbackQuery()
-  await ctx.reply('Send me a file directly in this chat (PDF, ZIP, image, code…).')
-})
-
-bot.callbackQuery('wallet_projects', async ctx => {
-  await ctx.answerCallbackQuery()
-  // trigger /my_projects inline
-  if (!ctx.session.wallet) { await ctx.reply('No wallet connected.'); return }
-  const { listProjectsByOwner } = await import('./services/api.js')
-  try {
-    const projects = await listProjectsByOwner(ctx.session.wallet)
-    if (!projects.length) {
-      await ctx.reply('No projects yet. Use /upload_text or /upload_repo to create one.')
-      return
-    }
-    const keyboard = new InlineKeyboard()
-    for (const p of projects.slice(0, 10)) {
-      keyboard.text(`📂 ${p.name} (#${p.id})`, `project:${p.id}`).row()
-    }
-    await ctx.reply(`Your projects (${projects.length} total):`, { reply_markup: keyboard })
-  } catch (err) {
-    await ctx.reply(`Failed to load projects: ${(err as Error).message}`)
-  }
-})
 
 function shortenAddress(addr?: string) {
   if (!addr) return 'unknown'
@@ -1061,7 +801,7 @@ bot.callbackQuery('tutorial_upload_text', async ctx => {
   await ctx.answerCallbackQuery()
   ctx.session.tutorialStep = undefined
   if (!ctx.session.wallet) {
-    await ctx.reply('No wallet yet. Use /start to get one.')
+    await ctx.reply('Connect your wallet first with /start.')
     return
   }
   if (!ctx.session.encryptedKey) {
@@ -1075,7 +815,7 @@ bot.callbackQuery('tutorial_upload_repo', async ctx => {
   await ctx.answerCallbackQuery()
   ctx.session.tutorialStep = undefined
   if (!ctx.session.wallet) {
-    await ctx.reply('No wallet yet. Use /start to get one.')
+    await ctx.reply('Connect your wallet first with /start.')
     return
   }
   if (!ctx.session.encryptedKey) {
@@ -1181,8 +921,6 @@ export async function start() {
   await bot.api.setMyCommands([
     { command: 'start',        description: 'Connect or create a wallet' },
     { command: 'wallet',       description: 'Show wallet address & USDC balance' },
-    { command: 'deposit',      description: 'Get deposit address + QR code' },
-    { command: 'withdraw',     description: 'Send USDC or ETH to another wallet' },
     { command: 'upload_text',  description: 'Upload text content to Arweave' },
     { command: 'upload_repo',  description: 'Upload a GitHub repo to Arweave' },
     { command: 'my_projects',  description: 'View your projects' },
