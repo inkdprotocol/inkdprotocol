@@ -169,7 +169,7 @@ export async function beginTextUpload(ctx: MyContext) {
 export async function beginRepoUpload(ctx: MyContext) {
   ctx.session.upload = { type: 'repo' }
   await ctx.reply(
-    '🐙 *GitHub Repo Upload*\n\nSend a GitHub username or profile link to browse repos, or paste a repo directly:\n\n• `hazarkemal` → lists repos\n• `github.com/hazarkemal` → also works\n• `owner/repo` → direct upload\n• `https://github.com/owner/repo` → direct upload',
+    '🐙 *GitHub Repo Upload*\n\nSend a GitHub username or profile link to browse repos, or paste a repo directly:\n\n• `inkdprotocol` → lists repos\n• `github.com/inkdprotocol` → also works\n• `owner/repo` → direct upload\n• `https://github.com/owner/repo` → direct upload',
     { parse_mode: 'Markdown', reply_markup: new InlineKeyboard().text('❌ Cancel', 'nav_home') }
   )
 }
