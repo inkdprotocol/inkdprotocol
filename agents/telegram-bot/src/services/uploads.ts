@@ -11,6 +11,7 @@ import { getUploadPriceEstimate, findProjectByOwnerAndName, type PriceEstimate }
 import { uploadToArweave, createProject, pushVersion } from './x402.js'
 import { checkUsdcBalance, decryptPrivateKey } from './wallet.js'
 import { privateKeyToAccount } from 'viem/accounts'
+import { encryptBuffer } from './crypto.js'
 
 // ─── Session Types ────────────────────────────────────────────────────────────
 
@@ -18,6 +19,7 @@ interface PendingTextUpload {
   content: string
   size: number
   price: PriceEstimate
+  isPrivate?: boolean
 }
 
 interface TextUploadSession {
@@ -35,6 +37,7 @@ interface PendingRepoUpload {
   filePath: string
   size: number
   price: PriceEstimate
+  isPrivate?: boolean
 }
 
 interface RepoUploadSession {
@@ -49,6 +52,7 @@ interface PendingFileUpload {
   mimeType: string
   fileSize: number
   price: PriceEstimate
+  isPrivate?: boolean
 }
 
 interface FileUploadSession {
@@ -143,6 +147,15 @@ export function buildSuccessKeyboard(txHash: string, arweaveHash: string): Inlin
     .url('📄 Arweave', `https://arweave.net/${arweaveHash}`)
     .row()
     .url('🌐 inkdprotocol.com', 'https://inkdprotocol.com')
+}
+
+/** Public/Private visibility buttons shown before every upload confirm. */
+function buildVisibilityKeyboard(confirmPublic: string, confirmPrivate: string, cancelCb: string): InlineKeyboard {
+  return new InlineKeyboard()
+    .text('🔓 Public', confirmPublic)
+    .text('🔒 Private', confirmPrivate)
+    .row()
+    .text('✖️ Cancel', cancelCb)
 }
 
 // ─── Begin Upload Flows ───────────────────────────────────────────────────────
@@ -516,10 +529,7 @@ export async function handleUploadMessage(ctx: MyContext) {
         'Continue?',
       ].join('\n')
 
-      const keyboard = new InlineKeyboard()
-        .text('✅ Upload', 'file_confirm')
-        .text('✖️ Cancel', 'file_cancel')
-
+      const keyboard = buildVisibilityKeyboard('file_confirm_public', 'file_confirm_private', 'file_cancel')
       await ctx.reply(summary, { reply_markup: keyboard })
     } catch (err) {
       await ctx.reply(formatApiError(err))
@@ -572,10 +582,7 @@ export async function handleUploadMessage(ctx: MyContext) {
         'Continue?',
       ].join('\n')
 
-      const keyboard = new InlineKeyboard()
-        .text('✅ Upload', 'text_confirm')
-        .text('✖️ Cancel', 'text_cancel')
-
+      const keyboard = buildVisibilityKeyboard('text_confirm_public', 'text_confirm_private', 'text_cancel')
       await ctx.reply(summary, { reply_markup: keyboard })
     } catch (err) {
       await ctx.reply(formatApiError(err))
@@ -641,10 +648,7 @@ export async function handleUploadMessage(ctx: MyContext) {
       'Upload with these details?',
     ].join('\n')
 
-    const keyboard = new InlineKeyboard()
-      .text('✅ Upload', 'repo_confirm')
-      .text('✖️ Cancel', 'repo_cancel')
-
+    const keyboard = buildVisibilityKeyboard('repo_confirm_public', 'repo_confirm_private', 'repo_cancel')
     await ctx.reply(summary, { reply_markup: keyboard })
   } catch (err) {
     upload.pending && cleanupPending(upload.pending)
@@ -656,7 +660,7 @@ export async function handleUploadMessage(ctx: MyContext) {
 
 // ─── Text Upload Handlers ─────────────────────────────────────────────────────
 
-export async function handleTextConfirm(ctx: MyContext) {
+export async function handleTextConfirm(ctx: MyContext, isPrivate = false) {
   const upload = ctx.session.upload
   if (!upload || upload.type !== 'text' || !upload.pending) {
     await ctx.answerCallbackQuery({ text: 'No pending text upload.', show_alert: true })
@@ -681,12 +685,19 @@ export async function handleTextConfirm(ctx: MyContext) {
     return // Don't clear session - user might fund wallet and retry
   }
 
-  const statusMsg = await ctx.reply('⏳ Step 1/3: Uploading to Arweave…')
+  const privacyLabel = isPrivate ? '🔒 Private' : '🔓 Public'
+  const statusMsg = await ctx.reply(`⏳ Step 1/3: Uploading to Arweave… (${privacyLabel})`)
 
   try {
-    // Step 1: Upload content to Arweave
-    const contentBuffer = Buffer.from(pending.content, 'utf8')
-    const arweaveResult = await uploadToArweave(contentBuffer, 'text/plain', `${projectName}.txt`)
+    // Step 1: Upload content to Arweave (encrypt if private)
+    let contentBuffer = Buffer.from(pending.content, 'utf8')
+    let contentType = 'text/plain'
+    if (isPrivate) {
+      const rawKey = decryptPrivateKey(encryptedKey)
+      contentBuffer = encryptBuffer(contentBuffer, rawKey)
+      contentType = 'application/octet-stream'
+    }
+    const arweaveResult = await uploadToArweave(contentBuffer, contentType, `${projectName}.txt`)
 
     await ctx.api.editMessageText(
       ctx.chat!.id,
@@ -728,10 +739,11 @@ export async function handleTextConfirm(ctx: MyContext) {
     await ctx.api.editMessageText(
       ctx.chat!.id,
       statusMsg.message_id,
-      `✅ Upload Complete!\n\n` +
+      `✅ Upload Complete! ${isPrivate ? '🔒 Private' : '🔓 Public'}\n\n` +
         `📂 Project: ${projectName} (#${projectResult.projectId})\n` +
-        `📦 Version: ${versionResult.versionTag}\n\n` +
-        `Use /my_projects to view your projects.`
+        `📦 Version: ${versionResult.versionTag}\n` +
+        (isPrivate ? `🔑 Encrypted with your wallet key\n` : '') +
+        `\nUse /my_projects to view your projects.`
     )
     await ctx.reply('🎉 Success!', { reply_markup: keyboard })
   } catch (err) {
@@ -758,7 +770,7 @@ export async function handleTextCancel(ctx: MyContext) {
 
 // ─── File Upload Handlers ─────────────────────────────────────────────────────
 
-export async function handleFileConfirm(ctx: MyContext) {
+export async function handleFileConfirm(ctx: MyContext, isPrivate = false) {
   const upload = ctx.session.upload
   if (!upload || upload.type !== 'file' || !upload.pending) {
     await ctx.answerCallbackQuery({ text: 'No pending file upload.', show_alert: true })
@@ -782,7 +794,8 @@ export async function handleFileConfirm(ctx: MyContext) {
     return // Don't clear session - user might fund wallet and retry
   }
 
-  const statusMsg = await ctx.reply('⏳ Step 1/4: Downloading file from Telegram…')
+  const privacyLabel = isPrivate ? '🔒 Private' : '🔓 Public'
+  const statusMsg = await ctx.reply(`⏳ Step 1/4: Downloading file from Telegram… (${privacyLabel})`)
 
   try {
     // Step 1: Download file from Telegram
@@ -795,7 +808,13 @@ export async function handleFileConfirm(ctx: MyContext) {
     const fileRes = await fetch(fileUrl)
     if (!fileRes.ok) throw new Error(`Failed to download file: ${fileRes.status}`)
     
-    const fileBuffer = Buffer.from(await fileRes.arrayBuffer())
+    let fileBuffer = Buffer.from(await fileRes.arrayBuffer())
+    let mimeType = pending.mimeType
+    if (isPrivate) {
+      const rawKey = decryptPrivateKey(encryptedKey)
+      fileBuffer = encryptBuffer(fileBuffer, rawKey)
+      mimeType = 'application/octet-stream'
+    }
 
     await ctx.api.editMessageText(
       ctx.chat!.id,
@@ -804,7 +823,7 @@ export async function handleFileConfirm(ctx: MyContext) {
     )
 
     // Step 2: Upload to Arweave
-    const arweaveResult = await uploadToArweave(fileBuffer, pending.mimeType, pending.fileName)
+    const arweaveResult = await uploadToArweave(fileBuffer, mimeType, pending.fileName)
 
     await ctx.api.editMessageText(
       ctx.chat!.id,
@@ -850,11 +869,12 @@ export async function handleFileConfirm(ctx: MyContext) {
     await ctx.api.editMessageText(
       ctx.chat!.id,
       statusMsg.message_id,
-      `✅ Upload Complete!\n\n` +
+      `✅ Upload Complete! ${isPrivate ? '🔒 Private' : '🔓 Public'}\n\n` +
         `📂 Project: ${projectName} (#${projectResult.projectId})\n` +
         `📎 File: ${pending.fileName}\n` +
-        `📦 Version: ${versionResult.versionTag}\n\n` +
-        `Use /my_projects to view your projects.`
+        `📦 Version: ${versionResult.versionTag}\n` +
+        (isPrivate ? `🔑 Encrypted with your wallet key\n` : '') +
+        `\nUse /my_projects to view your projects.`
     )
     await ctx.reply('🎉 Success!', { reply_markup: keyboard })
   } catch (err) {
@@ -880,7 +900,7 @@ export async function handleFileCancel(ctx: MyContext) {
 
 // ─── Repo Upload Handlers ─────────────────────────────────────────────────────
 
-export async function handleRepoConfirm(ctx: MyContext) {
+export async function handleRepoConfirm(ctx: MyContext, isPrivate = false) {
   const upload = ctx.session.upload
   if (!upload || upload.type !== 'repo' || !upload.pending) {
     await ctx.answerCallbackQuery({ text: 'No pending repo upload.', show_alert: true })
@@ -905,12 +925,19 @@ export async function handleRepoConfirm(ctx: MyContext) {
     return // Don't clear session - user might fund wallet and retry
   }
 
-  const statusMsg = await ctx.reply('⏳ Step 1/3: Uploading to Arweave…')
+  const privacyLabel = isPrivate ? '🔒 Private' : '🔓 Public'
+  const statusMsg = await ctx.reply(`⏳ Step 1/3: Uploading to Arweave… (${privacyLabel})`)
 
   try {
-    // Step 1: Upload ZIP to Arweave
-    const zipBuffer = fs.readFileSync(pending.filePath)
-    const arweaveResult = await uploadToArweave(zipBuffer, 'application/zip', pending.filename)
+    // Step 1: Upload ZIP to Arweave (encrypt if private)
+    let zipBuffer = fs.readFileSync(pending.filePath)
+    let mimeType = 'application/zip'
+    if (isPrivate) {
+      const rawKey = decryptPrivateKey(encryptedKey)
+      zipBuffer = encryptBuffer(zipBuffer, rawKey)
+      mimeType = 'application/octet-stream'
+    }
+    const arweaveResult = await uploadToArweave(zipBuffer, mimeType, pending.filename)
 
     await ctx.api.editMessageText(
       ctx.chat!.id,
@@ -952,11 +979,12 @@ export async function handleRepoConfirm(ctx: MyContext) {
     await ctx.api.editMessageText(
       ctx.chat!.id,
       statusMsg.message_id,
-      `✅ Upload Complete!\n\n` +
+      `✅ Upload Complete! ${isPrivate ? '🔒 Private' : '🔓 Public'}\n\n` +
         `📂 Project: ${pending.projectName} (#${projectResult.projectId})\n` +
         `📦 Version: ${versionResult.versionTag}\n` +
-        `📁 Source: ${pending.owner}/${pending.repo}@${pending.ref}\n\n` +
-        `Use /my_projects to view your projects.`
+        `📁 Source: ${pending.owner}/${pending.repo}@${pending.ref}\n` +
+        (isPrivate ? `🔑 Encrypted with your wallet key\n` : '') +
+        `\nUse /my_projects to view your projects.`
     )
     await ctx.reply('🎉 Success!', { reply_markup: keyboard })
   } catch (err) {

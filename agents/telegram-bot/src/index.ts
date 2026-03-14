@@ -404,12 +404,21 @@ bot.callbackQuery('wallet_connect', async ctx => {
   )
 })
 
-bot.callbackQuery('repo_confirm', handleRepoConfirm)
-bot.callbackQuery('repo_cancel', handleRepoCancel)
-bot.callbackQuery('text_confirm', handleTextConfirm)
-bot.callbackQuery('text_cancel', handleTextCancel)
-bot.callbackQuery('file_confirm', handleFileConfirm)
-bot.callbackQuery('file_cancel', handleFileCancel)
+// Public/Private visibility callbacks
+bot.callbackQuery('repo_confirm_public',  ctx => handleRepoConfirm(ctx, false))
+bot.callbackQuery('repo_confirm_private', ctx => handleRepoConfirm(ctx, true))
+bot.callbackQuery('repo_confirm',         ctx => handleRepoConfirm(ctx, false)) // legacy
+bot.callbackQuery('repo_cancel',          handleRepoCancel)
+
+bot.callbackQuery('text_confirm_public',  ctx => handleTextConfirm(ctx, false))
+bot.callbackQuery('text_confirm_private', ctx => handleTextConfirm(ctx, true))
+bot.callbackQuery('text_confirm',         ctx => handleTextConfirm(ctx, false)) // legacy
+bot.callbackQuery('text_cancel',          handleTextCancel)
+
+bot.callbackQuery('file_confirm_public',  ctx => handleFileConfirm(ctx, false))
+bot.callbackQuery('file_confirm_private', ctx => handleFileConfirm(ctx, true))
+bot.callbackQuery('file_confirm',         ctx => handleFileConfirm(ctx, false)) // legacy
+bot.callbackQuery('file_cancel',          handleFileCancel)
 
 bot.callbackQuery('export_key_confirm', async ctx => {
   await ctx.answerCallbackQuery()
