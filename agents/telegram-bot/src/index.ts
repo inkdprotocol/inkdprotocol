@@ -5,12 +5,15 @@ import path from 'node:path'
 import { createChallenge, recoverWalletFromSignature } from './services/auth'
 import { 
   beginTextUpload, 
-  beginRepoUpload, 
+  beginRepoUpload,
+  beginFileUpload,
   handleUploadMessage, 
   handleRepoCancel, 
   handleRepoConfirm, 
   handleTextConfirm, 
   handleTextCancel,
+  handleFileConfirm,
+  handleFileCancel,
   beginVersionPush,
   handlePushTextSelect,
   handlePushRepoSelect,
@@ -217,6 +220,31 @@ bot.command('links', async ctx => {
 
 // ─── Message handlers ─────────────────────────────────────────────────────────
 
+const MAX_FILE_BYTES = 50 * 1024 * 1024 // 50 MB Telegram bot API limit
+
+bot.on('message:document', async ctx => {
+  if (!ctx.session.wallet) {
+    await ctx.reply('Connect your wallet first with /start.')
+    return
+  }
+  if (!ctx.session.encryptedKey) {
+    await ctx.reply('⚠️ You connected an external wallet. Uploads require a bot-managed wallet with USDC balance.\n\nUse /start → "🆕 New Wallet" to create one.')
+    return
+  }
+
+  const doc = ctx.message.document
+  const fileSize = doc.file_size ?? 0
+  const fileName = doc.file_name ?? 'unknown'
+  const mimeType = doc.mime_type ?? 'application/octet-stream'
+
+  if (fileSize > MAX_FILE_BYTES) {
+    await ctx.reply(`❌ File too large (${(fileSize / 1024 / 1024).toFixed(1)} MB). Maximum is 50 MB.`)
+    return
+  }
+
+  await beginFileUpload(ctx, doc.file_id, fileName, mimeType, fileSize)
+})
+
 bot.on('message:text', async ctx => {
   if (await handleUploadMessage(ctx)) return
   
@@ -290,6 +318,8 @@ bot.callbackQuery('repo_confirm', handleRepoConfirm)
 bot.callbackQuery('repo_cancel', handleRepoCancel)
 bot.callbackQuery('text_confirm', handleTextConfirm)
 bot.callbackQuery('text_cancel', handleTextCancel)
+bot.callbackQuery('file_confirm', handleFileConfirm)
+bot.callbackQuery('file_cancel', handleFileCancel)
 
 // Version push handlers
 bot.callbackQuery(/^push_version:(\d+)$/, async ctx => {
