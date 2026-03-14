@@ -19,6 +19,7 @@ import { REGISTRY_ABI, TREASURY_ABI, USDC_ABI } from '../abis.js'
 import { getArweaveCostUsdc, calculateCharge } from '../arweave.js'
 import { sendError, NotFoundError, BadRequestError, ServiceUnavailableError } from '../errors.js'
 import { buildIndexerClient, type IndexerProject, type IndexerVersion } from '../indexer/client.js'
+import { getGraphClient, type GraphProject, type GraphVersion } from '../graph.js'
 
 // ─── Zod schemas ──────────────────────────────────────────────────────────────
 
@@ -47,8 +48,10 @@ const PushVersionBody = z.object({
 })
 
 const PaginationQuery = z.object({
-  offset: z.coerce.number().int().min(0).default(0),
-  limit:  z.coerce.number().int().min(1).max(100).default(20),
+  offset:  z.coerce.number().int().min(0).default(0),
+  limit:   z.coerce.number().int().min(1).max(100).default(20),
+  owner:   z.string().optional(),
+  isAgent: z.enum(['true', 'false']).transform(v => v === 'true').optional(),
 })
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -134,6 +137,39 @@ function serializeVersion(v: RawVersion, index: number, agentAddress?: Address, 
   }
 }
 
+function serializeGraphProject(p: GraphProject) {
+  return {
+    id:            p.id,
+    name:          p.name,
+    description:   p.description,
+    license:       '',
+    readmeHash:    p.arweaveHash,
+    owner:         p.owner.id,
+    isPublic:      true,
+    isAgent:       p.isAgent,
+    agentEndpoint: '',
+    createdAt:     p.createdAt,
+    versionCount:  p.versionCount,
+    metadataUri:   p.metadataUri ?? '',
+    forkOf:        p.forkOf?.id ?? '0',
+    accessManifest: '',
+  }
+}
+
+function serializeGraphVersion(v: GraphVersion, projectId: number) {
+  return {
+    versionIndex: v.versionIndex,
+    projectId:    projectId.toString(),
+    arweaveHash:  v.arweaveHash,
+    versionTag:   v.versionTag,
+    changelog:    '',
+    pushedBy:     v.pushedBy.id,
+    pushedAt:     v.createdAt,
+    agentAddress: v.agentAddress?.id ?? null,
+    metaHash:     '',
+  }
+}
+
 function serializeIndexedVersion(v: IndexerVersion) {
   return {
     versionIndex: v.version_index.toString(),
@@ -168,14 +204,28 @@ export function projectsRouter(cfg: ApiConfig): Router {
   router.get('/', async (req, res) => {
     try {
       const registryAddress = requireRegistry()
-      const { offset, limit } = PaginationQuery.parse(req.query)
+      const { offset, limit, owner, isAgent } = PaginationQuery.parse(req.query)
 
+      // 1. Graph-first
+      const graph = getGraphClient()
+      if (graph) {
+        try {
+          const rows = await graph.getProjects({ offset, limit, isAgent, owner })
+          const total = await graph.getProjectCount().catch(() => rows.length)
+          res.setHeader('Cache-Control', 'public, max-age=10')
+          return res.json({ data: rows.map(serializeGraphProject), total: total.toString(), offset, limit, source: 'graph' })
+        } catch { /* fall through */ }
+      }
+
+      // 2. Indexer fallback
       if (indexer) {
         const totalIndexed = indexer.countProjects()
         const rows = indexer.listProjects(offset, limit).map(serializeIndexedProject)
-        return res.json({ data: rows, total: totalIndexed.toString(), offset, limit })
+        res.setHeader('Cache-Control', 'public, max-age=10')
+        return res.json({ data: rows, total: totalIndexed.toString(), offset, limit, source: 'indexer' })
       }
 
+      // 3. RPC fallback
       const total = await publicClient.readContract({
         address:      registryAddress,
         abi:          REGISTRY_ABI,
@@ -183,7 +233,6 @@ export function projectsRouter(cfg: ApiConfig): Router {
       }) as bigint
 
       const results: ReturnType<typeof serializeProject>[] = []
-
       for (let i = offset + 1; i <= Math.min(Number(total), offset + limit); i++) {
         const p = await publicClient.readContract({
           address:      registryAddress,
@@ -191,11 +240,11 @@ export function projectsRouter(cfg: ApiConfig): Router {
           functionName: 'getProject',
           args:         [BigInt(i)],
         }) as unknown as RawProject
-
         if (p.exists) results.push(serializeProject(p))
       }
 
-      res.json({ data: results, total: total.toString(), offset, limit })
+      res.setHeader('Cache-Control', 'public, max-age=10')
+      res.json({ data: results, total: total.toString(), offset, limit, source: 'rpc' })
     } catch (err) {
       sendError(res, err)
     }
@@ -225,6 +274,60 @@ export function projectsRouter(cfg: ApiConfig): Router {
     }
   })
 
+  // ── GET /v1/projects/by-name/:name ─────────────────────────────────────────
+  router.get('/by-name/:name', async (req, res) => {
+    try {
+      const registryAddress = requireRegistry()
+      const name = req.params['name'] ?? ''
+      if (!name) throw new BadRequestError('name is required')
+
+      // 1. Graph-first
+      const graph = getGraphClient()
+      if (graph) {
+        try {
+          const p = await graph.getProjectByName(name)
+          if (p) {
+            res.setHeader('Cache-Control', 'public, max-age=30')
+            return res.json({ data: serializeGraphProject(p), source: 'graph' })
+          }
+        } catch { /* fall through */ }
+      }
+
+      // 2. Indexer fallback
+      if (indexer) {
+        const total = indexer.countProjects()
+        for (let i = 1; i <= total; i++) {
+          const row = indexer.getProject(i)
+          if (row && row.name === name) {
+            res.setHeader('Cache-Control', 'public, max-age=30')
+            return res.json({ data: serializeIndexedProject(row), source: 'indexer' })
+          }
+        }
+        throw new NotFoundError(`Project "${name}"`)
+      }
+
+      // 3. RPC fallback — linear scan
+      const total = await publicClient.readContract({
+        address: registryAddress, abi: REGISTRY_ABI, functionName: 'projectCount',
+      }) as bigint
+
+      for (let i = 1; i <= Number(total); i++) {
+        const p = await publicClient.readContract({
+          address: registryAddress, abi: REGISTRY_ABI,
+          functionName: 'getProject', args: [BigInt(i)],
+        }) as unknown as RawProject
+        if (p.exists && p.name === name) {
+          res.setHeader('Cache-Control', 'public, max-age=30')
+          return res.json({ data: serializeProject(p), source: 'rpc' })
+        }
+      }
+
+      throw new NotFoundError(`Project "${name}"`)
+    } catch (err) {
+      sendError(res, err)
+    }
+  })
+
   // ── GET /v1/projects/:id ────────────────────────────────────────────────────
   router.get('/:id', async (req, res) => {
     try {
@@ -232,12 +335,27 @@ export function projectsRouter(cfg: ApiConfig): Router {
       const id = parseInt(req.params['id'] ?? '', 10)
       if (isNaN(id) || id < 1) throw new BadRequestError('Project id must be a positive integer')
 
+      // 1. Graph-first
+      const graph = getGraphClient()
+      if (graph) {
+        try {
+          const p = await graph.getProject(id)
+          if (p) {
+            res.setHeader('Cache-Control', 'public, max-age=30')
+            return res.json({ data: serializeGraphProject(p), source: 'graph' })
+          }
+        } catch { /* fall through */ }
+      }
+
+      // 2. Indexer fallback
       if (indexer) {
         const row = indexer.getProject(id)
         if (!row) throw new NotFoundError(`Project #${id}`)
-        return res.json({ data: serializeIndexedProject(row) })
+        res.setHeader('Cache-Control', 'public, max-age=30')
+        return res.json({ data: serializeIndexedProject(row), source: 'indexer' })
       }
 
+      // 3. RPC fallback
       const p = await publicClient.readContract({
         address:      registryAddress,
         abi:          REGISTRY_ABI,
@@ -247,7 +365,6 @@ export function projectsRouter(cfg: ApiConfig): Router {
 
       if (!p.exists) throw new NotFoundError(`Project #${id}`)
 
-      // Fetch V2 metadata in parallel
       const [metadataUri, forkOf, accessManifest] = await Promise.all([
         publicClient.readContract({
           address: registryAddress, abi: REGISTRY_ABI,
@@ -263,7 +380,8 @@ export function projectsRouter(cfg: ApiConfig): Router {
         }) as Promise<string>,
       ])
 
-      res.json({ data: serializeProject(p, { metadataUri, forkOf, accessManifest }) })
+      res.setHeader('Cache-Control', 'public, max-age=30')
+      res.json({ data: serializeProject(p, { metadataUri, forkOf, accessManifest }), source: 'rpc' })
     } catch (err) {
       sendError(res, err)
     }
@@ -365,21 +483,42 @@ export function projectsRouter(cfg: ApiConfig): Router {
 
       const { offset, limit } = PaginationQuery.parse(req.query)
 
-      // Verify project exists
+      // 1. Graph-first
+      const graph = getGraphClient()
+      if (graph) {
+        try {
+          const versions = await graph.getProjectVersions(id, limit)
+          const sliced = versions.slice(offset, offset + limit)
+          res.setHeader('Cache-Control', 'public, max-age=30')
+          return res.json({
+            data:      sliced.map(v => serializeGraphVersion(v, id)),
+            total:     versions.length.toString(),
+            projectId: id.toString(),
+            offset,
+            limit,
+            source:    'graph',
+          })
+        } catch { /* fall through */ }
+      }
+
+      // 2. Indexer fallback
       if (indexer) {
         const projectRow = indexer.getProject(id)
         if (!projectRow) throw new NotFoundError(`Project #${id}`)
         const totalIndexed = indexer.countVersions(id)
         const versions = indexer.listVersions(id, offset, limit).map(serializeIndexedVersion)
+        res.setHeader('Cache-Control', 'public, max-age=30')
         return res.json({
           data:      versions,
           total:     totalIndexed.toString(),
           projectId: id.toString(),
           offset,
           limit,
+          source:    'indexer',
         })
       }
 
+      // 3. RPC fallback
       const p = await publicClient.readContract({
         address:      registryAddress,
         abi:          REGISTRY_ABI,
@@ -399,40 +538,35 @@ export function projectsRouter(cfg: ApiConfig): Router {
       const start = Math.min(offset, count)
       const end   = Math.min(start + limit, count)
 
-      // Fetch each version with V2 metadata in parallel
       const versions = await Promise.all(
         Array.from({ length: end - start }, async (_, i) => {
           const idx = start + i
           const [v, agentAddress, metaHash] = await Promise.all([
             publicClient.readContract({
-              address:      registryAddress,
-              abi:          REGISTRY_ABI,
-              functionName: 'getVersion',
-              args:         [BigInt(id), BigInt(idx)],
+              address: registryAddress, abi: REGISTRY_ABI,
+              functionName: 'getVersion', args: [BigInt(id), BigInt(idx)],
             }) as Promise<RawVersion>,
             publicClient.readContract({
-              address:      registryAddress,
-              abi:          REGISTRY_ABI,
-              functionName: 'getVersionAgent',
-              args:         [BigInt(id), BigInt(idx)],
+              address: registryAddress, abi: REGISTRY_ABI,
+              functionName: 'getVersionAgent', args: [BigInt(id), BigInt(idx)],
             }) as Promise<Address>,
             publicClient.readContract({
-              address:      registryAddress,
-              abi:          REGISTRY_ABI,
-              functionName: 'versionMetaHash',
-              args:         [BigInt(id), BigInt(idx)],
+              address: registryAddress, abi: REGISTRY_ABI,
+              functionName: 'versionMetaHash', args: [BigInt(id), BigInt(idx)],
             }) as Promise<string>,
           ])
           return serializeVersion(v, idx, agentAddress, metaHash)
         })
       )
 
+      res.setHeader('Cache-Control', 'public, max-age=30')
       res.json({
         data:      versions,
         total:     totalVersions.toString(),
         projectId: id.toString(),
         offset,
         limit,
+        source:    'rpc',
       })
     } catch (err) {
       sendError(res, err)

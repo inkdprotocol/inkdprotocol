@@ -19,6 +19,11 @@ const mockReadContract  = vi.fn()
 const mockWriteContract = vi.fn()
 const mockWaitForTx     = vi.fn()
 
+vi.mock('../graph.js', () => ({
+  getGraphClient: () => null,
+  initGraphClient: vi.fn(),
+}))
+
 vi.mock('../clients.js', () => ({
   buildPublicClient: vi.fn(() => ({
     readContract: mockReadContract,
@@ -455,5 +460,79 @@ describe('POST /v1/projects/:id/versions', () => {
       .post('/v1/projects/1/versions')
       .send(validVersionBody)
     expect(res.status).toBe(502)
+  })
+})
+
+// ── GET /v1/projects/by-name/:name ────────────────────────────────────────────
+
+describe('GET /v1/projects/by-name/:name', () => {
+  it('returns 404 when project not found via RPC scan', async () => {
+    mockReadContract.mockReset()
+    mockReadContract.mockResolvedValueOnce(0n)
+    const { projectsRouter } = await import('../routes/projects.js')
+    const app = express()
+    app.use(express.json())
+    app.use('/v1/projects', projectsRouter(baseCfg))
+    const res = await request(app).get('/v1/projects/by-name/nonexistent')
+    expect(res.status).toBe(404)
+  })
+
+  it('returns project when found by name via RPC scan', async () => {
+    mockReadContract.mockReset()
+    mockReadContract
+      .mockResolvedValueOnce(1n)
+      .mockResolvedValueOnce({
+        id: 1n, name: 'my-agent', description: 'desc', license: 'MIT',
+        readmeHash: '', owner: '0xABC', isPublic: true, isAgent: false,
+        agentEndpoint: '', createdAt: 1000n, versionCount: 0n, exists: true,
+      })
+    const { projectsRouter } = await import('../routes/projects.js')
+    const app = express()
+    app.use(express.json())
+    app.use('/v1/projects', projectsRouter(baseCfg))
+    const res = await request(app).get('/v1/projects/by-name/my-agent')
+    expect(res.status).toBe(200)
+    expect(res.body.data.name).toBe('my-agent')
+    expect(res.body.source).toBe('rpc')
+  })
+})
+
+// ── GET /v1/projects with filters ─────────────────────────────────────────────
+
+describe('GET /v1/projects with owner/isAgent filters', () => {
+  it('passes owner query param and returns list via RPC', async () => {
+    mockReadContract.mockReset()
+    mockReadContract
+      .mockResolvedValueOnce(1n)
+      .mockResolvedValueOnce({
+        id: 1n, name: 'owned', description: '', license: 'MIT',
+        readmeHash: '', owner: '0xOWNER', isPublic: true, isAgent: false,
+        agentEndpoint: '', createdAt: 1000n, versionCount: 0n, exists: true,
+      })
+    const { projectsRouter } = await import('../routes/projects.js')
+    const app = express()
+    app.use(express.json())
+    app.use('/v1/projects', projectsRouter(baseCfg))
+    const res = await request(app).get('/v1/projects?owner=0xOWNER')
+    expect(res.status).toBe(200)
+    expect(res.body.data).toHaveLength(1)
+  })
+
+  it('passes isAgent=true query param and returns list via RPC', async () => {
+    mockReadContract.mockReset()
+    mockReadContract
+      .mockResolvedValueOnce(1n)
+      .mockResolvedValueOnce({
+        id: 1n, name: 'agent-1', description: '', license: 'MIT',
+        readmeHash: '', owner: '0xAGENT', isPublic: true, isAgent: true,
+        agentEndpoint: '', createdAt: 1000n, versionCount: 0n, exists: true,
+      })
+    const { projectsRouter } = await import('../routes/projects.js')
+    const app = express()
+    app.use(express.json())
+    app.use('/v1/projects', projectsRouter(baseCfg))
+    const res = await request(app).get('/v1/projects?isAgent=true')
+    expect(res.status).toBe(200)
+    expect(res.body.data).toHaveLength(1)
   })
 })

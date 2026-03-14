@@ -82,9 +82,13 @@ export class GraphClient {
   }
 
   /** List projects with optional pagination. */
-  async getProjects(options: { offset?: number; limit?: number; isAgent?: boolean } = {}): Promise<GraphProject[]> {
-    const { offset = 0, limit = 20, isAgent } = options
-    const filter = isAgent !== undefined ? `where: { isAgent: ${isAgent} }` : ''
+  async getProjects(options: { offset?: number; limit?: number; isAgent?: boolean; owner?: string } = {}): Promise<GraphProject[]> {
+    const { offset = 0, limit = 20, isAgent, owner } = options
+
+    const conditions: string[] = []
+    if (isAgent !== undefined) conditions.push(`isAgent: ${isAgent}`)
+    if (owner) conditions.push(`owner: "${owner.toLowerCase()}"`)
+    const filter = conditions.length > 0 ? `where: { ${conditions.join(', ')} }` : ''
 
     const data = await this.query<{ projects: GraphProject[] }>(`
       query GetProjects($skip: Int!, $first: Int!) {
