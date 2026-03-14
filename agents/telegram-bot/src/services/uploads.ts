@@ -25,6 +25,8 @@ interface PendingTextUpload {
 interface TextUploadSession {
   type: 'text'
   projectName?: string
+  description?: string
+  awaitingDescription?: boolean
   pending?: PendingTextUpload
 }
 
@@ -59,6 +61,8 @@ interface PendingFileUpload {
 interface FileUploadSession {
   type: 'file'
   projectName?: string
+  description?: string
+  awaitingDescription?: boolean
   fileId?: string
   fileName?: string
   mimeType?: string
@@ -101,7 +105,9 @@ type MyContext = Context & SessionFlavor<BotSession>
 export function formatApiError(err: unknown): string {
   const msg = err instanceof Error ? err.message : String(err)
   if (msg.includes('insufficient') || msg.includes('balance'))
-    return '❌ Insufficient USDC balance. Use /wallet to check.'
+    return '❌ Not enough USDC. Add funds via /wallet → 📥 Add Funds.'
+  if (msg.includes('gas') || msg.includes('ETH') || msg.includes('fee'))
+    return '❌ Not enough ETH for gas. Send a small amount of ETH on Base to your wallet.'
   if (msg.includes('402') || msg.includes('payment'))
     return '❌ Payment failed. Check your USDC balance with /wallet.'
   if (msg.includes('404'))
@@ -563,6 +569,19 @@ export async function handleUploadMessage(ctx: MyContext) {
       return true
     }
     upload.projectName = text
+    ;(upload as any).awaitingDescription = true
+    await ctx.reply(
+      '📝 Add a short description (optional):',
+      { reply_markup: new InlineKeyboard().text('⏭ Skip', 'skip_description') }
+    )
+    return true
+  }
+
+  // Description step
+  if ((upload as any).awaitingDescription) {
+    const text = ctx.message?.text?.trim()
+    if (text) (upload as any).description = text
+    ;(upload as any).awaitingDescription = false
 
     if (upload.type === 'repo') {
       await ctx.reply('🔗 Paste the GitHub repo URL:\n\n`owner/repo` or `https://github.com/owner/repo`', { parse_mode: 'Markdown' })
@@ -803,7 +822,7 @@ export async function handleTextConfirm(ctx: MyContext, isPrivate = false) {
     // Step 2: Create project with x402 payment
     const projectResult = await createProject(encryptedKey, {
       name: projectName,
-      description: `Text upload (${formatBytes(pending.size)})`,
+      description: (upload as any).description || `Text upload (${formatBytes(pending.size)})`,
       license: 'MIT',
     })
 
@@ -926,7 +945,7 @@ export async function handleFileConfirm(ctx: MyContext, isPrivate = false) {
     // Step 3: Create project with x402 payment
     const projectResult = await createProject(encryptedKey, {
       name: projectName,
-      description: `File upload: ${pending.fileName} (${formatBytes(pending.fileSize)})`,
+      description: (upload as any).description || `File upload: ${pending.fileName} (${formatBytes(pending.fileSize)})`,
       license: 'MIT',
     })
 
