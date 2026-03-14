@@ -81,8 +81,8 @@ const LOGO_URL = 'https://inkdprotocol.com/logo.jpg'
 async function showHomeMenu(ctx: MyContext) {
   const hasWallet = !!ctx.session.wallet
   const keyboard = new InlineKeyboard()
+    .text('⬆️ Upload a File', 'home_upload').row()
     .text('💼 Wallet', 'home_wallet').text('📁 My Files', 'home_files').row()
-    .text('⬆️ Upload', 'home_upload').row()
     .text('❓ Help', 'home_help').text('🎓 Tutorial', 'start_tour')
 
   const caption = '🫟 *inkd*\n\nPermanent storage on Arweave. Registered on Base. Paid in USDC.\n\n' +
