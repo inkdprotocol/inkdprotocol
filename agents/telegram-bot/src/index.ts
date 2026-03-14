@@ -236,7 +236,7 @@ bot.callbackQuery('upload_repo_start', async ctx => {
 // User picks a repo from the GitHub username list
 bot.callbackQuery(/^gh_repo:(.+)$/, async ctx => {
   await ctx.answerCallbackQuery()
-  const fullName = ctx.match[1] // e.g. "hazarkemal/inkd-protocol"
+  const fullName = ctx.match[1] // e.g. "inkdprotocol/inkd-protocol"
   ctx.session.upload = { type: 'repo' }
   // Inject the repo name as a text message and process it
   ;(ctx as any).message = { ...(ctx.message ?? {}), text: fullName }
