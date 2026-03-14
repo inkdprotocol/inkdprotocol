@@ -817,6 +817,51 @@ bot.callbackQuery('tutorial_upload_repo', async ctx => {
   await beginRepoUpload(ctx)
 })
 
+// ─── Inline Mode ──────────────────────────────────────────────────────────────
+
+bot.on('inline_query', async ctx => {
+  const query = ctx.inlineQuery.query.trim()
+  
+  if (!query) {
+    await ctx.answerInlineQuery([{
+      type: 'article',
+      id: 'help',
+      title: 'Search inkd projects',
+      description: 'Type a project name to search',
+      input_message_content: {
+        message_text: 'Search inkd projects at inkdprotocol.com'
+      }
+    }], { cache_time: 0 })
+    return
+  }
+
+  try {
+    const results = await searchProjects(query, 10)
+    const articles = results.map(p => ({
+      type: 'article' as const,
+      id: String(p.id),
+      title: p.name,
+      description: `by ${p.owner.slice(0, 6)}...${p.owner.slice(-4)} · ${p.versionCount} version(s)`,
+      input_message_content: {
+        message_text: `📦 *${p.name}* (#${p.id})\nOwner: \`${p.owner}\`\nVersions: ${p.versionCount}\n\n🌐 inkdprotocol.com`,
+        parse_mode: 'Markdown' as const,
+      }
+    }))
+    
+    await ctx.answerInlineQuery(articles.length ? articles : [{
+      type: 'article',
+      id: 'noresults',
+      title: 'No results found',
+      description: `Nothing found for "${query}"`,
+      input_message_content: {
+        message_text: `No inkd projects found for "${query}"`
+      }
+    }], { cache_time: 30 })
+  } catch {
+    await ctx.answerInlineQuery([], { cache_time: 0 })
+  }
+})
+
 // ─── Error Handler ────────────────────────────────────────────────────────────
 
 bot.catch(err => {
