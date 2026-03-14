@@ -82,8 +82,7 @@ async function showHomeMenu(ctx: MyContext) {
   const hasWallet = !!ctx.session.wallet
   const keyboard = new InlineKeyboard()
     .text('💼 Wallet', 'home_wallet').text('📁 My Files', 'home_files').row()
-    .text('🔍 Search', 'home_search').text('❓ Help', 'home_help').row()
-    .text('🎓 Tutorial', 'start_tour')
+    .text('❓ Help', 'home_help').text('🎓 Tutorial', 'start_tour')
 
   const caption = '🫟 *inkd*\n\nPermanent storage on Arweave. Registered on Base. Paid in USDC.\n\n' +
     '[🌐 inkdprotocol.com](https://inkdprotocol.com)\n' +
