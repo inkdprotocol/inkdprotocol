@@ -18,15 +18,28 @@ import { getPayerAddress, getPaymentAmount, getPaymentAuthorizationData } from '
 import { REGISTRY_ABI, TREASURY_ABI, USDC_ABI } from '../abis.js'
 import { getArweaveCostUsdc, calculateCharge } from '../arweave.js'
 import { sendError, NotFoundError, BadRequestError, ServiceUnavailableError } from '../errors.js'
-import type { IndexerProject, IndexerVersion } from '../indexer/client.js'
+// Note: IndexerClient types are inlined to avoid importing better-sqlite3 at bundle time
+interface IndexerProject {
+  id: number; name: string; description: string; license: string; readme_hash: string;
+  owner: string; is_public: number; is_agent: number; agent_endpoint: string;
+  metadata_uri: string; fork_of: number; access_manifest: string; tags_hash: string;
+  version_count: number; created_at: number; updated_at: number;
+}
+interface IndexerVersion {
+  project_id: number; version_index: number; arweave_hash: string; version_tag: string;
+  changelog: string; pushed_by: string; agent_address: string | null; meta_hash: string; pushed_at: number;
+}
 
 // ─── Safe indexer loader (avoids native module crash on Vercel) ───────────────
+// Uses dynamic import path to prevent esbuild from bundling better-sqlite3
 
 function buildIndexerClientSafe(dbPath: string) {
   try {
+    // Dynamic path prevents static analysis bundling
+    const modulePath = '../indexer/client' + '.js'
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { buildIndexerClient } = require('../indexer/client.js') as typeof import('../indexer/client.js')
-    return buildIndexerClient(dbPath)
+    const mod = require(modulePath)
+    return mod.buildIndexerClient(dbPath)
   } catch {
     return null
   }
@@ -233,8 +246,8 @@ export function projectsRouter(cfg: ApiConfig): Router {
       if (indexer) {
         const totalIndexed = indexer.countProjects()
         let rows = indexer.listProjects(offset, limit).map(serializeIndexedProject)
-        if (owner) rows = rows.filter(p => p.owner.toLowerCase() === owner.toLowerCase())
-        if (isAgent !== undefined) rows = rows.filter(p => p.isAgent === isAgent)
+        if (owner) rows = rows.filter((p: any) => p.owner.toLowerCase() === owner.toLowerCase())
+        if (isAgent !== undefined) rows = rows.filter((p: any) => p.isAgent === isAgent)
         res.setHeader('Cache-Control', 'public, max-age=10')
         return res.json({ data: rows, total: totalIndexed.toString(), offset, limit, source: 'indexer' })
       }
