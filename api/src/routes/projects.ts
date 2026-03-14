@@ -18,8 +18,20 @@ import { getPayerAddress, getPaymentAmount, getPaymentAuthorizationData } from '
 import { REGISTRY_ABI, TREASURY_ABI, USDC_ABI } from '../abis.js'
 import { getArweaveCostUsdc, calculateCharge } from '../arweave.js'
 import { sendError, NotFoundError, BadRequestError, ServiceUnavailableError } from '../errors.js'
-import { buildIndexerClient, type IndexerProject, type IndexerVersion } from '../indexer/client.js'
+import type { IndexerProject, IndexerVersion } from '../indexer/client.js'
 import { getGraphClient, type GraphProject, type GraphVersion } from '../graph.js'
+
+// ─── Safe indexer loader (avoids native module crash on Vercel) ───────────────
+
+function buildIndexerClientSafe(dbPath: string) {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { buildIndexerClient } = require('../indexer/client.js') as typeof import('../indexer/client.js')
+    return buildIndexerClient(dbPath)
+  } catch {
+    return null
+  }
+}
 
 // ─── Zod schemas ──────────────────────────────────────────────────────────────
 
@@ -198,7 +210,7 @@ export function projectsRouter(cfg: ApiConfig): Router {
   }
 
   const publicClient = buildPublicClient(cfg)
-  const indexer      = cfg.indexerDbPath ? buildIndexerClient(cfg.indexerDbPath) : null
+  const indexer      = cfg.indexerDbPath ? buildIndexerClientSafe(cfg.indexerDbPath) : null
 
   // ── GET /v1/projects ────────────────────────────────────────────────────────
   router.get('/', async (req, res) => {
