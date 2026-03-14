@@ -11,69 +11,45 @@ Send a file or text. Choose public or private. Done — stored forever on Arweav
 
 ---
 
-## Commands
+## Home screen
 
-| Command | Description |
-|---|---|
-| `/start` | Set up wallet — goes straight to your wallet if already connected |
-| `/wallet` | Balance, address, QR code, and quick actions |
-| `/deposit` | Get your deposit address + QR code to add funds |
-| `/withdraw` | Send USDC or ETH to any address |
-| `/upload_text` | Store text permanently |
-| `/upload_repo` | Archive a GitHub repo permanently |
-| `/my_projects` | See all your stored files |
-| `/history` | Recent uploads |
-| `/search <name>` | Find public files |
-| `/export_key` | Export your wallet private key |
-| `/tutorial` | Interactive 4-step tour |
-| `/links` | Website, Twitter, buy $INKD |
-| `/cancel` | Cancel current action |
-| `/help` | Show all commands |
+Every time you open the bot you see:
+
+```
+⬆️ Upload a File
+💼 Wallet     📁 My Files
+❓ Help        🎓 Tutorial
+```
 
 ---
 
 ## Upload flow
 
-Every upload follows the same simple steps:
+1. Tap **⬆️ Upload a File** — or just send a file directly
+2. Choose what to upload: file, text, or GitHub repo
+3. Enter a name + optional description (text/file only)
+4. Choose visibility: **🌍 Public** or **🔒 Only me**
+5. Confirm cost → USDC deducted automatically from your wallet
+6. Done
 
-1. Run `/upload_text`, `/upload_repo`, or send a file directly
-2. Give it a name
-3. Bot shows: file size + exact USDC cost
-4. Choose visibility:
+---
 
-```
-🌍 Public   🔒 Only me
-✖️ Cancel
-```
+## GitHub Repo
 
-5. Bot stores it — progress shown live:
-
-```
-⏳ Storing your file...
-
-✅ Uploaded
-▪ Creating record ⏳
-▪ Confirming on Base ○
-```
-
-6. Done:
+Send a username or profile link — the bot lists all public repos as buttons. Tap one to upload it directly.
 
 ```
-✅ Stored forever!
-
-📄 my-document.pdf
-🌍 Public
-🔗 ar://QmAbc123…
-
-#12 · my-document
+inkdprotocol       → lists repos
+github.com/inkdprotocol  → also works
+owner/repo         → direct upload
 ```
 
 ---
 
 ## Public vs Private
 
-- **🌍 Public** — anyone with the Arweave link can view the content
-- **🔒 Only me** — content is encrypted before upload (AES-256-GCM). Only your wallet can decrypt it.
+- **🌍 Public** — anyone with the Arweave link can view it
+- **🔒 Only me** — encrypted before upload. Only your wallet can decrypt.
 
 See [Private Uploads](/concepts/private-uploads) for the full security model.
 
@@ -86,10 +62,12 @@ See [Private Uploads](/concepts/private-uploads) for the full security model.
 | Store file / text | from $0.10 USDC |
 | Store GitHub repo | Arweave cost × 1.20 (min $0.10) |
 
-Exact cost is shown before every upload. You confirm before any charge.
+Exact cost is always shown before you confirm. No surprises.
 
 ---
 
-## Infrastructure
+## Wallet
 
-Running on `john-server` (DigitalOcean FRA1, Base Mainnet) under pm2 as `inkd-bot`.
+The bot creates and manages a wallet for you. Your private key is stored encrypted — only you can export it via `/export_key`.
+
+Add funds: send USDC and a small amount of ETH (for gas) to your wallet address on Base.

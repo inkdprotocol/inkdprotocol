@@ -1,6 +1,6 @@
 {
   "name": "@inkd/sdk",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "TypeScript SDK for the Inkd Protocol — permanent on-chain project registry on Base. Lock 1 $INKD to register. Pay 0.001 ETH to push a version. Own your work forever.",
   "main": "dist/index.js",
   "module": "dist/index.js",

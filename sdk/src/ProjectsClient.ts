@@ -235,6 +235,18 @@ export class ProjectsClient {
     return (body["data"] ?? body) as Project[];
   }
 
+  /** List projects owned by the connected wallet. */
+  async listMyProjects(opts: { offset?: number; limit?: number } = {}): Promise<Project[]> {
+    if (!this.ownerAddress) throw new Error("No wallet connected");
+    const params = new URLSearchParams({ owner: this.ownerAddress });
+    if (opts.offset) params.set("offset", String(opts.offset));
+    if (opts.limit)  params.set("limit",  String(opts.limit));
+    const res  = await fetch(`${this.apiUrl}/v1/projects?${params}`);
+    const body = await res.json() as { data?: Project[] } & Record<string, unknown>;
+    if (!res.ok) throw new Error(`listMyProjects failed [${res.status}]`);
+    return (body["data"] ?? body) as Project[];
+  }
+
   /** Estimate Arweave upload cost in USDC for a given number of bytes. */
   async estimateUploadCost(bytes: number): Promise<{ total: string; arweaveCost: string; markup: string }> {
     const res  = await fetch(`${this.apiUrl}/v1/projects/estimate?bytes=${bytes}`);

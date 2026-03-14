@@ -5,62 +5,58 @@ description: Store text, files, and GitHub repos permanently via the inkd Telegr
 
 # Uploading
 
-Everything you store goes permanently to Arweave and is registered on-chain on Base.
+Everything you store goes permanently to Arweave and is registered on-chain on Base. Paid in USDC from your bot wallet.
 
 ---
 
-## Text
+## How to upload
 
-```
-/upload_text
-```
-
-1. Give it a name (e.g. `my-notes`)
-2. Paste the text
-3. See cost + choose visibility
-4. Done
+Tap **⬆️ Upload a File** from the home screen, or just send a file directly to the bot.
 
 ---
 
-## File (PDF, ZIP, image, code…)
+## File (image, PDF, video, ZIP…)
 
-Send any file directly to the bot. Telegram handles up to 50 MB.
+Send any file directly to the bot — it's automatically detected.
 
 1. Send the file
-2. Give it a name
-3. See cost + choose visibility
-4. Done
+2. Enter a name
+3. Enter a description (optional — tap ⏭ Skip)
+4. Choose visibility: **🌍 Public** or **🔒 Only me**
+5. Confirm cost → stored
+
+Supports images, PDFs, videos, ZIPs, and more. Max 50 MB.
 
 ---
 
-## GitHub repo
+## Text / Note
 
-```
-/upload_repo
-```
+Tap **📝 Text / Note** from the upload menu.
 
-1. Give it a name
-2. Paste a GitHub URL: `owner/repo` or `https://github.com/owner/repo`
-3. Bot downloads the ZIP, shows size + cost
+1. Enter a name
+2. Enter a description (optional)
+3. Paste the text
 4. Choose visibility
-5. Done
+5. Confirm → stored
 
 ---
 
-## Push a new version
+## GitHub Repo
 
-Open `/my_projects` → tap **Details** on any file → tap **Add version**.
+Tap **🐙 GitHub Repo** from the upload menu.
 
-1. Enter version tag (e.g. `v1.2.0`)
-2. Enter changelog (optional)
-3. Choose text or repo
-4. Done
+1. Send a GitHub username or profile link:
+   - `inkdprotocol`
+   - `github.com/inkdprotocol`
+   - `owner/repo` (direct)
+   - `https://github.com/owner/repo` (direct)
+2. If you sent a username → bot lists all public repos as buttons (with ⭐ stars)
+3. Tap a repo → bot downloads the ZIP automatically
+4. See size + cost
+5. Choose visibility
+6. Confirm → stored
 
-### Auto-detection
-
-If you upload something with the same name as an existing file, the bot asks:
-- **Add version** to the existing file, or
-- **Create new file**
+The project name is taken from the repo name automatically. No extra steps.
 
 ---
 
@@ -70,27 +66,25 @@ Before every upload:
 
 ```
 🌍 Public   🔒 Only me
-✖️ Cancel
 ```
 
-- **🌍 Public** — anyone with the link can read it
-- **🔒 Only me** — encrypted with AES-256-GCM before upload. Only your wallet can decrypt.
+- **🌍 Public** — anyone with the Arweave link can read it
+- **🔒 Only me** — encrypted before upload. Only your wallet can decrypt.
 
 See [Private Uploads](/concepts/private-uploads) for the full security model.
 
 ---
 
-## Progress
+## Cost
 
-While storing, the bot shows live progress:
+Every upload shows estimated cost before you confirm:
 
 ```
-⏳ Storing your file...
-
-✅ Uploaded
-✅ Record created (#12)
-▪ Confirming ⏳
+📦 1.2 MB
+💵 0.0032 USDC
 ```
+
+Pricing = Arweave storage cost + 20% protocol fee (minimum $0.10 USDC).
 
 ---
 
@@ -99,11 +93,7 @@ While storing, the bot shows live progress:
 ```
 ✅ Stored forever!
 
-📄 my-document.pdf
+📄 my-file.pdf
 🌍 Public
-🔗 ar://QmAbc123…
-
-#12 · my-document
+ar://QmAbc123…
 ```
-
-Buttons: **🔗 View File · ⛓ On-chain · 📁 My Files**
