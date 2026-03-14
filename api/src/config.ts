@@ -41,9 +41,6 @@ export interface ApiConfig {
   corsOrigin: string
   rateLimitWindowMs: number
   rateLimitMax:      number
-  // contract addresses (derived from ADDRESSES[network] by default, overridable)
-  registryAddress: Address | null
-  tokenAddress:    Address | null
   // x402 payment config
   serverWalletKey:     string | null  // server signs on-chain txns + calls Treasury.settle()
   serverWalletAddress: Address | null
@@ -81,9 +78,6 @@ export function loadConfig(): ApiConfig {
     corsOrigin: process.env['CORS_ORIGIN'] ?? '*',
     rateLimitWindowMs: parseInt(process.env['RATE_LIMIT_WINDOW_MS'] ?? '60000', 10),
     rateLimitMax:      parseInt(process.env['RATE_LIMIT_MAX']        ?? '60',    10),
-    // contracts
-    registryAddress: (ADDRESSES[network].registry || null) as Address | null,
-    tokenAddress:    (ADDRESSES[network].token    || null) as Address | null,
     // x402
     serverWalletKey,
     serverWalletAddress,
