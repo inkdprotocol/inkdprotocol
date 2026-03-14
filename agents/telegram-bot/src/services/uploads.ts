@@ -43,7 +43,25 @@ interface RepoUploadSession {
   pending?: PendingRepoUpload
 }
 
-export type UploadSession = TextUploadSession | RepoUploadSession
+interface PendingFileUpload {
+  fileId: string
+  fileName: string
+  mimeType: string
+  fileSize: number
+  price: PriceEstimate
+}
+
+interface FileUploadSession {
+  type: 'file'
+  projectName?: string
+  fileId?: string
+  fileName?: string
+  mimeType?: string
+  fileSize?: number
+  pending?: PendingFileUpload
+}
+
+export type UploadSession = TextUploadSession | RepoUploadSession | FileUploadSession
 
 // Version push session for existing projects
 export interface PendingVersionPush {
@@ -136,6 +154,23 @@ export async function beginTextUpload(ctx: MyContext) {
 export async function beginRepoUpload(ctx: MyContext) {
   ctx.session.upload = { type: 'repo' }
   await ctx.reply('Send me the project name for this repo upload:')
+}
+
+export async function beginFileUpload(
+  ctx: MyContext,
+  fileId: string,
+  fileName: string,
+  mimeType: string,
+  fileSize: number
+) {
+  ctx.session.upload = {
+    type: 'file',
+    fileId,
+    fileName,
+    mimeType,
+    fileSize,
+  }
+  await ctx.reply(`📎 File received: *${fileName}* (${formatBytes(fileSize)})\n\nSend me the project name for this upload:`, { parse_mode: 'Markdown' })
 }
 
 // ─── Begin Version Push Flow ──────────────────────────────────────────────────
@@ -407,6 +442,68 @@ export async function handleUploadMessage(ctx: MyContext) {
     return true
   }
 
+  // File upload flow: collect project name and show confirmation
+  if (upload.type === 'file') {
+    const text = ctx.message?.text?.trim()
+    if (!text) {
+      await ctx.reply('Please send a valid project name (text message).')
+      return true
+    }
+    
+    // We have project name, now show confirmation
+    upload.projectName = text
+    
+    const fileUpload = upload as FileUploadSession
+    if (!fileUpload.fileId || !fileUpload.fileName || !fileUpload.fileSize) {
+      await ctx.reply('File data missing. Please try again with /cancel.')
+      return true
+    }
+
+    try {
+      const price = await getUploadPriceEstimate(fileUpload.fileSize)
+
+      // Store pending upload
+      fileUpload.pending = {
+        fileId: fileUpload.fileId,
+        fileName: fileUpload.fileName,
+        mimeType: fileUpload.mimeType ?? 'application/octet-stream',
+        fileSize: fileUpload.fileSize,
+        price,
+      }
+
+      const estimateLine = `Estimated cost: ${formatUsdc(price.total)} USDC (${price.totalUsd})`
+      const breakdownLine = `Includes ${formatUsdc(price.arweaveCost)} USDC storage + ${formatUsdc(price.markup)} USDC protocol fee.`
+      const summary = [
+        `📎 File Upload`,
+        `Project: ${upload.projectName}`,
+        `File: ${fileUpload.fileName}`,
+        `Size: ${formatBytes(fileUpload.fileSize)}`,
+        `Type: ${fileUpload.mimeType ?? 'unknown'}`,
+        `Version: v1.0.0`,
+        estimateLine,
+        breakdownLine,
+        '',
+        'This will:',
+        '1. Download file from Telegram',
+        '2. Upload to Arweave',
+        '3. Create project on Inkd Registry',
+        '4. Push version with content',
+        '',
+        'Continue?',
+      ].join('\n')
+
+      const keyboard = new InlineKeyboard()
+        .text('✅ Upload', 'file_confirm')
+        .text('✖️ Cancel', 'file_cancel')
+
+      await ctx.reply(summary, { reply_markup: keyboard })
+    } catch (err) {
+      await ctx.reply(formatApiError(err))
+      ctx.session.upload = undefined
+    }
+    return true
+  }
+
   // Text upload flow: collect content and show confirmation
   if (upload.type === 'text') {
     const content = ctx.message?.text
@@ -631,6 +728,128 @@ export async function handleTextCancel(ctx: MyContext) {
   }
   await ctx.answerCallbackQuery()
   upload.pending = undefined
+  ctx.session.upload = undefined
+  await ctx.reply('Upload cancelled.')
+}
+
+// ─── File Upload Handlers ─────────────────────────────────────────────────────
+
+export async function handleFileConfirm(ctx: MyContext) {
+  const upload = ctx.session.upload
+  if (!upload || upload.type !== 'file' || !upload.pending) {
+    await ctx.answerCallbackQuery({ text: 'No pending file upload.', show_alert: true })
+    return
+  }
+  await ctx.answerCallbackQuery()
+
+  const pending = upload.pending
+  const projectName = upload.projectName!
+  const encryptedKey = ctx.session.encryptedKey
+
+  if (!encryptedKey) {
+    ctx.session.upload = undefined
+    await ctx.reply('You need a bot-managed wallet for uploads. Use /start → "🆕 New Wallet".')
+    return
+  }
+
+  // Check balance before proceeding
+  const requiredUsdc = BigInt(pending.price.total)
+  if (!(await ensureSufficientBalance(ctx, requiredUsdc))) {
+    return // Don't clear session - user might fund wallet and retry
+  }
+
+  const statusMsg = await ctx.reply('⏳ Step 1/4: Downloading file from Telegram…')
+
+  try {
+    // Step 1: Download file from Telegram
+    const file = await ctx.api.getFile(pending.fileId)
+    const filePath = file.file_path
+    if (!filePath) throw new Error('Could not get file path from Telegram')
+    
+    const token = process.env.TELEGRAM_BOT_TOKEN
+    const fileUrl = `https://api.telegram.org/file/bot${token}/${filePath}`
+    const fileRes = await fetch(fileUrl)
+    if (!fileRes.ok) throw new Error(`Failed to download file: ${fileRes.status}`)
+    
+    const fileBuffer = Buffer.from(await fileRes.arrayBuffer())
+
+    await ctx.api.editMessageText(
+      ctx.chat!.id,
+      statusMsg.message_id,
+      `✅ Step 1/4: Downloaded from Telegram\n   Size: ${formatBytes(fileBuffer.length)}\n\n⏳ Step 2/4: Uploading to Arweave…`
+    )
+
+    // Step 2: Upload to Arweave
+    const arweaveResult = await uploadToArweave(fileBuffer, pending.mimeType, pending.fileName)
+
+    await ctx.api.editMessageText(
+      ctx.chat!.id,
+      statusMsg.message_id,
+      `✅ Step 1/4: Downloaded from Telegram\n` +
+        `   Size: ${formatBytes(fileBuffer.length)}\n\n` +
+        `✅ Step 2/4: Uploaded to Arweave\n` +
+        `   Hash: ${arweaveResult.hash}\n\n` +
+        `⏳ Step 3/4: Creating project…`
+    )
+
+    // Step 3: Create project with x402 payment
+    const projectResult = await createProject(encryptedKey, {
+      name: projectName,
+      description: `File upload: ${pending.fileName} (${formatBytes(pending.fileSize)})`,
+      license: 'MIT',
+    })
+
+    await ctx.api.editMessageText(
+      ctx.chat!.id,
+      statusMsg.message_id,
+      `✅ Step 1/4: Downloaded from Telegram\n` +
+        `   Size: ${formatBytes(fileBuffer.length)}\n\n` +
+        `✅ Step 2/4: Uploaded to Arweave\n` +
+        `   Hash: ${arweaveResult.hash}\n\n` +
+        `✅ Step 3/4: Project created\n` +
+        `   ID: #${projectResult.projectId}\n\n` +
+        `⏳ Step 4/4: Pushing version…`
+    )
+
+    // Step 4: Push version with x402 payment
+    const versionResult = await pushVersion(encryptedKey, projectResult.projectId, {
+      arweaveHash: arweaveResult.hash,
+      versionTag: 'v1.0.0',
+      changelog: `File: ${pending.fileName}`,
+      contentSize: pending.fileSize,
+    })
+
+    // Success - show with buttons
+    ctx.session.upload = undefined
+    const keyboard = buildSuccessKeyboard(versionResult.txHash, arweaveResult.hash)
+
+    await ctx.api.editMessageText(
+      ctx.chat!.id,
+      statusMsg.message_id,
+      `✅ Upload Complete!\n\n` +
+        `📂 Project: ${projectName} (#${projectResult.projectId})\n` +
+        `📎 File: ${pending.fileName}\n` +
+        `📦 Version: ${versionResult.versionTag}\n\n` +
+        `Use /my_projects to view your projects.`
+    )
+    await ctx.reply('🎉 Success!', { reply_markup: keyboard })
+  } catch (err) {
+    ctx.session.upload = undefined
+    await ctx.api.editMessageText(
+      ctx.chat!.id,
+      statusMsg.message_id,
+      formatApiError(err)
+    )
+  }
+}
+
+export async function handleFileCancel(ctx: MyContext) {
+  const upload = ctx.session.upload
+  if (!upload || upload.type !== 'file') {
+    await ctx.answerCallbackQuery({ text: 'Nothing to cancel.', show_alert: true })
+    return
+  }
+  await ctx.answerCallbackQuery()
   ctx.session.upload = undefined
   await ctx.reply('Upload cancelled.')
 }
