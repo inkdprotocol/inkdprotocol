@@ -40,7 +40,7 @@ import { projectsRouter } from './routes/projects.js'
 import { agentsRouter }   from './routes/agents.js'
 import { buildUploadRouter } from './routes/upload.js'
 import { buildSearchRouter } from './routes/search.js'
-import { initGraphClient, getGraphClient } from './graph.js'
+import { initGraphClient } from './graph.js'
 
 // ─── Bootstrap ────────────────────────────────────────────────────────────────
 
@@ -107,27 +107,6 @@ app.use('/v1/projects', projectsRouter(cfg))
 app.use('/v1/agents',   agentsRouter(cfg))
 app.use('/v1/upload',   buildUploadRouter(cfg))   // Arweave upload (free, no x402)
 app.use('/v1/search',   buildSearchRouter())      // Graph-powered search
-
-// ─── Public share links ───────────────────────────────────────────────────────
-// /p/:id → redirect to latest Arweave content for the project
-
-app.get('/p/:id', async (req, res) => {
-  const projectId = Number(req.params.id)
-  if (isNaN(projectId)) return res.status(400).json({ error: 'Invalid project id' })
-
-  try {
-    const graph = getGraphClient()
-    if (!graph) return res.redirect('https://inkdprotocol.com')
-
-    const versions = await graph.getProjectVersions(projectId, 1).catch(() => [])
-    if (!versions.length) return res.redirect('https://inkdprotocol.com')
-
-    const hash = versions[0].arweaveHash
-    return res.redirect(`https://arweave.net/${hash}`)
-  } catch {
-    return res.redirect('https://inkdprotocol.com')
-  }
-})
 
 // ─── Root redirect ────────────────────────────────────────────────────────────
 
