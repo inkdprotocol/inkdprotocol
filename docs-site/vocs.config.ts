@@ -28,11 +28,13 @@ export default defineConfig({
   ],
 
   topNav: [
-    { text: 'Docs',      link: '/introduction' },
-    { text: 'API',       link: '/api/overview' },
-    { text: 'Security',  link: '/security-audit' },
-    { text: 'npm',       link: 'https://www.npmjs.com/package/@inkd/sdk' },
-    { text: 'GitHub',    link: 'https://github.com/inkdprotocol/inkd-protocol' },
+    { text: 'Docs',       link: '/introduction' },
+    { text: 'API',        link: '/api/overview' },
+    { text: 'Bot',        link: '/bot/overview' },
+    { text: 'Security',   link: '/security-audit' },
+    { text: 'Buy $INKD',  link: 'https://clanker.world/clanker/0x103013851D4475d7D1610C7941E2a16534a1eB07' },
+    { text: 'npm',        link: 'https://www.npmjs.com/package/@inkd/sdk' },
+    { text: 'GitHub',     link: 'https://github.com/inkdprotocol/inkd-protocol' },
   ],
 
   sidebar: [
