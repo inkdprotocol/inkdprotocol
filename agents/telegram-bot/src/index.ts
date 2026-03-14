@@ -25,7 +25,7 @@ import {
 } from './services/uploads'
 import { SqliteStorage } from './services/session'
 import { generateWallet, encryptPrivateKey, decryptPrivateKey, getWalletBalance } from './services/wallet'
-import { listProjectsByOwner, getProjectById, listVersions, getVersion, searchProjects, type ApiProject, type ApiVersion } from './services/api'
+import { listProjectsByOwner, getProjectById, listVersions, getVersion, searchProjects, findProjectByOwnerAndName, type ApiProject, type ApiVersion } from './services/api'
 
 dotenv.config({ path: process.env.BOT_ENV_PATH ?? '.env' })
 
@@ -42,6 +42,7 @@ export type BotSession = {
   pendingChallenge?: string
   upload?: UploadSession
   pendingVersionPush?: PendingVersionPush
+  suggestedProjectId?: string  // For auto-version detection when project name matches
   tutorialStep?: number
 }
 
@@ -393,6 +394,35 @@ bot.callbackQuery('export_key_confirm', async ctx => {
 bot.callbackQuery('export_key_cancel', async ctx => {
   await ctx.answerCallbackQuery()
   await ctx.reply('Cancelled.')
+})
+
+// Auto version detection callbacks
+bot.callbackQuery(/^push_existing:(\d+)$/, async ctx => {
+  await ctx.answerCallbackQuery()
+  const projectId = Number(ctx.match?.[1])
+  if (!projectId) {
+    await ctx.reply('Invalid project id.')
+    return
+  }
+  // Clear upload session and start version push flow
+  ctx.session.upload = undefined
+  ctx.session.suggestedProjectId = undefined
+  if (!ctx.session.encryptedKey) {
+    await ctx.reply('⚠️ You need a bot-managed wallet for uploads. Use /start → "🆕 New Wallet".')
+    return
+  }
+  await beginVersionPush(ctx, projectId)
+})
+
+bot.callbackQuery('create_new_project', async ctx => {
+  await ctx.answerCallbackQuery()
+  ctx.session.suggestedProjectId = undefined
+  const upload = ctx.session.upload
+  if (!upload || upload.type !== 'repo') {
+    await ctx.reply('No pending upload. Use /upload_repo to start.')
+    return
+  }
+  await ctx.reply('Paste the GitHub repo URL or owner/repo (optionally @ref):')
 })
 
 // Version push handlers
