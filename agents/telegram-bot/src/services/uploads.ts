@@ -169,7 +169,7 @@ export async function beginTextUpload(ctx: MyContext) {
 export async function beginRepoUpload(ctx: MyContext) {
   ctx.session.upload = { type: 'repo' }
   await ctx.reply(
-    '🐙 *GitHub Repo Upload*\n\nSend a GitHub username to browse their repos, or paste a repo directly:\n\n• `hazarkemal` → lists repos\n• `owner/repo` → direct\n• `https://github.com/owner/repo` → direct',
+    '🐙 *GitHub Repo Upload*\n\nSend a GitHub username or profile link to browse repos, or paste a repo directly:\n\n• `hazarkemal` → lists repos\n• `github.com/hazarkemal` → also works\n• `owner/repo` → direct upload\n• `https://github.com/owner/repo` → direct upload',
     { parse_mode: 'Markdown', reply_markup: new InlineKeyboard().text('❌ Cancel', 'nav_home') }
   )
 }
@@ -612,7 +612,13 @@ export async function handleUploadMessage(ctx: MyContext) {
     return true
   }
 
-  // If input looks like a username (no slash, no http) → list their repos
+  // GitHub profile URL → extract username
+  const ghProfileMatch = link.match(/^https?:\/\/github\.com\/([A-Za-z0-9_-]+)\/?$/)
+  if (ghProfileMatch) {
+    await handleGithubUsername(ctx, ghProfileMatch[1])
+    return true
+  }
+  // Plain username (no slash, no http) → list their repos
   const isUsername = !link.includes('/') && !link.startsWith('http') && /^@?[a-zA-Z0-9_-]+$/.test(link)
   if (isUsername) {
     await handleGithubUsername(ctx, link.replace(/^@/, ''))
