@@ -85,9 +85,9 @@ async function showHomeMenu(ctx: MyContext) {
     .text('🎓 Tutorial', 'start_tour')
 
   const caption = '🫟 *inkd*\n\nPermanent storage on Arweave. Registered on Base. Paid in USDC.\n\n' +
-    '[🌐 inkdprotocol.com](https://inkdprotocol.com)  ·  ' +
-    '[𝕏 @inkdprotocol](https://twitter.com/inkdprotocol)  ·  ' +
-    '[GitHub](https://github.com/inkdprotocol/inkd-protocol)'
+    '[🌐 inkdprotocol.com](https://inkdprotocol.com)\n' +
+    '[𝕏 @inkdprotocol](https://twitter.com/inkdprotocol)\n' +
+    '[💻 GitHub](https://github.com/inkdprotocol/inkd-protocol)'
 
   try {
     await ctx.replyWithPhoto(LOGO_URL, {
