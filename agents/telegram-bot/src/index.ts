@@ -118,6 +118,30 @@ bot.command('wallet', async ctx => {
   await showWalletInfo(ctx)
 })
 
+bot.command('deposit', async ctx => {
+  if (!ctx.session.wallet) {
+    await ctx.reply('No wallet connected. Use /start first.')
+    return
+  }
+  const wallet = ctx.session.wallet
+  await ctx.reply(
+    `*Deposit USDC or ETH*\n\n` +
+    `Your wallet address on Base:\n\`${wallet}\`\n\n` +
+    `Send USDC or ETH to this address on the *Base* network.\n\n` +
+    `Get USDC on Base:\n` +
+    `• [Coinbase](https://coinbase.com) → buy + send to Base\n` +
+    `• [bridge.base.org](https://bridge.base.org) → bridge from Ethereum\n\n` +
+    `Minimum for uploads: ~$0.20 USDC`,
+    { parse_mode: 'Markdown' }
+  )
+  try {
+    const qrBuffer = await QRCode.toBuffer(wallet, { width: 300 })
+    await ctx.replyWithPhoto(new InputFile(qrBuffer, 'deposit-qr.png'), {
+      caption: `Scan to deposit to ${wallet.slice(0,6)}…${wallet.slice(-4)}`
+    })
+  } catch { /* QR failed silently */ }
+})
+
 bot.command('my_wallet', async ctx => {
   if (!ctx.session.wallet) {
     await ctx.reply('No wallet connected. Use /start to create or connect one.', {
@@ -363,6 +387,7 @@ bot.command('help', async ctx => {
     `📋 *Commands*\n\n` +
     `/start — Connect or create wallet\n` +
     `/wallet — Show wallet address & balance\n` +
+    `/deposit — Get deposit address + QR code\n` +
     `/withdraw — Send USDC or ETH to another wallet\n` +
     `/upload_text — Upload text content\n` +
     `/upload_repo — Upload a GitHub repo\n` +
@@ -756,6 +781,7 @@ async function showWalletInfo(ctx: MyContext) {
           .text('💸 Send USDC', 'wallet_send_usdc')
           .text('⟠ Send ETH', 'wallet_send_eth')
           .row()
+          .text('📥 Deposit', 'wallet_deposit')
           .text('📤 Upload', 'wallet_upload')
           .text('📂 My Projects', 'wallet_projects')
       : undefined
@@ -788,6 +814,23 @@ async function showWalletInfo(ctx: MyContext) {
 }
 
 // Wallet action shortcuts from /wallet buttons
+bot.callbackQuery('wallet_deposit', async ctx => {
+  await ctx.answerCallbackQuery()
+  if (ctx.session.wallet) {
+    const wallet = ctx.session.wallet
+    await ctx.reply(
+      `*Deposit Address*\n\n\`${wallet}\`\n\nSend USDC or ETH on the *Base* network to this address.`,
+      { parse_mode: 'Markdown' }
+    )
+    try {
+      const qrBuffer = await QRCode.toBuffer(wallet, { width: 300 })
+      await ctx.replyWithPhoto(new InputFile(qrBuffer, 'deposit-qr.png'), {
+        caption: `Scan to deposit to ${wallet.slice(0,6)}…${wallet.slice(-4)}`
+      })
+    } catch { /* silently fail */ }
+  }
+})
+
 bot.callbackQuery('wallet_send_usdc', async ctx => {
   await ctx.answerCallbackQuery()
   if (!ctx.session.encryptedKey) { await ctx.reply('Bot-managed wallet required.'); return }
@@ -1135,6 +1178,7 @@ export async function start() {
   await bot.api.setMyCommands([
     { command: 'start',        description: 'Connect or create a wallet' },
     { command: 'wallet',       description: 'Show wallet address & USDC balance' },
+    { command: 'deposit',      description: 'Get deposit address + QR code' },
     { command: 'withdraw',     description: 'Send USDC or ETH to another wallet' },
     { command: 'upload_text',  description: 'Upload text content to Arweave' },
     { command: 'upload_repo',  description: 'Upload a GitHub repo to Arweave' },
