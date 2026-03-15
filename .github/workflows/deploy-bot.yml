@@ -20,6 +20,7 @@ jobs:
           script: |
             set -e
             cd /root/inkd-protocol-repo
+            git checkout -- .
             git pull origin main
             cd agents/telegram-bot
             npm ci --omit=dev
