@@ -459,7 +459,7 @@ export async function handleVersionPushMessage(ctx: MyContext): Promise<boolean>
 // ─── Version Push Callback Handlers ───────────────────────────────────────────
 
 export async function handlePushTextSelect(ctx: MyContext) {
-  try { await ctx.answerCallbackQuery() } catch { /* ignore expired callback */ }
+  void ctx.answerCallbackQuery().catch(() => {}) // fire-and-forget, ignore timeout
   const push = ctx.session.pendingVersionPush
   if (!push) {
     await ctx.reply('No pending version push.')
@@ -470,7 +470,7 @@ export async function handlePushTextSelect(ctx: MyContext) {
 }
 
 export async function handlePushRepoSelect(ctx: MyContext) {
-  try { await ctx.answerCallbackQuery() } catch { /* ignore expired callback */ }
+  void ctx.answerCallbackQuery().catch(() => {}) // fire-and-forget, ignore timeout
   const push = ctx.session.pendingVersionPush
   if (!push) {
     await ctx.reply('No pending version push.')
@@ -486,7 +486,7 @@ export async function handlePushConfirm(ctx: MyContext) {
     await ctx.answerCallbackQuery({ text: 'No pending version push.', show_alert: true })
     return
   }
-  try { await ctx.answerCallbackQuery() } catch { /* ignore expired callback */ }
+  void ctx.answerCallbackQuery().catch(() => {}) // fire-and-forget, ignore timeout
 
   const encryptedKey = ctx.session.encryptedKey
   if (!encryptedKey) {
@@ -566,7 +566,7 @@ export async function handlePushConfirm(ctx: MyContext) {
 }
 
 export async function handlePushCancel(ctx: MyContext) {
-  try { await ctx.answerCallbackQuery() } catch { /* ignore expired callback */ }
+  void ctx.answerCallbackQuery().catch(() => {}) // fire-and-forget, ignore timeout
   const push = ctx.session.pendingVersionPush
   if (push?.pending) {
     cleanupPending(push.pending)
@@ -818,7 +818,7 @@ export async function handleTextConfirm(ctx: MyContext, isPrivate = false) {
     await ctx.answerCallbackQuery({ text: 'No pending text upload.', show_alert: true })
     return
   }
-  try { await ctx.answerCallbackQuery() } catch { /* ignore expired callback */ }
+  void ctx.answerCallbackQuery().catch(() => {}) // fire-and-forget, ignore timeout
 
   const pending = upload.pending
   const projectName = upload.projectName!
@@ -911,7 +911,7 @@ export async function handleTextCancel(ctx: MyContext) {
     await ctx.answerCallbackQuery({ text: 'Nothing to cancel.', show_alert: true })
     return
   }
-  try { await ctx.answerCallbackQuery() } catch { /* ignore expired callback */ }
+  void ctx.answerCallbackQuery().catch(() => {}) // fire-and-forget, ignore timeout
   upload.pending = undefined
   ctx.session.upload = undefined
   await ctx.reply('Upload cancelled.')
@@ -925,7 +925,7 @@ export async function handleFileConfirm(ctx: MyContext, isPrivate = false) {
     await ctx.answerCallbackQuery({ text: 'No pending file upload.', show_alert: true })
     return
   }
-  try { await ctx.answerCallbackQuery() } catch { /* ignore expired callback */ }
+  void ctx.answerCallbackQuery().catch(() => {}) // fire-and-forget, ignore timeout
 
   const pending = upload.pending
   const projectName = upload.projectName!
@@ -1034,7 +1034,7 @@ export async function handleFileCancel(ctx: MyContext) {
     await ctx.answerCallbackQuery({ text: 'Nothing to cancel.', show_alert: true })
     return
   }
-  try { await ctx.answerCallbackQuery() } catch { /* ignore expired callback */ }
+  void ctx.answerCallbackQuery().catch(() => {}) // fire-and-forget, ignore timeout
   ctx.session.upload = undefined
   await ctx.reply('Upload cancelled.')
 }
@@ -1043,7 +1043,7 @@ export async function handleFileCancel(ctx: MyContext) {
 
 export async function handleRepoConfirm(ctx: MyContext, isPrivate = false) {
   // Answer callback immediately — ignore timeout errors (Telegram 60s limit)
-  try { await ctx.answerCallbackQuery() } catch { /* ignore expired callback */ }
+  void ctx.answerCallbackQuery().catch(() => {}) // fire-and-forget, ignore timeout
 
   const upload = ctx.session.upload
   if (!upload || upload.type !== 'repo' || !upload.pending) {
@@ -1165,7 +1165,7 @@ export async function handleRepoCancel(ctx: MyContext) {
     await ctx.answerCallbackQuery({ text: 'Nothing to cancel.', show_alert: true })
     return
   }
-  try { await ctx.answerCallbackQuery() } catch { /* ignore expired callback */ }
+  void ctx.answerCallbackQuery().catch(() => {}) // fire-and-forget, ignore timeout
   cleanupPending(upload.pending)
   upload.pending = undefined
   ctx.session.upload = undefined

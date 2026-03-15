@@ -1460,6 +1460,9 @@ async function pollWallets() {
 // ─── Error Handler ────────────────────────────────────────────────────────────
 
 bot.catch(err => {
+  const msg = err.message ?? String(err)
+  // Ignore expired callback query errors (Telegram 60s timeout)
+  if (msg.includes('query is too old') || msg.includes('query ID is invalid')) return
   console.error('Bot error:', err)
 })
 
