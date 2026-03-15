@@ -53,12 +53,14 @@ app.use(cors({ origin: cfg.corsOrigin }))
 app.use(express.json())
 app.use(express.urlencoded({ extended: false }))
 
-// Request logger
-app.use((req, _res, next) => {
-  const ts = new Date().toISOString()
-  console.log(`[${ts}] ${req.method} ${req.path}`)
-  next()
-})
+// Request logger (local dev only — skip on Vercel serverless)
+if (process.env['VERCEL'] !== '1') {
+  app.use((req, _res, next) => {
+    const ts = new Date().toISOString()
+    console.log(`[${ts}] ${req.method} ${req.path}`)
+    next()
+  })
+}
 
 // Rate limiting (all routes)
 app.use(rateLimitMiddleware(cfg.rateLimitWindowMs, cfg.rateLimitMax))
