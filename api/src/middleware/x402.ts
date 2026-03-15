@@ -212,8 +212,12 @@ export function buildDynamicVersionPriceMiddleware(cfg: X402Config): RequestHand
       next(); return
     }
 
-    // If X-PAYMENT header is present → let x402 middleware handle verification
-    const hasPayment = !!(req.header('x-payment') ?? req.header('payment-signature'))
+    // If payment header is present → let x402 middleware handle verification
+    // Check all case variants to be safe across different HTTP implementations
+    const hasPayment = !!(
+      req.header('x-payment') ?? req.header('X-PAYMENT') ??
+      req.header('payment-signature') ?? req.header('PAYMENT-SIGNATURE')
+    )
     if (hasPayment) { next(); return }
 
     // No payment yet — compute dynamic price and return 402
