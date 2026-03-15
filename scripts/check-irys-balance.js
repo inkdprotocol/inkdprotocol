@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Irys server wallet balance monitor.
- * Run via: openclaw cron or manually.
+ * Run via: cron or manually.
  * Alerts if balance drops below MIN_ETH threshold.
  */
 
@@ -27,6 +27,6 @@ getBalance().then(eth => {
   console.log(JSON.stringify({ wallet: WALLET, eth: eth.toFixed(6), status, threshold: MIN_ETH }))
   if (status === 'LOW') {
     process.stderr.write(`⚠️ Irys wallet LOW: ${eth.toFixed(6)} ETH (threshold: ${MIN_ETH})\n`)
-    process.exit(1)  // Non-zero exit triggers openclaw alert
+    process.exit(1)  // Non-zero exit triggers alert
   }
 }).catch(e => { console.error(e); process.exit(1) })

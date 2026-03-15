@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Daily scan: inkd-protocol repo integrity check
-// Runs via openclaw cron every day at 09:00
+// Runs via cron every day at 09:00
 
 const { execSync } = require('child_process');
 const https = require('https');
