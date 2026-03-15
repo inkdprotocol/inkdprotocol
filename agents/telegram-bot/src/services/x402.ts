@@ -120,8 +120,10 @@ async function uploadToIrysDirect(
   if (!serverKey) throw new Error('BOT_SERVER_WALLET_KEY not set — cannot upload large files')
 
   // @ts-ignore
-  const { default: Irys } = await import('@irys/sdk')
-  const irys = new Irys({ url: IRYS_NODE, token: 'ethereum', key: serverKey })
+  const irysModule = await import('@irys/sdk')
+  const IrysClass = irysModule.default ?? irysModule.NodeIrys
+  if (!IrysClass) throw new Error('Could not load Irys SDK')
+  const irys = new IrysClass({ url: IRYS_NODE, token: 'ethereum', key: serverKey })
   await irys.ready()
 
   const tags = [
