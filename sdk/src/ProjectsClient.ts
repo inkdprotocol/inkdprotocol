@@ -101,17 +101,21 @@ export interface PushVersionResult {
 }
 
 export interface Project {
-  id:            number;
-  name:          string;
-  description:   string;
-  license:       string;
-  owner:         string;
-  isPublic:      boolean;
-  isAgent:       boolean;
-  agentEndpoint: string;
-  readmeHash:    string;
-  createdAt:     number;
-  versionCount:  number;
+  id:             number;
+  name:           string;
+  description:    string;
+  license:        string;
+  owner:          string;
+  isPublic:       boolean;
+  isAgent:        boolean;
+  agentEndpoint:  string;
+  readmeHash:     string;
+  createdAt:      number;
+  versionCount:   number;
+  // V2 fields
+  metadataUri?:   string;
+  forkOf?:        string;
+  accessManifest?:string;
 }
 
 export interface UploadResult {
