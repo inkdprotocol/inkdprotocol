@@ -123,8 +123,8 @@ function makeProject(overrides = {}) {
 
 describe("cmdProjectGet", () => {
   let consoleLog: ReturnType<typeof vi.spyOn>;
-  let _consoleError: ReturnType<typeof vi.spyOn>;
-  let _exitSpy: ReturnType<typeof vi.spyOn>;
+  let consoleError: ReturnType<typeof vi.spyOn>;
+  let exitSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     consoleLog = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -203,7 +203,7 @@ describe("cmdProjectGet", () => {
 
 describe("cmdProjectList", () => {
   let consoleLog: ReturnType<typeof vi.spyOn>;
-  let _exitSpy: ReturnType<typeof vi.spyOn>;
+  let exitSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     consoleLog = vi.spyOn(console, "log").mockImplementation(() => {});
