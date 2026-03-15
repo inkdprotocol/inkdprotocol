@@ -91,5 +91,37 @@ export function healthRouter(cfg: ApiConfig): Router {
     }
   })
 
+  /**
+   * GET /v1/stats
+   * Aggregated protocol stats — cached 60s, safe for public use.
+   */
+  router.get('/stats', async (_req, res) => {
+    try {
+      let projectCount: bigint | null = null
+      let totalSupply:  bigint | null = null
+      try {
+        ;[projectCount, totalSupply] = await Promise.all([
+          publicClient.readContract({ address: addrs.registry as Address, abi: REGISTRY_ABI, functionName: 'projectCount' }) as Promise<bigint>,
+          publicClient.readContract({ address: addrs.token    as Address, abi: TOKEN_ABI,    functionName: 'totalSupply'  }) as Promise<bigint>,
+        ])
+      } catch { /* RPC down — return nulls gracefully */ }
+
+      res.setHeader('Cache-Control', 'public, max-age=60')
+      res.json({
+        projects:    projectCount !== null ? Number(projectCount) : null,
+        tokenSupply: totalSupply  !== null ? (Number(totalSupply) / 1e18).toFixed(0) : null,
+        network:     cfg.network,
+        contracts: {
+          registry: addrs.registry || null,
+          treasury: addrs.treasury || null,
+          token:    addrs.token    || null,
+        },
+        updatedAt: new Date().toISOString(),
+      })
+    } catch (err) {
+      sendError(res, err)
+    }
+  })
+
   return router
 }

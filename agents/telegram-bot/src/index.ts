@@ -199,6 +199,29 @@ bot.callbackQuery('upload_menu', async ctx => {
   )
 })
 
+bot.callbackQuery(/^withdraw_all:(.+)$/, async ctx => {
+  await ctx.answerCallbackQuery()
+  const toAddress = ctx.match[1]
+  if (!ctx.session.encryptedKey) { await ctx.reply('No wallet.'); return }
+  try {
+    const { usdcRaw } = await getWalletBalance(ctx.session.wallet!)
+    if (usdcRaw === 0n) {
+      await ctx.reply('No USDC to send.', { reply_markup: new InlineKeyboard().text('🏠 Home', 'nav_home') })
+      return
+    }
+    const amount = Number(usdcRaw) / 1_000_000
+    const statusMsg = await ctx.reply(`⏳ Sending ${amount.toFixed(2)} USDC…`)
+    const { sendUsdc } = await import('./services/wallet.js')
+    const txHash = await sendUsdc(ctx.session.encryptedKey, toAddress, amount)
+    await ctx.api.editMessageText(ctx.chat!.id, statusMsg.message_id,
+      `✅ *Sent ${amount.toFixed(2)} USDC*\n\nTo: \`${toAddress}\`\n[View on Basescan](https://basescan.org/tx/${txHash})`,
+      { parse_mode: 'Markdown', reply_markup: new InlineKeyboard().text('🏠 Home', 'nav_home') }
+    )
+  } catch (err) {
+    await ctx.reply(formatApiError(err))
+  }
+})
+
 bot.callbackQuery('wallet_refresh', async ctx => {
   await ctx.answerCallbackQuery()
   if (!ctx.session.wallet) {
@@ -473,6 +496,48 @@ bot.command('search', async ctx => {
   }
 })
 
+bot.command('top', async ctx => {
+  try {
+    const results = await searchProjects('', 8)
+    if (!results.length) {
+      await ctx.reply('No public projects yet.', { reply_markup: new InlineKeyboard().text('🏠 Home', 'nav_home') })
+      return
+    }
+    const lines = results
+      .filter(p => p.isPublic)
+      .slice(0, 8)
+      .map((p, i) => {
+        const shareUrl = `https://api.inkdprotocol.com/p/${p.id}`
+        return `${i + 1}. [${p.name}](${shareUrl}) · v${p.versionCount}`
+      })
+    const kb = new InlineKeyboard()
+    results.filter(p => p.isPublic).slice(0, 5).forEach(p => {
+      kb.text(`📂 ${p.name}`, `project:${p.id}`).row()
+    })
+    kb.text('🏠 Home', 'nav_home')
+    await ctx.reply(`🔥 *Public Projects*\n\n${lines.join('\n')}`, { parse_mode: 'Markdown', reply_markup: kb })
+  } catch (err) {
+    await ctx.reply(formatApiError(err))
+  }
+})
+
+bot.command('stats', async ctx => {
+  try {
+    const res = await fetch(`${process.env.INKD_API_URL ?? 'https://api.inkdprotocol.com'}/v1/status`)
+    const data = await res.json() as any
+    await ctx.reply(
+      `📊 *inkd Protocol Stats*\n\n` +
+      `Projects: ${data.protocol?.projectCount ?? 'n/a'}\n` +
+      `Token supply: ${data.protocol?.totalSupply ?? 'n/a'}\n` +
+      `Network: ${data.network ?? 'base'}\n` +
+      `API uptime: ${Math.floor((data.server?.uptimeMs ?? 0) / 60000)} min`,
+      { parse_mode: 'Markdown', reply_markup: new InlineKeyboard().text('🏠 Home', 'nav_home') }
+    )
+  } catch (err) {
+    await ctx.reply(formatApiError(err))
+  }
+})
+
 bot.command('estimate', async ctx => {
   const arg = ctx.match?.trim()
   if (!arg) {
@@ -531,6 +596,8 @@ bot.command('help', async ctx => {
     `/my_projects — View your projects\n` +
     `/history — View recent uploads\n` +
     `/search <name> — Search public projects\n` +
+    `/top — Trending public projects\n` +
+    `/stats — Protocol stats\n` +
     `/estimate <size> — Calculate upload cost\n` +
     `/export_key — Export your private key\n` +
     `/tutorial — Interactive guided tour\n` +
@@ -630,6 +697,91 @@ bot.on('message:video', async ctx => {
 })
 
 bot.on('message:text', async ctx => {
+  // Handle search_query flow
+  if ((ctx.session.upload as any)?.type === 'search_query') {
+    const query = ctx.message.text.trim()
+    ctx.session.upload = undefined
+    try {
+      const results = await searchProjects(query)
+      if (!results.length) {
+        await ctx.reply(`No results for "${query}".`, { reply_markup: new InlineKeyboard().text('🏠 Home', 'nav_home') })
+        return
+      }
+      const kb = new InlineKeyboard()
+      for (const p of results.slice(0, 5)) {
+        kb.text(`📂 ${p.name}`, `project:${p.id}`).row()
+      }
+      kb.text('🏠 Home', 'nav_home')
+      await ctx.reply(`*Results for "${query}"*`, { parse_mode: 'Markdown', reply_markup: kb })
+    } catch (err) {
+      await ctx.reply(formatApiError(err))
+    }
+    return
+  }
+
+  // Handle withdraw_address flow
+  if ((ctx.session.upload as any)?.type === 'withdraw_address') {
+    const toAddress = ctx.message.text.trim()
+    ctx.session.upload = undefined
+    if (!/^0x[0-9a-fA-F]{40}$/.test(toAddress)) {
+      await ctx.reply('Invalid Base address. Must start with 0x and be 42 characters.\n\nUse /cancel to abort.', {
+        reply_markup: new InlineKeyboard().text('❌ Cancel', 'nav_home'),
+      })
+      return
+    }
+    if (!ctx.session.encryptedKey) {
+      await ctx.reply('No bot-managed wallet.')
+      return
+    }
+    try {
+      const { usdcRaw, eth } = await getWalletBalance(ctx.session.wallet!)
+      const usdcFormatted = (Number(usdcRaw) / 1_000_000).toFixed(2)
+      await ctx.reply(
+        `*Send funds to* \`${toAddress}\`\n\n` +
+        `Available:\n` +
+        `• ${usdcFormatted} USDC\n` +
+        `• ${parseFloat(eth).toFixed(6)} ETH\n\n` +
+        `How much USDC to send?`,
+        {
+          parse_mode: 'Markdown',
+          reply_markup: new InlineKeyboard()
+            .text(`Send all (${usdcFormatted} USDC)`, `withdraw_all:${toAddress}`)
+            .row()
+            .text('❌ Cancel', 'nav_home'),
+        }
+      )
+      ctx.session.upload = { type: 'withdraw_amount', toAddress } as any
+    } catch (err) {
+      await ctx.reply(formatApiError(err))
+    }
+    return
+  }
+
+  // Handle withdraw_amount flow
+  if ((ctx.session.upload as any)?.type === 'withdraw_amount') {
+    const amountStr = ctx.message.text.trim()
+    const toAddress = (ctx.session.upload as any).toAddress
+    ctx.session.upload = undefined
+    const amount = parseFloat(amountStr)
+    if (isNaN(amount) || amount <= 0) {
+      await ctx.reply('Invalid amount. Please enter a number like `5.00`.', { parse_mode: 'Markdown' })
+      return
+    }
+    if (!ctx.session.encryptedKey) return
+    const statusMsg = await ctx.reply(`⏳ Sending ${amount} USDC to \`${toAddress}\`…`, { parse_mode: 'Markdown' })
+    try {
+      const { sendUsdc } = await import('./services/wallet.js')
+      const txHash = await sendUsdc(ctx.session.encryptedKey, toAddress, amount)
+      await ctx.api.editMessageText(ctx.chat!.id, statusMsg.message_id,
+        `✅ *Sent ${amount} USDC*\n\nTo: \`${toAddress}\`\n[View on Basescan](https://basescan.org/tx/${txHash})`,
+        { parse_mode: 'Markdown', reply_markup: new InlineKeyboard().text('🏠 Home', 'nav_home') }
+      )
+    } catch (err) {
+      await ctx.api.editMessageText(ctx.chat!.id, statusMsg.message_id, formatApiError(err))
+    }
+    return
+  }
+
   if (await handleUploadMessage(ctx)) return
   
   const challenge = ctx.session.pendingChallenge
@@ -1318,6 +1470,8 @@ export async function start() {
     { command: 'my_projects',  description: 'View your projects' },
     { command: 'history',      description: 'View recent uploads' },
     { command: 'search',       description: 'Search public projects' },
+    { command: 'top',          description: 'Trending public projects' },
+    { command: 'stats',        description: 'Protocol stats' },
     { command: 'estimate',     description: 'Calculate upload cost: /estimate 500kb' },
     { command: 'export_key',   description: 'Export your private key (bot wallets only)' },
     { command: 'tutorial',     description: 'Interactive guided tour' },

@@ -25,12 +25,33 @@ Every time you open the bot you see:
 
 ## Upload flow
 
-1. Tap **⬆️ Upload a File** — or just send a file directly
-2. Choose what to upload: file, text, or GitHub repo
+1. Tap **⬆️ Upload a File** — or just send a file, photo, or video directly
+2. Choose: file, text, or GitHub repo
 3. Enter a name + optional description (text/file only)
 4. Choose visibility: **🌍 Public** or **🔒 Only me**
-5. Confirm cost → USDC deducted automatically from your wallet
-6. Done
+5. Confirm cost → USDC deducted automatically
+6. Done — Arweave hash + Basescan link returned
+
+---
+
+## Commands
+
+| Command | Description |
+|---|---|
+| `/start` | Home screen |
+| `/wallet` | Address, ETH + USDC balance |
+| `/upload_text` | Upload text or notes |
+| `/upload_repo` | Archive a GitHub repo |
+| `/my_projects` | Browse your projects |
+| `/history` | Recent uploads with share links |
+| `/search <name>` | Search public projects |
+| `/top` | Trending public projects |
+| `/estimate <size>` | Calculate cost before uploading |
+| `/export_key` | Export private key (bot wallets) |
+| `/tutorial` | 4-step onboarding |
+| `/links` | Website, socials, buy $INKD |
+| `/cancel` | Cancel current action |
+| `/help` | Full command reference |
 
 ---
 
@@ -39,9 +60,9 @@ Every time you open the bot you see:
 Send a username or profile link — the bot lists all public repos as buttons. Tap one to upload it directly.
 
 ```
-inkdprotocol       → lists repos
+inkdprotocol             → lists repos
 github.com/inkdprotocol  → also works
-owner/repo         → direct upload
+owner/repo               → direct upload
 ```
 
 ---
@@ -49,9 +70,29 @@ owner/repo         → direct upload
 ## Public vs Private
 
 - **🌍 Public** — anyone with the Arweave link can view it
-- **🔒 Only me** — encrypted before upload. Only your wallet can decrypt.
+- **🔒 Only me** — AES-256 encrypted before upload. Only your wallet can decrypt.
 
 See [Private Uploads](/concepts/private-uploads) for the full security model.
+
+---
+
+## Cost Estimator
+
+Not sure what something will cost? Use `/estimate` before uploading:
+
+```
+/estimate 500kb   → $0.10 USDC
+/estimate 4mb     → $0.14 USDC
+/estimate 100mb   → $1.83 USDC
+```
+
+Exact cost is always shown before you confirm. No surprises.
+
+---
+
+## Wallet Monitor
+
+The bot watches your wallet balance in the background. When USDC arrives, you get notified instantly with a direct upload button.
 
 ---
 
@@ -62,12 +103,16 @@ See [Private Uploads](/concepts/private-uploads) for the full security model.
 | Store file / text | from $0.10 USDC |
 | Store GitHub repo | Arweave cost × 1.20 (min $0.10) |
 
-Exact cost is always shown before you confirm. No surprises.
-
 ---
 
 ## Wallet
 
-The bot creates and manages a wallet for you. Your private key is stored encrypted — only you can export it via `/export_key`.
+The bot creates and manages a wallet for you. Your private key is stored AES-256-GCM encrypted — only you can export it via `/export_key`.
 
-Add funds: send USDC and a small amount of ETH (for gas) to your wallet address on Base.
+Fund it: send USDC (and a small amount of ETH for gas) on Base to your wallet address.
+
+---
+
+## Inline mode
+
+Search projects from any Telegram chat: type `@inkdbot <project name>` anywhere.
