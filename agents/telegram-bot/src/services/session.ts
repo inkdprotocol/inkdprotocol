@@ -29,4 +29,15 @@ export class SqliteStorage<T> implements StorageAdapter<T> {
     const rows = this.db.prepare('SELECT key FROM sessions').all() as { key: string }[]
     return rows.map(r => r.key)
   }
+
+  /** Return all sessions with their chat IDs for background monitoring */
+  getAllSessions(): { chatId: string; session: T }[] {
+    const rows = this.db.prepare('SELECT key, value FROM sessions').all() as { key: string; value: string }[]
+    return rows
+      .map(r => {
+        try { return { chatId: r.key, session: JSON.parse(r.value) as T } }
+        catch { return null }
+      })
+      .filter(Boolean) as { chatId: string; session: T }[]
+  }
 }

@@ -296,7 +296,35 @@ export async function beginFileUpload(
 
 export async function beginVersionPush(ctx: MyContext, projectId: number) {
   ctx.session.pendingVersionPush = { projectId }
-  await ctx.reply('📝 Send version tag (e.g. v1.0.1):')
+  
+  // Auto-suggest next version tag
+  let suggestedTag = 'v1.0.0'
+  try {
+    const { listVersions: lv } = await import('./api.js')
+    const existing = await lv(projectId, 1)
+    if (existing.length > 0) {
+      const latest = existing[0].versionTag ?? 'v1.0.0'
+      // Increment patch version: v1.0.3 → v1.0.4
+      const match = latest.match(/^(v?)(\d+)\.(\d+)\.(\d+)(.*)$/)
+      if (match) {
+        const [, prefix, major, minor, patch, suffix] = match
+        suggestedTag = `${prefix}${major}.${minor}.${Number(patch) + 1}${suffix}`
+      } else {
+        suggestedTag = latest + '-1'
+      }
+    }
+  } catch { /* ignore, use default */ }
+
+  await ctx.reply(
+    `📝 *Version tag*\n\nSend a version tag or tap to use the suggestion:`,
+    {
+      parse_mode: 'Markdown',
+      reply_markup: new InlineKeyboard()
+        .text(`✅ Use ${suggestedTag}`, `use_tag:${projectId}:${encodeURIComponent(suggestedTag)}`)
+        .row()
+        .text('✖️ Cancel', 'push_cancel'),
+    }
+  )
 }
 
 // ─── Handle Version Push Messages ─────────────────────────────────────────────

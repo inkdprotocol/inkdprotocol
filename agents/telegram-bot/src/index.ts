@@ -28,7 +28,7 @@ import {
 import { SqliteStorage } from './services/session'
 import { generateWallet, encryptPrivateKey, decryptPrivateKey, getWalletBalance } from './services/wallet'
 
-import { listProjectsByOwner, getProjectById, listVersions, getVersion, searchProjects, findProjectByOwnerAndName, type ApiProject, type ApiVersion } from './services/api'
+import { listProjectsByOwner, getProjectById, listVersions, getVersion, searchProjects, findProjectByOwnerAndName, getUploadPriceEstimate, type ApiProject, type ApiVersion } from './services/api'
 
 dotenv.config({ path: process.env.BOT_ENV_PATH ?? '.env' })
 
@@ -197,6 +197,15 @@ bot.callbackQuery('upload_menu', async ctx => {
         .text('🏠 Home', 'nav_home'),
     }
   )
+})
+
+bot.callbackQuery('wallet_refresh', async ctx => {
+  await ctx.answerCallbackQuery()
+  if (!ctx.session.wallet) {
+    await ctx.reply('No wallet connected.')
+    return
+  }
+  await showWalletInfo(ctx)
 })
 
 bot.callbackQuery('wallet_deposit', async ctx => {
@@ -464,6 +473,54 @@ bot.command('search', async ctx => {
   }
 })
 
+bot.command('estimate', async ctx => {
+  const arg = ctx.match?.trim()
+  if (!arg) {
+    await ctx.reply(
+      '💵 *Cost Estimator*\n\nUsage: `/estimate <size>`\n\nExamples:\n`/estimate 1mb`\n`/estimate 500kb`\n`/estimate 10000` (bytes)',
+      { parse_mode: 'Markdown', reply_markup: new InlineKeyboard().text('🏠 Home', 'nav_home') }
+    )
+    return
+  }
+  
+  let bytes = 0
+  const lower = arg.toLowerCase().trim()
+  const numMatch = lower.match(/^([\d.]+)\s*(kb|mb|gb|b)?$/)
+  if (numMatch) {
+    const n = parseFloat(numMatch[1])
+    const unit = numMatch[2] ?? 'b'
+    if (unit === 'gb') bytes = Math.round(n * 1024 * 1024 * 1024)
+    else if (unit === 'mb') bytes = Math.round(n * 1024 * 1024)
+    else if (unit === 'kb') bytes = Math.round(n * 1024)
+    else bytes = Math.round(n)
+  } else {
+    await ctx.reply('Could not parse size. Try `/estimate 500kb` or `/estimate 2mb`.', { parse_mode: 'Markdown' })
+    return
+  }
+  
+  if (bytes <= 0 || bytes > 500 * 1024 * 1024) {
+    await ctx.reply('Size must be between 1 byte and 500 MB.')
+    return
+  }
+  
+  try {
+    const price = await getUploadPriceEstimate(bytes)
+    const formatBytes = (b: number) => b < 1024 ? `${b} B` : b < 1024*1024 ? `${(b/1024).toFixed(1)} KB` : `${(b/1024/1024).toFixed(2)} MB`
+    await ctx.reply(
+      `💵 *Cost Estimate*\n\n` +
+      `Size: ${formatBytes(bytes)}\n\n` +
+      `Arweave storage: $${price.arweaveCostUsd}\n` +
+      `Protocol fee (20%): $${(parseFloat(price.totalUsd) - parseFloat(price.arweaveCostUsd)).toFixed(4)}\n` +
+      `─────────────────\n` +
+      `*Total: ${price.totalUsd} USDC*\n\n` +
+      `_Minimum charge is $0.10 USDC._`,
+      { parse_mode: 'Markdown', reply_markup: new InlineKeyboard().text('🏠 Home', 'nav_home') }
+    )
+  } catch (err) {
+    await ctx.reply(formatApiError(err))
+  }
+})
+
 bot.command('help', async ctx => {
   await ctx.reply(
     `📋 *Commands*\n\n` +
@@ -474,6 +531,7 @@ bot.command('help', async ctx => {
     `/my_projects — View your projects\n` +
     `/history — View recent uploads\n` +
     `/search <name> — Search public projects\n` +
+    `/estimate <size> — Calculate upload cost\n` +
     `/export_key — Export your private key\n` +
     `/tutorial — Interactive guided tour\n` +
     `/links — Website, socials, buy $INKD\n` +
@@ -606,22 +664,37 @@ bot.callbackQuery('wallet_new', async ctx => {
     const { address, privateKey } = generateWallet()
     const encryptedKey = encryptPrivateKey(privateKey)
     
-    // grammY auto-saves session — no explicit sqliteStorage.write needed
     ctx.session.wallet = address
     ctx.session.encryptedKey = encryptedKey
     ctx.session.pendingChallenge = undefined
     
+    // Step 1: Show private key warning (must save this)
     await ctx.reply(
-      `🆕 *New Wallet Created*\n\n` +
-      `Address: \`${address}\`\n\n` +
-      `🔐 *Private Key* (SAVE THIS, shown only once!):\n` +
+      `🆕 *Wallet Created*\n\n` +
+      `\`${address}\`\n\n` +
+      `🔐 *Private Key — SAVE NOW (shown once only!)*\n` +
       `\`${privateKey}\`\n\n` +
-      `⚠️ This is your bot wallet. Fund it with ETH (for gas) and USDC (for uploads) on Base.\n\n` +
-      `💡 *Next steps:*\n` +
-      `• Fund this wallet with USDC on Base\n` +
-      `• Use /wallet to check your balance\n` +
-      `• Use /upload_text or /upload_repo to start`,
+      `⚠️ Store this offline. Anyone with this key owns your funds.`,
       { parse_mode: 'Markdown' }
+    )
+    
+    // Step 2: Immediately show funding instructions with wallet card
+    await ctx.reply(
+      `💰 *Fund your wallet*\n\n` +
+      `Send USDC on Base to:\n\`${address}\`\n\n` +
+      `You need at least $0.10 USDC to upload.\n\n` +
+      `Get USDC:\n` +
+      `• [Coinbase](https://coinbase.com)\n` +
+      `• [Uniswap](https://app.uniswap.org)\n` +
+      `• [bridge.base.org](https://bridge.base.org)`,
+      {
+        parse_mode: 'Markdown',
+        reply_markup: new InlineKeyboard()
+          .text('✅ Check Balance', 'wallet_refresh')
+          .text('⬆️ Start Upload', 'home_upload')
+          .row()
+          .text('🏠 Home', 'nav_home'),
+      }
     )
   } catch (err) {
     await ctx.reply(formatApiError(err))
@@ -728,6 +801,14 @@ bot.callbackQuery(/^push_repo:(\d+)$/, handlePushRepoSelect)
 bot.callbackQuery(/^push_confirm:(\d+)$/, handlePushConfirm)
 bot.callbackQuery('push_cancel', handlePushCancel)
 
+bot.callbackQuery(/^use_tag:(\d+):(.+)$/, async ctx => {
+  await ctx.answerCallbackQuery()
+  const projectId = Number(ctx.match[1])
+  const tag = decodeURIComponent(ctx.match[2])
+  ctx.session.pendingVersionPush = { projectId, versionTag: tag }
+  await ctx.reply(`Tag set to *${tag}*. Send changelog (or /skip):`, { parse_mode: 'Markdown' })
+})
+
 bot.callbackQuery(/^project:(\d+)$/, async ctx => {
   await ctx.answerCallbackQuery()
   const projectId = Number(ctx.match?.[1])
@@ -746,11 +827,17 @@ bot.callbackQuery(/^project:(\d+)$/, async ctx => {
 
     const keyboard = new InlineKeyboard()
     
-    // Add push version and share buttons at the top
+    // Push version, share, preview
     keyboard
       .text('🆕 Push Version', `push_version:${projectId}`)
       .text('🔗 Share', `share:${projectId}`)
       .row()
+    
+    if (versions.length > 0) {
+      keyboard
+        .text('👁 Preview', `preview:${projectId}:${versions[0].versionIndex}`)
+        .row()
+    }
     
     for (const v of versions) {
       keyboard
@@ -788,6 +875,45 @@ function extForMime(mime: string | null): string {
   }
   return map[base] ?? ''
 }
+
+bot.callbackQuery(/^preview:(\d+):(\d+)$/, async ctx => {
+  await ctx.answerCallbackQuery()
+  const projectId = Number(ctx.match[1])
+  const versionIndex = Number(ctx.match[2])
+
+  try {
+    const version = await getVersion(projectId, versionIndex)
+    if (!version) { await ctx.reply('Version not found.'); return }
+
+    const url = `https://arweave.net/${version.arweaveHash}`
+    const statusMsg = await ctx.reply('⏳ Fetching preview…')
+
+    const res = await fetch(url, { headers: { Range: 'bytes=0-1023' } })
+    if (!res.ok) throw new Error(`Arweave responded with HTTP ${res.status}`)
+
+    const contentType = res.headers.get('content-type') ?? ''
+    const isText = contentType.startsWith('text/') || contentType.includes('json') || contentType.includes('javascript')
+
+    if (!isText) {
+      await ctx.api.editMessageText(ctx.chat!.id, statusMsg.message_id,
+        `👁 *Preview* — v${versionIndex}\n\nNot a text file (\`${contentType}\`).\n[View on Arweave ↗](${url})`,
+        { parse_mode: 'Markdown' }
+      )
+      return
+    }
+
+    const text = await res.text()
+    const preview = text.slice(0, 400).replace(/`/g, "'")
+    const truncated = text.length > 400
+
+    await ctx.api.editMessageText(ctx.chat!.id, statusMsg.message_id,
+      `👁 *Preview* — v${versionIndex} · \`${version.versionTag}\`\n\n\`\`\`\n${preview}${truncated ? '\n…' : ''}\n\`\`\`\n\n[View full ↗](${url})`,
+      { parse_mode: 'Markdown' }
+    )
+  } catch (err) {
+    await ctx.reply(formatApiError(err))
+  }
+})
 
 bot.callbackQuery(/^download:(\d+):(\d+)$/, async ctx => {
   await ctx.answerCallbackQuery()
@@ -1140,6 +1266,40 @@ bot.on('inline_query', async ctx => {
   }
 })
 
+// ─── Wallet Monitor ───────────────────────────────────────────────────────────
+
+// Track last known USDC balance per user to detect incoming funds
+const knownBalances = new Map<string, bigint>() // chatId → usdcRaw
+
+async function pollWallets() {
+  try {
+    // Get all sessions with wallets from SQLite
+    const sessions = sqliteStorage.getAllSessions?.() ?? []
+    for (const { chatId, session: s } of sessions) {
+      if (!s.wallet || !s.encryptedKey) continue
+      try {
+        const { usdcRaw } = await getWalletBalance(s.wallet)
+        const prev = knownBalances.get(chatId)
+        if (prev !== undefined && usdcRaw > prev) {
+          const received = usdcRaw - prev
+          const usdcFormatted = (Number(received) / 1_000_000).toFixed(2)
+          await bot.api.sendMessage(
+            Number(chatId),
+            `💰 *${usdcFormatted} USDC received!*\n\nYour balance is now $${(Number(usdcRaw) / 1_000_000).toFixed(2)} USDC.\n\nReady to upload? Tap below.`,
+            {
+              parse_mode: 'Markdown',
+              reply_markup: new InlineKeyboard()
+                .text('⬆️ Upload Now', 'home_upload')
+                .text('💼 Wallet', 'home_wallet'),
+            }
+          )
+        }
+        knownBalances.set(chatId, usdcRaw)
+      } catch { /* ignore per-wallet errors */ }
+    }
+  } catch { /* ignore poll errors */ }
+}
+
 // ─── Error Handler ────────────────────────────────────────────────────────────
 
 bot.catch(err => {
@@ -1158,6 +1318,7 @@ export async function start() {
     { command: 'my_projects',  description: 'View your projects' },
     { command: 'history',      description: 'View recent uploads' },
     { command: 'search',       description: 'Search public projects' },
+    { command: 'estimate',     description: 'Calculate upload cost: /estimate 500kb' },
     { command: 'export_key',   description: 'Export your private key (bot wallets only)' },
     { command: 'tutorial',     description: 'Interactive guided tour' },
     { command: 'links',        description: 'Website, socials, buy $INKD' },
@@ -1188,6 +1349,10 @@ export async function start() {
     await bot.start({ drop_pending_updates: true })
     console.log('inkd bot running (polling)')
   }
+
+  // Start wallet monitor (every 60s)
+  setInterval(pollWallets, 60_000)
+  console.log('inkd bot wallet monitor started (60s interval)')
 }
 
 start().catch(err => {
