@@ -1,51 +1,77 @@
 ---
 title: Telegram Bot
-description: Wallet-gated inkd uploads directly inside Telegram.
+description: Upload to Arweave, register on Base, and manage projects directly inside Telegram.
 ---
 
 # Telegram Bot
 
-Meet [@inkdbot](https://t.me/inkdbot): a wallet-gated chat interface that lets anyone push content to inkd without touching the SDK or API.
+[@inkdbot](https://t.me/inkdbot) — a wallet-gated Telegram interface for inkd. No SDK, no API key, no browser. Just a bot.
 
-## Highlights
-- **WalletConnect login** – tap the button, scan the QR (desktop) or deep-link (mobile), approve once. The bot remembers your wallet via SQLite sessions.
-- **Paste-to-Ship** – `/upload_text` takes a project name and any text snippet (meme, note, code) and instantly stores it on Arweave + registers a project on Base.
-- **Project overview** – `/my_projects` lists the latest inkd projects owned by your wallet (powered by the local indexer/SQLite).
+## What it does
 
-## Step-by-step
-1. Open [@inkdbot](https://t.me/inkdbot) → send `/start` → tap **🔗 WalletConnect**.
-2. Telegram sends you a QR + a deep-link:
-   - **Desktop users**: scan the QR from any WalletConnect wallet (Rabby, Coinbase Wallet, Rainbow, Ledger Live, etc.).
-   - **Mobile users**: tap **Open Wallet** – your WalletConnect-compatible app opens directly.
-3. Approve the session in your wallet. The bot automatically links the Base address and replies with `Wallet 0x… linked`.
-4. Use `/upload_text` → enter a project name → paste content (&lt;50 MB). The bot returns:
-   - `ar://…` hash + Arweave URL
-   - Base transaction hash (createProjectV2)
-5. `/my_projects` shows everything the same wallet has deployed (Telegram, SDK, or API – the indexer only filters by owner address).
+- **Wallet management** — create a bot-managed wallet or connect an existing one
+- **File uploads** — send any file, image, video, or text directly to Arweave
+- **GitHub repos** — archive any public repo from a username or URL
+- **Project management** — browse, version, and share your projects
+- **Cost estimates** — `/estimate 500kb` before committing any funds
 
-> **Manual fallback:** Need to sign text manually (e.g., hardware wallet without WalletConnect)? Tap **✍️ Manual signature** to get the legacy challenge message, sign it once, and paste the signature back into Telegram.
+## Getting started
 
-## Deployment / Ops
-The bot runs on `john-server` under **pm2** as `inkd-bot`.
+1. Open [@inkdbot](https://t.me/inkdbot) → `/start`
+2. Tap **🆕 New Wallet** to create a bot-managed wallet (or connect an existing one)
+3. Fund your wallet with USDC on Base (minimum $0.10)
+4. Send any file or use `/upload_text` to store content permanently
 
-```bash
-ssh root@john-server
-cd /root/.openclaw/workspace/agents/telegram-bot
-pm2 status inkd-bot             # uptime & status
-pm2 logs inkd-bot --lines 50    # inspect logs
-pm2 restart inkd-bot            # manual restart
-```
+## Commands
 
-Configuration (`agents/telegram-bot/.env`):
-- `TELEGRAM_BOT_TOKEN`
-- `WALLETCONNECT_PROJECT_ID`
-- `BOT_SERVER_WALLET_KEY` (this wallet is set as Settler on the Registry)
-- `BASE_RPC_URL`, `INKD_REGISTRY_ADDRESS`
-- `INKD_API_URL`, `INKD_INDEXER_DB`
-- `SESSION_DB_PATH` (SQLite file for persistent logins)
+| Command | Description |
+|---|---|
+| `/start` | Home screen — wallet setup or main menu |
+| `/wallet` | View address, ETH and USDC balance |
+| `/upload_text` | Upload text or notes to Arweave |
+| `/upload_repo` | Archive a GitHub repo |
+| `/my_projects` | Browse your projects |
+| `/history` | Recent uploads with share links |
+| `/search <name>` | Search public projects |
+| `/estimate <size>` | Calculate upload cost before spending |
+| `/export_key` | Export your private key (bot wallets only) |
+| `/tutorial` | 4-step onboarding walkthrough |
+| `/links` | Website, socials, buy $INKD |
+| `/cancel` | Cancel any pending action |
+| `/help` | Full command reference |
 
-## Roadmap
-- GitHub/file uploads & additional content types
-- Notifications / receipts
-- Private uploads (encryption + access manifest)
-- Public video/tutorial once the UX is polished
+## How uploads work
+
+1. Bot downloads or receives your content
+2. Uploads to Arweave via server wallet (instant, no gas needed from you)
+3. Creates a project + pushes a version on Base via USDC payment
+4. Returns the Arweave hash + Basescan transaction link
+
+All uploads are registered on-chain under your wallet address. You own the record.
+
+## Wallets
+
+The bot supports two wallet modes:
+
+**Bot-managed wallet** (recommended)
+- Bot generates and encrypts a keypair locally
+- You fund it with USDC on Base
+- Bot signs all transactions on your behalf
+- Export your private key anytime with `/export_key`
+
+**External wallet** (read-only)
+- Sign a challenge message from any Base-compatible wallet
+- View your projects and history
+- Cannot upload (bot needs to sign USDC payments)
+
+## Privacy
+
+Uploads can be **public** (visible to anyone via Arweave hash) or **private** (AES-256 encrypted before upload, only accessible with your wallet key).
+
+## Inline mode
+
+Search projects from any chat: `@inkdbot <project name>`
+
+## Source
+
+The bot is open source: [agents/telegram-bot](https://github.com/inkdprotocol/inkd-protocol/tree/main/agents/telegram-bot)

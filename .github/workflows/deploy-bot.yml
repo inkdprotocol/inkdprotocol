@@ -8,13 +8,13 @@ on:
 
 jobs:
   deploy:
-    name: Deploy to john-server
+    name: Deploy Bot
     runs-on: ubuntu-latest
     steps:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: 167.172.102.246
+          host: ${{ secrets.BOT_DEPLOY_HOST }}
           username: root
           key: ${{ secrets.BOT_DEPLOY_SSH_KEY }}
           script: |
