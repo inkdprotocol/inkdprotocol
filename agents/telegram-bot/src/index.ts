@@ -85,7 +85,7 @@ async function showHomeMenu(ctx: MyContext) {
     .text('💼 Wallet', 'home_wallet').text('📁 My Files', 'home_files').row()
     .text('❓ Help', 'home_help').text('🎓 Tutorial', 'start_tour')
 
-  const caption = '🫟 *inkd*\n\nPermanent storage on Arweave. Registered on Base. Paid in USDC.\n\n' +
+  const caption = '🫟 *inkd*\n\nStore your code on-chain. For agents and humans.\n\n' +
     '[🌐 inkdprotocol.com](https://inkdprotocol.com)\n' +
     '[𝕏 @inkdprotocol](https://twitter.com/inkdprotocol)\n' +
     '[💻 GitHub](https://github.com/inkdprotocol/inkd-protocol)'
