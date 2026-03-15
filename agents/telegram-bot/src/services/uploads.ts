@@ -1054,6 +1054,24 @@ export async function handleRepoConfirm(ctx: MyContext, isPrivate = false) {
     return // Don't clear session - user might fund wallet and retry
   }
 
+  // Re-download if temp file was lost (e.g. after bot restart)
+  if (!fs.existsSync(pending.filePath)) {
+    const redownloadMsg = await ctx.reply('⏳ Re-fetching repo…')
+    try {
+      const { buffer, filename } = await downloadRepoZip({ owner: pending.owner, repo: pending.repo, ref: pending.ref })
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'inkd-repo-'))
+      const newPath = path.join(tempDir, filename)
+      fs.writeFileSync(newPath, buffer)
+      pending.filePath = newPath
+      pending.filename = filename
+      await ctx.api.deleteMessage(ctx.chat!.id, redownloadMsg.message_id)
+    } catch (err) {
+      ctx.session.upload = undefined
+      await ctx.api.editMessageText(ctx.chat!.id, redownloadMsg.message_id, formatApiError(err))
+      return
+    }
+  }
+
   const privacyIcon = isPrivate ? '🔒' : '🌍'
   const statusMsg = await ctx.reply(
     `⏳ *Storing your repo...*\n\n▪ Uploading ⏳\n▪ Creating record ○\n▪ Confirming ○`,
