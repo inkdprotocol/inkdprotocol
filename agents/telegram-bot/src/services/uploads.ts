@@ -104,7 +104,7 @@ type MyContext = Context & SessionFlavor<BotSession>
 
 export function formatApiError(err: unknown): string {
   const msg = err instanceof Error ? err.message : String(err)
-  if (msg.includes('insufficient') || msg.includes('balance'))
+  if ((msg.includes('insufficient') || msg.includes('balance')) && !msg.includes('callback') && !msg.includes('query'))
     return '❌ Not enough USDC. Add funds via /wallet → 📥 Add Funds.'
   if (msg.includes('gas') || msg.includes('ETH') || msg.includes('fee'))
     return '❌ Not enough ETH for gas. Send a small amount of ETH on Base to your wallet.'
@@ -447,7 +447,7 @@ export async function handleVersionPushMessage(ctx: MyContext): Promise<boolean>
 // ─── Version Push Callback Handlers ───────────────────────────────────────────
 
 export async function handlePushTextSelect(ctx: MyContext) {
-  await ctx.answerCallbackQuery()
+  try { await ctx.answerCallbackQuery() } catch { /* ignore expired callback */ }
   const push = ctx.session.pendingVersionPush
   if (!push) {
     await ctx.reply('No pending version push.')
@@ -458,7 +458,7 @@ export async function handlePushTextSelect(ctx: MyContext) {
 }
 
 export async function handlePushRepoSelect(ctx: MyContext) {
-  await ctx.answerCallbackQuery()
+  try { await ctx.answerCallbackQuery() } catch { /* ignore expired callback */ }
   const push = ctx.session.pendingVersionPush
   if (!push) {
     await ctx.reply('No pending version push.')
@@ -474,7 +474,7 @@ export async function handlePushConfirm(ctx: MyContext) {
     await ctx.answerCallbackQuery({ text: 'No pending version push.', show_alert: true })
     return
   }
-  await ctx.answerCallbackQuery()
+  try { await ctx.answerCallbackQuery() } catch { /* ignore expired callback */ }
 
   const encryptedKey = ctx.session.encryptedKey
   if (!encryptedKey) {
@@ -554,7 +554,7 @@ export async function handlePushConfirm(ctx: MyContext) {
 }
 
 export async function handlePushCancel(ctx: MyContext) {
-  await ctx.answerCallbackQuery()
+  try { await ctx.answerCallbackQuery() } catch { /* ignore expired callback */ }
   const push = ctx.session.pendingVersionPush
   if (push?.pending) {
     cleanupPending(push.pending)
@@ -806,7 +806,7 @@ export async function handleTextConfirm(ctx: MyContext, isPrivate = false) {
     await ctx.answerCallbackQuery({ text: 'No pending text upload.', show_alert: true })
     return
   }
-  await ctx.answerCallbackQuery()
+  try { await ctx.answerCallbackQuery() } catch { /* ignore expired callback */ }
 
   const pending = upload.pending
   const projectName = upload.projectName!
@@ -899,7 +899,7 @@ export async function handleTextCancel(ctx: MyContext) {
     await ctx.answerCallbackQuery({ text: 'Nothing to cancel.', show_alert: true })
     return
   }
-  await ctx.answerCallbackQuery()
+  try { await ctx.answerCallbackQuery() } catch { /* ignore expired callback */ }
   upload.pending = undefined
   ctx.session.upload = undefined
   await ctx.reply('Upload cancelled.')
@@ -913,7 +913,7 @@ export async function handleFileConfirm(ctx: MyContext, isPrivate = false) {
     await ctx.answerCallbackQuery({ text: 'No pending file upload.', show_alert: true })
     return
   }
-  await ctx.answerCallbackQuery()
+  try { await ctx.answerCallbackQuery() } catch { /* ignore expired callback */ }
 
   const pending = upload.pending
   const projectName = upload.projectName!
@@ -1022,7 +1022,7 @@ export async function handleFileCancel(ctx: MyContext) {
     await ctx.answerCallbackQuery({ text: 'Nothing to cancel.', show_alert: true })
     return
   }
-  await ctx.answerCallbackQuery()
+  try { await ctx.answerCallbackQuery() } catch { /* ignore expired callback */ }
   ctx.session.upload = undefined
   await ctx.reply('Upload cancelled.')
 }
@@ -1030,12 +1030,16 @@ export async function handleFileCancel(ctx: MyContext) {
 // ─── Repo Upload Handlers ─────────────────────────────────────────────────────
 
 export async function handleRepoConfirm(ctx: MyContext, isPrivate = false) {
+  // Answer callback immediately — ignore timeout errors (Telegram 60s limit)
+  try { await ctx.answerCallbackQuery() } catch { /* ignore expired callback */ }
+
   const upload = ctx.session.upload
   if (!upload || upload.type !== 'repo' || !upload.pending) {
-    await ctx.answerCallbackQuery({ text: 'No pending repo upload.', show_alert: true })
+    await ctx.reply('No pending upload. Use /upload_repo to start.', {
+      reply_markup: new InlineKeyboard().text('🏠 Home', 'nav_home')
+    })
     return
   }
-  await ctx.answerCallbackQuery()
 
   const pending = upload.pending
   const encryptedKey = ctx.session.encryptedKey
@@ -1149,7 +1153,7 @@ export async function handleRepoCancel(ctx: MyContext) {
     await ctx.answerCallbackQuery({ text: 'Nothing to cancel.', show_alert: true })
     return
   }
-  await ctx.answerCallbackQuery()
+  try { await ctx.answerCallbackQuery() } catch { /* ignore expired callback */ }
   cleanupPending(upload.pending)
   upload.pending = undefined
   ctx.session.upload = undefined
