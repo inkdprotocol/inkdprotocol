@@ -62,9 +62,13 @@ export function loadConfig(): ApiConfig {
     throw new Error(`Invalid INKD_NETWORK: "${network}". Must be "mainnet" or "testnet".`)
   }
 
+  // Force reliable RPC — publicnode.com has intermittent "replacement transaction underpriced" errors
   const defaultRpc = network === 'mainnet'
     ? 'https://mainnet.base.org'
     : 'https://sepolia.base.org'
+  // Override env var if it points to publicnode (known flaky)
+  const envRpc = process.env['INKD_RPC_URL']
+  const safeRpc = (envRpc && !envRpc.includes('publicnode')) ? envRpc : defaultRpc
 
   const serverWalletKey     = process.env['SERVER_WALLET_KEY'] ?? null
   const serverWalletAddress = (process.env['SERVER_WALLET_ADDRESS'] ?? null) as Address | null
@@ -73,7 +77,7 @@ export function loadConfig(): ApiConfig {
   return {
     port:    parseInt(process.env['PORT'] ?? '3000', 10),
     network,
-    rpcUrl:  process.env['INKD_RPC_URL'] ?? defaultRpc,
+    rpcUrl:  safeRpc,
     apiKey:  process.env['INKD_API_KEY'] ?? null,
     corsOrigin: process.env['CORS_ORIGIN'] ?? '*',
     rateLimitWindowMs: parseInt(process.env['RATE_LIMIT_WINDOW_MS'] ?? '60000', 10),
