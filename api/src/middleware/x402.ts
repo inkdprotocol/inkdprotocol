@@ -229,7 +229,8 @@ export function buildDynamicVersionPriceMiddleware(cfg: X402Config): RequestHand
     }
 
     // x402 v2 format — payload goes in `payment-required` header as base64 JSON
-    const resource = `${req.protocol}://${req.hostname}${req.originalUrl}`
+    const proto = (req.header('x-forwarded-proto') ?? req.protocol).split(',')[0].trim()
+    const resource = `${proto}://${req.hostname}${req.originalUrl}`
     const payload = {
       x402Version: 2,
       error:       'Payment required',

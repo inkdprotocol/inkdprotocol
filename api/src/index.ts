@@ -46,6 +46,8 @@ import { initGraphClient, getGraphClient } from './graph.js'
 
 const cfg = loadConfig()
 const app = express()
+app.set('trust proxy', 1) // Trust Vercel's proxy for correct protocol/IP
+
 
 // ─── Global middleware ────────────────────────────────────────────────────────
 
