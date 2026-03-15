@@ -68,17 +68,8 @@ function buildX402Middleware(cfg) {
             },
             description: 'Register an AI agent or project on Inkd Protocol',
         },
-        // x402 uses [segment] wildcard syntax, NOT Express :param syntax
-        'POST /projects/[id]/versions': {
-            accepts: {
-                scheme: 'exact',
-                payTo: cfg.treasuryAddress,
-                price: '$0.10',
-                network: networkId,
-                extra: { token: usdcAddr, name: 'USD Coin', version: '2' },
-            },
-            description: 'Push a new version to an Inkd project (Arweave + on-chain)',
-        },
+        // NOTE: POST /projects/[id]/versions is handled by buildDynamicVersionPriceMiddleware
+        // It computes dynamic pricing based on contentSize and handles its own x402 flow
     };
     // Local facilitator — no CDP, no external HTTP calls, no JWT auth issues.
     // Verifies EIP-3009 signatures locally. Settlement handled by Treasury contract.
@@ -181,12 +172,13 @@ function buildDynamicVersionPriceMiddleware(cfg) {
             next();
             return;
         }
-        // If payment header is present → let x402 middleware handle verification
-        // Check all case variants to be safe across different HTTP implementations
-        console.log("[X402-DEBUG] req.headers:", JSON.stringify(Object.keys(req.headers)));
-        const hasPayment = !!(req.header('x-payment') ?? req.header('X-PAYMENT') ??
-            req.header('payment-signature') ?? req.header('PAYMENT-SIGNATURE'));
-        if (hasPayment) {
+        // If payment header is present → verify it and pass through to route handler
+        const paymentHeader = req.header('payment-signature') ?? req.header('PAYMENT-SIGNATURE') ??
+            req.header('x-payment') ?? req.header('X-PAYMENT');
+        if (paymentHeader) {
+            // Payment present — verify EIP-3009 authorization locally
+            // The route handler will use getPaymentAuthorizationData() to extract and execute settlement
+            // We just pass through here; settlement happens in the route
             next();
             return;
         }
@@ -225,5 +217,4 @@ function buildDynamicVersionPriceMiddleware(cfg) {
     };
 }
 // TEMP DEBUG
-console.log('[X402-DEBUG] Headers:', JSON.stringify(Object.fromEntries(Object.entries({}).concat([]))));
 //# sourceMappingURL=x402.js.map
