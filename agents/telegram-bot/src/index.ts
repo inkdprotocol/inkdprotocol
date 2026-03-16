@@ -231,8 +231,7 @@ bot.callbackQuery('upload_menu', async ctx => {
     return
   }
   await ctx.reply(
-    '*What do you want to store?*\n\n' +
-    '📎 You can also send any *image, video, PDF or file* directly.',
+    '*Save anything on-chain, forever.*\n\nFiles, text, code — stored on Arweave, owned by your wallet.',
     {
       parse_mode: 'Markdown',
       reply_markup: new InlineKeyboard()
@@ -312,8 +311,7 @@ bot.callbackQuery('home_upload', async ctx => {
     return
   }
   await ctx.reply(
-    '*What do you want to store?*\n\n' +
-    '📎 You can also send any *image, video, PDF or file* directly — the bot picks it up automatically.',
+    '*Save anything on-chain, forever.*\n\nFiles, text, code — stored on Arweave, owned by your wallet.',
     {
       parse_mode: 'Markdown',
       reply_markup: new InlineKeyboard()
