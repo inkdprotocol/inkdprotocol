@@ -50,15 +50,28 @@ export interface PriceEstimate {
 /**
  * Get projects by owner address
  */
-export async function listProjectsByOwner(owner: string, limit = 10): Promise<ApiProject[]> {
+// In-memory cache for owner project lists (60s TTL)
+const ownerProjectCache = new Map<string, { data: ApiProject[]; ts: number }>()
+
+export async function listProjectsByOwner(owner: string, limit = 50): Promise<ApiProject[]> {
+  const cacheKey = owner.toLowerCase()
+  const cached = ownerProjectCache.get(cacheKey)
+  if (cached && Date.now() - cached.ts < 60_000) return cached.data
+
   const url = `${API_URL}/v1/projects?owner=${owner}&limit=${limit}`
-  const res = await fetch(url)
+  const res = await fetch(url, { signal: AbortSignal.timeout(25000) })
   if (!res.ok) {
     const text = await res.text()
     throw new Error(`API error ${res.status}: ${text}`)
   }
   const json = await res.json() as { data: ApiProject[] }
-  return json.data ?? []
+  const data = json.data ?? []
+  ownerProjectCache.set(cacheKey, { data, ts: Date.now() })
+  return data
+}
+
+export function invalidateOwnerCache(owner: string): void {
+  ownerProjectCache.delete(owner.toLowerCase())
 }
 
 /**
