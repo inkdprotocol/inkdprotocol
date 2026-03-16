@@ -1,6 +1,6 @@
 # @inkd/cli
 
-> Command-line interface for the [Inkd Protocol](https://inkdprotocol.xyz) — permanent on-chain file ownership on Base.
+> Command-line interface for the [Inkd Protocol](https://inkdprotocol.com) — permanent on-chain file ownership on Base.
 
 [![npm](https://img.shields.io/npm/v/@inkd/cli)](https://www.npmjs.com/package/@inkd/cli)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](../../LICENSE)
@@ -28,7 +28,7 @@ export INKD_PRIVATE_KEY=0xabc123...
 # 3. Check network status
 inkd status
 
-# 4. Create your first project (locks 1 $INKD)
+# 4. Create your first project (costs $0.10 USDC via x402)
 inkd project create --name my-agent --agent --endpoint https://api.example.com
 
 # 5. Push a version

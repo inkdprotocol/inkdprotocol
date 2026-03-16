@@ -216,5 +216,4 @@ function buildDynamicVersionPriceMiddleware(cfg) {
             .json({});
     };
 }
-// TEMP DEBUG
 //# sourceMappingURL=x402.js.map

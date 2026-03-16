@@ -251,4 +251,3 @@ export function buildDynamicVersionPriceMiddleware(cfg: X402Config): RequestHand
   }
 }
 
-// TEMP DEBUG
