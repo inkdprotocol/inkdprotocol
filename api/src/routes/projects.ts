@@ -342,33 +342,35 @@ export function projectsRouter(cfg: ApiConfig): Router {
         functionName: 'projectCount',
       }) as bigint
 
-      const results: ReturnType<typeof serializeProject>[] = []
-      // When owner filter is set, scan ALL projects (owner may be anywhere in the list)
+      // When owner filter is set, fetch ALL projects in parallel (owner can be anywhere)
       // Without owner filter, use pagination
-      const scanEnd = owner ? Number(total) : Math.min(Number(total), offset + limit)
-      const scanStart = owner ? 1 : offset + 1
-      let ownerMatches = 0
-      for (let i = scanStart; i <= scanEnd; i++) {
+      let results: ReturnType<typeof serializeProject>[] = []
+      if (owner) {
+        const ids = Array.from({ length: Number(total) }, (_, i) => i + 1)
+        const allProjects = await Promise.all(ids.map(i =>
+          publicClient.readContract({
+            address: registryAddress, abi: REGISTRY_ABI, functionName: 'getProject', args: [BigInt(i)],
+          }).catch(() => null)
+        )) as (RawProject | null)[]
+        const matched = allProjects
+          .filter((p): p is RawProject => !!p && p.exists && p.owner.toLowerCase() === owner.toLowerCase())
+          .filter(p => isAgent === undefined || p.isAgent === isAgent)
+        results = matched.slice(offset, offset + limit).map(p => serializeProject(p))
+        res.setHeader('Cache-Control', 'public, max-age=10')
+        return res.json({ data: results, total: matched.length.toString(), offset, limit, source: 'rpc' })
+      }
+
+      for (let i = offset + 1; i <= Math.min(Number(total), offset + limit); i++) {
         const p = await publicClient.readContract({
-          address:      registryAddress,
-          abi:          REGISTRY_ABI,
-          functionName: 'getProject',
-          args:         [BigInt(i)],
+          address: registryAddress, abi: REGISTRY_ABI, functionName: 'getProject', args: [BigInt(i)],
         }) as unknown as RawProject
         if (!p.exists) continue
-        if (owner && p.owner.toLowerCase() !== owner.toLowerCase()) continue
         if (isAgent !== undefined && p.isAgent !== isAgent) continue
-        ownerMatches++
-        // Apply pagination within matched results
-        if (owner) {
-          if (ownerMatches > offset && results.length < limit) results.push(serializeProject(p))
-        } else {
-          results.push(serializeProject(p))
-        }
+        results.push(serializeProject(p))
       }
 
       res.setHeader('Cache-Control', 'public, max-age=10')
-      res.json({ data: results, total: owner ? ownerMatches.toString() : total.toString(), offset, limit, source: 'rpc' })
+      res.json({ data: results, total: total.toString(), offset, limit, source: 'rpc' })
     } catch (err) {
       sendError(res, err)
     }
