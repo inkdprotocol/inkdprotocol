@@ -39,6 +39,7 @@ const config_js_1 = require("./config.js");
 const auth_js_1 = require("./middleware/auth.js");
 const rateLimit_js_1 = require("./middleware/rateLimit.js");
 const x402_js_1 = require("./middleware/x402.js");
+const alerting_js_1 = require("./middleware/alerting.js");
 const health_js_1 = require("./routes/health.js");
 const projects_js_1 = require("./routes/projects.js");
 const agents_js_1 = require("./routes/agents.js");
@@ -151,8 +152,10 @@ app.use((_req, res) => {
     });
 });
 // ─── Global error handler ─────────────────────────────────────────────────────
-app.use((err, _req, res, _next) => {
+app.use((err, req, res, _next) => {
     console.error('[inkd-api] Unhandled error:', err);
+    // Send Telegram alert for 5xx errors (fire-and-forget)
+    (0, alerting_js_1.sendAlert)(req.method, req.path, 500, err.message).catch(() => { });
     res.status(500).json({
         error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred' },
     });

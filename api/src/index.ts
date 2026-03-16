@@ -35,6 +35,7 @@ import { loadConfig } from './config.js'
 import { authMiddleware }      from './middleware/auth.js'
 import { rateLimitMiddleware } from './middleware/rateLimit.js'
 import { buildX402Middleware, buildDynamicVersionPriceMiddleware } from './middleware/x402.js'
+import { sendAlert } from './middleware/alerting.js'
 import { healthRouter }   from './routes/health.js'
 import { projectsRouter } from './routes/projects.js'
 import { agentsRouter }   from './routes/agents.js'
@@ -164,8 +165,12 @@ app.use((_req, res) => {
 
 // ─── Global error handler ─────────────────────────────────────────────────────
 
-app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+app.use((err: Error, req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error('[inkd-api] Unhandled error:', err)
+  
+  // Send Telegram alert for 5xx errors (fire-and-forget)
+  sendAlert(req.method, req.path, 500, err.message).catch(() => {})
+  
   res.status(500).json({
     error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred' },
   })
