@@ -71,7 +71,7 @@
     "eslint": "^10.0.3",
     "typescript": "^5.0.0",
     "viem": "^2.47.4",
-    "vitest": "^4.0.18"
+    "vitest": "^4.1.0"
   },
   "dependencies": {
     "@x402/evm": "^2.6.0",
