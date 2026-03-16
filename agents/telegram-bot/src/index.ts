@@ -1308,7 +1308,8 @@ async function sendTutorialStep(ctx: MyContext) {
       `Pay in USDC. No accounts, no API keys — your wallet is your identity.\n\n` +
       `Think: npm, but permanent and on-chain.`,
       {
-        reply_markup: new InlineKeyboard().text('Next ➡️', 'tutorial_2')
+        reply_markup: new InlineKeyboard()
+          .text('Next ➡️', 'tutorial_2').text('🏠 Home', 'nav_home')
       }
     )
   } else if (step === 2) {
@@ -1317,7 +1318,8 @@ async function sendTutorialStep(ctx: MyContext) {
         `🔑 Step 2/4 — Wallet\n\nYou're all set: \`${ctx.session.wallet}\``,
         {
           parse_mode: 'Markdown',
-          reply_markup: new InlineKeyboard().text('Next ➡️', 'tutorial_3')
+          reply_markup: new InlineKeyboard()
+            .text('Next ➡️', 'tutorial_3').text('🏠 Home', 'nav_home')
         }
       )
     } else {
@@ -1327,6 +1329,8 @@ async function sendTutorialStep(ctx: MyContext) {
           reply_markup: new InlineKeyboard()
             .text('🆕 Create Wallet', 'tutorial_create_wallet')
             .text('Skip →', 'tutorial_3')
+            .row()
+            .text('🏠 Home', 'nav_home')
         }
       )
     }
@@ -1338,22 +1342,23 @@ async function sendTutorialStep(ctx: MyContext) {
       `Minimum: ~$0.20 USDC. Use /wallet to check balance.`,
       {
         parse_mode: 'Markdown',
-        reply_markup: new InlineKeyboard().text("✅ I'm ready", 'tutorial_4')
+        reply_markup: new InlineKeyboard()
+          .text("✅ I'm ready", 'tutorial_4').text('🏠 Home', 'nav_home')
       }
     )
   } else if (step === 4) {
     await ctx.reply(
       `🚀 Step 4/4 — First upload\n\n` +
       `You're ready. Choose:\n\n` +
-      `• /upload_text — store any text permanently\n` +
-      `• /upload_repo — archive a GitHub repo\n\n` +
+      `• Upload Text — store any text permanently\n` +
+      `• Upload Repo — archive a GitHub repo\n\n` +
       `Files live on Arweave forever. Registered on Base. Owned by your wallet.`,
       {
         reply_markup: new InlineKeyboard()
           .text('📝 Upload Text', 'tutorial_upload_text')
           .text('📦 Upload Repo', 'tutorial_upload_repo')
           .row()
-          .text('Done ✅', 'tutorial_done')
+          .text('Done ✅', 'tutorial_done').text('🏠 Home', 'nav_home')
       }
     )
   }
@@ -1380,7 +1385,9 @@ bot.callbackQuery('tutorial_4', async ctx => {
 bot.callbackQuery('tutorial_done', async ctx => {
   await ctx.answerCallbackQuery()
   ctx.session.tutorialStep = undefined
-  await ctx.reply("You're all set! Use /help to see all commands.")
+  await ctx.reply("You're all set! Use /start anytime to get back to the main menu.", {
+    reply_markup: new InlineKeyboard().text('🏠 Home', 'nav_home'),
+  })
 })
 
 bot.callbackQuery('tutorial_create_wallet', async ctx => {
