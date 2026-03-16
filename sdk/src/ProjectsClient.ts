@@ -77,6 +77,7 @@ export interface CreateProjectParams {
   readmeHash?:    string;
   isAgent?:       boolean;
   agentEndpoint?: string;
+  forkOf?:        number;         // projectId this is forked from (0 = original)
 }
 
 export interface CreateProjectResult {

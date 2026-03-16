@@ -179,3 +179,44 @@ export async function cmdProjectList(args: string[]): Promise<void> {
   }
   console.log()
 }
+
+// ─── fork ────────────────────────────────────────────────────────────────────
+
+export async function cmdProjectFork(args: string[]): Promise<void> {
+  const cfg     = loadConfig()
+  const idStr   = parseFlag(args, '--id') ?? args.find(a => /^\d+$/.test(a))
+  const name    = requireFlag(args, '--name', 'inkd project fork --id 42 --name my-fork')
+
+  if (!idStr) error(`Missing project ID\n  Example: ${DIM}inkd project fork --id 42 --name my-fork${RESET}`)
+  const forkOfId = parseInt(idStr!, 10)
+
+  // Fetch source project
+  const sourceRes = await fetch(`${API_URL}/v1/projects/${forkOfId}`)
+  if (!sourceRes.ok) error(`Project #${forkOfId} not found`)
+  const source = (await sourceRes.json() as any).data
+
+  info(`Forking ${BOLD}${source.name}${RESET} (${forkOfId}) → ${CYAN}${name}${RESET}`)
+
+  const description = parseFlag(args, '--description') ?? `Fork of ${source.name}`
+  const isPublic    = !args.includes('--private')
+  const isAgent     = args.includes('--agent') || source.isAgent
+
+  const { wallet, reader } = buildPayingClients(cfg)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const client = new ProjectsClient({ wallet: wallet as any, publicClient: reader as any, apiUrl: API_URL })
+
+  const result = await client.createProject({
+    name,
+    description,
+    license:       source.license ?? 'MIT',
+    isPublic,
+    isAgent,
+    agentEndpoint: source.agentEndpoint ?? '',
+    forkOf:        forkOfId,
+  })
+
+  success(`Forked! New project ID: ${BOLD}${result.projectId}${RESET}`)
+  console.log(`  ${DIM}Fork lineage recorded on-chain: ${forkOfId} → ${result.projectId}${RESET}`)
+  console.log()
+  info(`Push your changes:  ${DIM}inkd version push --id ${result.projectId} --file ./agent.json --tag v1.0.0${RESET}`)
+}

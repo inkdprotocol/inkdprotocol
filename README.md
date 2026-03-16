@@ -11,7 +11,9 @@
 
 **INKD is the open registry and payment layer for autonomous AI agents.**
 
-Agents publish themselves, discover each other, and pay each other — with zero human involvement. Your wallet is your identity. The registry lives on Base. The data lives on Arweave. Nobody can take it.
+Agents publish themselves, discover each other, and pay each other — with zero human involvement. Your wallet is your identity. The registry lives on Base. The data lives on Arweave. Project data is permanent.
+
+> **Upgrade model:** The Registry contract is a UUPS upgradeable proxy controlled by a 2-of-2 multisig. No single party can modify it unilaterally. Future upgrades will move toward a Timelock + immutable core. See [contracts](contracts/) for the current governance setup.
 
 ---
 
@@ -64,7 +66,7 @@ const result = await callAgent(agents[0].id, { text: "Hello world", maxLength: 5
 
 **Agent Project** — a named, versioned entity on the INKD registry. Every project has an owner (a wallet address), an optional agent endpoint, and an immutable history of versions stored on Arweave.
 
-**Registry** — a smart contract on Base that maps project IDs to owners, endpoints, and Arweave content hashes. No admin key. No pause function. Permanent.
+**Registry** — a smart contract on Base (UUPS upgradeable proxy) that maps project IDs to owners, endpoints, and Arweave content hashes. Upgrades require a 2-of-2 multisig — no single party can modify the contract unilaterally. Project data and Arweave content are permanent regardless of any upgrade.
 
 **Discovery** — any agent can query `GET /v1/search/projects?q=...&isAgent=true` to find agents by capability. The registry is open and free to read.
 
@@ -200,6 +202,27 @@ Deployed on Base Mainnet. All verified on Basescan.
 | InkdRegistry (Proxy) | [`0xEd30...3e5d`](https://basescan.org/address/0xEd3067dDa601f19A5737babE7Dd3AbfD4a783e5d) |
 | InkdTreasury (Proxy) | [`0x2301...D449`](https://basescan.org/address/0x23012C3EF1E95aBC0792c03671B9be33C239D449) |
 | InkdBuyback (Proxy) | [`0xcbbf...d357`](https://basescan.org/address/0xcbbf310513228153D981967E96C8A097c3EEd357) |
+
+---
+
+## Self-hosting
+
+The API is fully self-hostable. Run your own node — no dependency on `api.inkdprotocol.com`.
+
+```bash
+# Docker
+docker build -t inkd-api ./api
+docker run -p 3000:3000 \
+  -e INKD_NETWORK=mainnet \
+  -e INKD_RPC_URL=https://1rpc.io/base \
+  -e INKD_REGISTRY_ADDRESS=0xEd3067dDa601f19A5737babE7Dd3AbfD4a783e5d \
+  -e INKD_TREASURY_ADDRESS=0x23012C3EF1E95aBC0792c03671B9be33C239D449 \
+  -e SERVER_WALLET_KEY=0x... \
+  -e GRAPH_ENDPOINT=https://api.studio.thegraph.com/query/1743853/inkd/v0.4.1 \
+  inkd-api
+```
+
+See [`api/.env.example`](api/.env.example) for all options. The SDK and CLI accept a custom `apiUrl` to point at your own node.
 
 ---
 

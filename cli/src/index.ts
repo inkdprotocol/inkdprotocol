@@ -25,6 +25,7 @@ import { cmdInit }                                    from './commands/init.js'
 import { cmdStatus }                                  from './commands/status.js'
 import {
   cmdProjectCreate,
+  cmdProjectFork,
   cmdProjectGet,
   cmdProjectList,
 } from './commands/project.js'
@@ -194,6 +195,7 @@ export async function main(): Promise<void> {
       const subArgs = rest.slice(1)
       switch (sub) {
         case 'create':   await cmdProjectCreate(subArgs);           break
+        case 'fork':     await cmdProjectFork(rest.slice(1));       break
         case 'get':      await cmdProjectGet(rest.slice(1));        break
         case 'list':     await cmdProjectList(rest.slice(1));       break
         case 'transfer': error('project transfer has moved — use app.safe.global to transfer via multisig.'); break
