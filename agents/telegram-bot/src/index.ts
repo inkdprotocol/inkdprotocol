@@ -90,8 +90,8 @@ async function showHomeMenu(ctx: MyContext) {
 
   const caption = '🫟 *inkd*\n\nStore your code on-chain. For agents and humans.\n\n' +
     '[🌐 Website](https://inkdprotocol.com)\n' +
-    '[𝕏 X](https://twitter.com/inkdprotocol)\n' +
-    '[𝕏 X Agent](https://x.com/inkdprotocolbot)\n' +
+    '[𝕏 Profile](https://twitter.com/inkdprotocol)\n' +
+    '[𝕏 Agent](https://x.com/inkdprotocolbot)\n' +
     '[🪙 $INKD](https://clanker.world/clanker/0x103013851D4475d7D1610C7941E2a16534a1eB07)\n' +
     '[🐱 GitHub](https://github.com/inkdprotocol/inkdprotocol)\n' +
     '[📦 npm](https://www.npmjs.com/package/@inkd/sdk)'
