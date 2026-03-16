@@ -646,6 +646,15 @@ bot.command('stats', async ctx => {
     const usdcVol      = stats.totalUsdcVolumeUsd ?? '$0.00'
     const supply       = stats.tokenSupply ? `${Number(stats.tokenSupply).toLocaleString()} $INKD` : 'n/a'
 
+    // User stats from local DB
+    const allSessions = sqliteStorage.getAllSessions()
+    const totalUsers = allSessions.length
+    const usersWithWallet = allSessions.filter(s => (s.session as any).wallet).length
+    const agentUsers = allSessions.filter(s => {
+      const w = (s.session as any).wallet as string | undefined
+      return w && w.startsWith('0x')
+    }).length
+
     let buybackLines = ''
     if (buybacks.data?.length > 0) {
       buybackLines = '\n\n*Recent Buybacks*\n' + buybacks.data.slice(0, 3).map((b: any) =>
@@ -655,10 +664,11 @@ bot.command('stats', async ctx => {
 
     await ctx.reply(
       `📊 *inkd Protocol*\n\n` +
-      `Projects: ${projectCount}\n` +
-      `Versions: ${versions}\n` +
-      `USDC Volume: ${usdcVol}\n` +
-      `Token supply: ${supply}` +
+      `👤 Users: ${totalUsers} total · ${usersWithWallet} with wallet\n` +
+      `📁 Projects on-chain: ${projectCount}\n` +
+      `📦 Versions: ${versions}\n` +
+      `💵 USDC Volume: ${usdcVol}\n` +
+      `🪙 Token supply: ${supply}` +
       buybackLines,
       { parse_mode: 'Markdown', reply_markup: new InlineKeyboard().text('🏠 Home', 'nav_home') }
     )
