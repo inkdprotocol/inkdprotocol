@@ -28,6 +28,7 @@ vi.mock('../clients.js', () => ({
   buildPublicClient: vi.fn(() => ({
     readContract: mockReadContract,
     waitForTransactionReceipt: mockWaitForTx,
+    getTransactionCount: vi.fn().mockResolvedValue(42),
   })),
   buildWalletClient: vi.fn(() => ({
     client: { writeContract: mockWriteContract },
@@ -500,22 +501,15 @@ describe('GET /v1/projects/by-name/:name', () => {
 // ── GET /v1/projects with filters ─────────────────────────────────────────────
 
 describe('GET /v1/projects with owner/isAgent filters', () => {
-  it('passes owner query param and returns list via RPC', async () => {
-    mockReadContract.mockReset()
-    mockReadContract
-      .mockResolvedValueOnce(1n)
-      .mockResolvedValueOnce({
-        id: 1n, name: 'owned', description: '', license: 'MIT',
-        readmeHash: '', owner: '0xOWNER', isPublic: true, isAgent: false,
-        agentEndpoint: '', createdAt: 1000n, versionCount: 0n, exists: true,
-      })
+  it('returns 503 when owner filter requested but no graph client configured', async () => {
+    // owner filter requires Graph — without it, API returns 503 GRAPH_UNAVAILABLE
     const { projectsRouter } = await import('../routes/projects.js')
     const app = express()
     app.use(express.json())
     app.use('/v1/projects', projectsRouter(baseCfg))
     const res = await request(app).get('/v1/projects?owner=0xOWNER')
-    expect(res.status).toBe(200)
-    expect(res.body.data).toHaveLength(1)
+    expect(res.status).toBe(503)
+    expect(res.body.error.code).toBe('GRAPH_UNAVAILABLE')
   })
 
   it('passes isAgent=true query param and returns list via RPC', async () => {

@@ -67,13 +67,14 @@ describe('buildX402Middleware()', () => {
     expect(MockLocalFacilitatorClient).toHaveBeenCalledTimes(1)
   })
 
-  it('calls paymentMiddleware with routes containing both endpoints', () => {
+  it('calls paymentMiddleware with routes containing createProject endpoint', () => {
     buildX402Middleware(baseConfig)
     expect(paymentMiddleware).toHaveBeenCalledTimes(1)
     const [routes] = paymentMiddleware.mock.calls[0] as [Record<string, unknown>]
     expect(routes).toHaveProperty('POST /projects')
-    // x402 uses [id] wildcard syntax, not Express :id
-    expect(routes).toHaveProperty('POST /projects/[id]/versions')
+    // NOTE: POST /projects/[id]/versions is handled by buildDynamicVersionPriceMiddleware
+    // and is NOT in the static paymentMiddleware routes
+    expect(routes).not.toHaveProperty('POST /projects/[id]/versions')
   })
 
   it('uses NETWORK_BASE_SEPOLIA for testnet', () => {
@@ -88,18 +89,16 @@ describe('buildX402Middleware()', () => {
     expect(routes['POST /projects']!.accepts.network).toBe(NETWORK_BASE_MAINNET)
   })
 
-  it('sets treasuryAddress (payTo) in both route configs', () => {
+  it('sets treasuryAddress (payTo) in createProject route config', () => {
     buildX402Middleware(baseConfig)
     const [routes] = paymentMiddleware.mock.calls[0] as [Record<string, { accepts: { payTo: string } }>]
     expect(routes['POST /projects']!.accepts.payTo).toBe(baseConfig.treasuryAddress)
-    expect(routes['POST /projects/[id]/versions']!.accepts.payTo).toBe(baseConfig.treasuryAddress)
   })
 
-  it('sets a price in both route configs', () => {
+  it('sets a price in createProject route config', () => {
     buildX402Middleware(baseConfig)
     const [routes] = paymentMiddleware.mock.calls[0] as [Record<string, { accepts: { price: string } }>]
     expect(routes['POST /projects']!.accepts.price).toMatch(/^\$[\d.]+$/)
-    expect(routes['POST /projects/[id]/versions']!.accepts.price).toMatch(/^\$[\d.]+$/)
   })
 })
 
