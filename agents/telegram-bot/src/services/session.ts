@@ -12,6 +12,47 @@ function getDb(dbPath: string): Database.Database {
   return _db
 }
 
+// ─── Agent Monitor State ─────────────────────────────────────────────────────
+export function initAgentMonitor(dbPath: string) {
+  const db = getDb(dbPath)
+  db.exec(`CREATE TABLE IF NOT EXISTS agent_monitor (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+  )`)
+  db.exec(`CREATE TABLE IF NOT EXISTS seen_versions (
+    version_id TEXT PRIMARY KEY,
+    seen_at INTEGER NOT NULL
+  )`)
+}
+
+export function getLastCheckedAt(dbPath: string): number {
+  const db = getDb(dbPath)
+  const row = db.prepare("SELECT value FROM agent_monitor WHERE key = 'lastCheckedAt'").get() as { value: string } | undefined
+  return row ? parseInt(row.value, 10) : Math.floor(Date.now() / 1000) - 3600 // default: 1 hour ago
+}
+
+export function setLastCheckedAt(dbPath: string, timestamp: number) {
+  const db = getDb(dbPath)
+  db.prepare("REPLACE INTO agent_monitor (key, value) VALUES ('lastCheckedAt', ?)").run(String(timestamp))
+}
+
+export function hasSeenVersion(dbPath: string, versionId: string): boolean {
+  const db = getDb(dbPath)
+  const row = db.prepare('SELECT 1 FROM seen_versions WHERE version_id = ?').get(versionId)
+  return !!row
+}
+
+export function markVersionSeen(dbPath: string, versionId: string) {
+  const db = getDb(dbPath)
+  db.prepare('INSERT OR IGNORE INTO seen_versions (version_id, seen_at) VALUES (?, ?)').run(versionId, Math.floor(Date.now() / 1000))
+}
+
+export function cleanupOldVersions(dbPath: string, olderThanDays = 30) {
+  const db = getDb(dbPath)
+  const cutoff = Math.floor(Date.now() / 1000) - (olderThanDays * 24 * 60 * 60)
+  db.prepare('DELETE FROM seen_versions WHERE seen_at < ?').run(cutoff)
+}
+
 export function hideProject(dbPath: string, userId: string, projectId: string) {
   getDb(dbPath).prepare('INSERT OR IGNORE INTO hidden_projects (user_id, project_id) VALUES (?, ?)').run(userId, projectId)
 }

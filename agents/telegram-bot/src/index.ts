@@ -26,10 +26,49 @@ import {
   handleGithubRepoSelected,
   type PendingVersionPush,
 } from './services/uploads'
-import { SqliteStorage, hideProject, unhideProject, getHiddenProjects } from './services/session'
+import { SqliteStorage, hideProject, unhideProject, getHiddenProjects, initAgentMonitor, getLastCheckedAt, setLastCheckedAt, hasSeenVersion, markVersionSeen, cleanupOldVersions } from './services/session'
 import { generateWallet, encryptPrivateKey, decryptPrivateKey, getWalletBalance } from './services/wallet'
 
 import { listProjectsByOwner, getProjectById, listVersions, getVersion, searchProjects, findProjectByOwnerAndName, getUploadPriceEstimate, type ApiProject, type ApiVersion } from './services/api'
+
+// ─── Graph Query for Agent Activity ───────────────────────────────────────────
+const GRAPH_ENDPOINT = 'https://api.studio.thegraph.com/query/1743853/inkd/v0.1.0'
+
+interface GraphVersion {
+  id: string
+  arweaveHash: string
+  versionTag: string
+  pushedAt: string
+  project: { id: string; name: string; owner: { id: string } }
+  pushedBy: { id: string }
+}
+
+async function fetchRecentVersions(afterTimestamp: string): Promise<GraphVersion[]> {
+  const query = `
+    query GetRecentVersions($after: String!) {
+      versions(where: { pushedAt_gt: $after }, orderBy: pushedAt, orderDirection: desc, first: 50) {
+        id
+        arweaveHash
+        versionTag
+        pushedAt
+        project {
+          id
+          name
+          owner { id }
+        }
+        pushedBy { id }
+      }
+    }
+  `
+  const res = await fetch(GRAPH_ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query, variables: { after: afterTimestamp } }),
+  })
+  if (!res.ok) throw new Error(`Graph returned ${res.status}`)
+  const json = await res.json() as { data?: { versions: GraphVersion[] } }
+  return json.data?.versions ?? []
+}
 
 dotenv.config({ path: process.env.BOT_ENV_PATH ?? '.env' })
 
@@ -862,10 +901,20 @@ bot.on('message:text', async ctx => {
     // External wallet — no encryptedKey (read-only)
     ctx.session.encryptedKey = undefined
     await ctx.reply(
-      `✅ Wallet ${address} connected (read-only).\n\n` +
-      `⚠️ External wallets can view projects but cannot upload (bot needs to sign USDC transfers).\n\n` +
-      `Use /my_projects to view your projects.\n` +
-      `For uploads, create a bot wallet with /start → "🆕 New Wallet".`
+      `✅ *Wallet connected* (read-only)\n\n` +
+      `\`${address}\`\n\n` +
+      `📖 *How it works:*\n` +
+      `Your bot wallet and external wallet are separate. External wallets can view projects but cannot upload (bot needs to sign USDC transfers).\n\n` +
+      `💡 *Want to use the same wallet everywhere?*\n` +
+      `Export your bot key and use it as \`INKD_PRIVATE_KEY\` in SDK/CLI/Agents. Then both see the same projects.`,
+      {
+        parse_mode: 'Markdown',
+        reply_markup: new InlineKeyboard()
+          .text('📋 How to use with agents', 'agent_guide')
+          .row()
+          .text('📁 My Files', 'home_files')
+          .text('🏠 Home', 'nav_home'),
+      }
     )
   } catch (err) {
     await ctx.reply('Signature invalid. Please try again.')
@@ -923,6 +972,38 @@ bot.callbackQuery('wallet_connect', async ctx => {
     `\`${challenge}\`\n\n` +
     `⚠️ Note: Connected wallets are read-only. For uploads, use "🆕 New Wallet" instead.`,
     { parse_mode: 'Markdown' }
+  )
+})
+
+// ─── Agent Guide for External Wallets ─────────────────────────────────────────
+
+bot.callbackQuery('agent_guide', async ctx => {
+  await ctx.answerCallbackQuery()
+  await ctx.reply(
+    `🤖 *Using inkd with Agents*\n\n` +
+    `Your bot wallet and external wallet are separate. To use the same wallet in both:\n\n` +
+    `*1. Export your bot key*\n` +
+    `Go to 💼 Wallet → 🔑 Export Key\n\n` +
+    `*2. Set up your agent*\n` +
+    `Add this to your agent's environment:\n` +
+    `\`\`\`\n` +
+    `INKD_PRIVATE_KEY=0x...\n` +
+    `\`\`\`\n\n` +
+    `*3. Use the SDK/CLI*\n` +
+    `\`\`\`typescript\n` +
+    `import { InkdClient } from '@inkd/sdk'\n` +
+    `const client = new InkdClient()\n` +
+    `await client.pushVersion('my-project', data)\n` +
+    `\`\`\`\n\n` +
+    `Now your bot and agent share the same wallet. Any uploads from your agent will appear here as notifications.\n\n` +
+    `📦 [npm @inkd/sdk](https://npmjs.com/package/@inkd/sdk)\n` +
+    `📖 [Docs](https://docs.inkdprotocol.com)`,
+    {
+      parse_mode: 'Markdown',
+      reply_markup: new InlineKeyboard()
+        .text('💼 Wallet', 'home_wallet')
+        .text('🏠 Home', 'nav_home'),
+    }
   )
 })
 
@@ -1556,6 +1637,78 @@ async function pollWallets() {
   } catch { /* ignore poll errors */ }
 }
 
+// ─── Agent Activity Monitor ───────────────────────────────────────────────────
+
+async function pollAgentActivity() {
+  try {
+    const lastChecked = getLastCheckedAt(sessionDbPath)
+    const versions = await fetchRecentVersions(String(lastChecked))
+    
+    if (versions.length === 0) return
+
+    // Build wallet → chatId mapping from all sessions
+    const sessions = sqliteStorage.getAllSessions?.() ?? []
+    const walletToChats = new Map<string, string[]>()
+    for (const { chatId, session: s } of sessions) {
+      if (!s.wallet) continue
+      const walletLower = s.wallet.toLowerCase()
+      const existing = walletToChats.get(walletLower) ?? []
+      existing.push(chatId)
+      walletToChats.set(walletLower, existing)
+    }
+
+    // Process each new version
+    for (const v of versions) {
+      // Skip if already seen
+      if (hasSeenVersion(sessionDbPath, v.id)) continue
+      markVersionSeen(sessionDbPath, v.id)
+
+      // Check if project owner is a registered wallet
+      const ownerWallet = v.project.owner.id.toLowerCase()
+      const chatIds = walletToChats.get(ownerWallet)
+      if (!chatIds || chatIds.length === 0) continue
+
+      // Check if uploaded by someone other than via bot (external agent/SDK)
+      // If pushedBy equals owner, it could be bot or SDK - we notify anyway
+      // Users can distinguish by context
+      
+      const notification = [
+        '🫟 *New upload detected*',
+        '',
+        `📂 ${v.project.name}`,
+        `📦 ${v.versionTag}`,
+        `🔗 [arweave.net/${v.arweaveHash.slice(0, 8)}…](https://arweave.net/${v.arweaveHash})`,
+        '',
+        '_Uploaded via your wallet (or an agent acting on your behalf)._',
+      ].join('\n')
+
+      for (const chatId of chatIds) {
+        try {
+          await bot.api.sendMessage(Number(chatId), notification, {
+            parse_mode: 'Markdown',
+            reply_markup: new InlineKeyboard()
+              .text('📂 View Project', `project:${v.project.id}`)
+              .text('🏠 Home', 'nav_home'),
+          })
+        } catch { /* ignore send errors */ }
+      }
+    }
+
+    // Update last checked timestamp to the latest version's pushedAt
+    const latestTimestamp = Math.max(...versions.map(v => parseInt(v.pushedAt, 10)))
+    if (latestTimestamp > lastChecked) {
+      setLastCheckedAt(sessionDbPath, latestTimestamp)
+    }
+
+    // Cleanup old seen versions periodically (every ~10 polls = 10 min)
+    if (Math.random() < 0.1) {
+      cleanupOldVersions(sessionDbPath, 30)
+    }
+  } catch (err) {
+    console.error('[inkd-bot] Agent activity poll error:', (err as Error).message)
+  }
+}
+
 // ─── Error Handler ────────────────────────────────────────────────────────────
 
 bot.catch(err => {
@@ -1605,9 +1758,16 @@ export async function start() {
     console.log('inkd bot running (polling)')
   }
 
+  // Initialize agent monitor tables
+  initAgentMonitor(sessionDbPath)
+
   // Start wallet monitor (every 60s)
   setInterval(pollWallets, 60_000)
   console.log('inkd bot wallet monitor started (60s interval)')
+
+  // Start agent activity monitor (every 60s)
+  setInterval(pollAgentActivity, 60_000)
+  console.log('inkd bot agent activity monitor started (60s interval)')
 }
 
 start().catch(err => {
