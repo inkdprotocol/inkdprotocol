@@ -1,6 +1,6 @@
 {
   "name": "@inkd/agentkit",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Coinbase AgentKit action provider for inkd Protocol — register code on-chain from any AI agent",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

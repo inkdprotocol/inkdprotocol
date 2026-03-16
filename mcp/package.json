@@ -1,8 +1,10 @@
 {
   "name": "@inkd/mcp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Model Context Protocol server for inkd Protocol",
-  "bin": { "inkd-mcp": "./dist/server.js" },
+  "bin": {
+    "inkd-mcp": "./dist/server.js"
+  },
   "type": "module",
   "scripts": {
     "build": "tsc",

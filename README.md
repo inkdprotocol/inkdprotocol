@@ -147,8 +147,8 @@ import { InkdActionProvider } from '@inkd/agentkit'
 |---|---|---|
 | [`@inkd/sdk`](https://npmjs.com/package/@inkd/sdk) | [![npm](https://img.shields.io/npm/v/@inkd/sdk)](https://npmjs.com/package/@inkd/sdk) | TypeScript SDK. `ProjectsClient` handles x402 payments automatically. `AgentVault` stores credentials encrypted on Arweave. |
 | [`@inkd/cli`](https://npmjs.com/package/@inkd/cli) | [![npm](https://img.shields.io/npm/v/@inkd/cli)](https://npmjs.com/package/@inkd/cli) | CLI tool for humans and CI pipelines. `inkd project create`, `inkd version push`, `inkd project list`. |
-| [`@inkd/agentkit`](https://npmjs.com/package/@inkd/agentkit) | [![npm](https://img.shields.io/npm/v/@inkd/agentkit)](https://npmjs.com/package/@inkd/agentkit) | Coinbase AgentKit plugin. Drop-in action provider for AI agents built on CDP. 4 actions: create, push, get, list. |
-| [`@inkd/mcp`](https://npmjs.com/package/@inkd/mcp) | [![npm](https://img.shields.io/npm/v/@inkd/mcp)](https://npmjs.com/package/@inkd/mcp) | MCP server for Claude, Cursor, Windsurf. One config line and any MCP-compatible AI can store and retrieve files permanently. |
+| [`@inkd/agentkit`](https://npmjs.com/package/@inkd/agentkit) | `0.1.2` | Coinbase AgentKit plugin. Drop-in action provider for AI agents built on CDP. 4 actions: create, push, get, list. |
+| [`@inkd/mcp`](https://npmjs.com/package/@inkd/mcp) | `0.1.1` | MCP server for Claude, Cursor, Windsurf. One config line and any MCP-compatible AI can store and retrieve files permanently. |
 
 ---
 
