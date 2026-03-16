@@ -28,7 +28,7 @@ export function initAgentMonitor(dbPath: string) {
 export function getLastCheckedAt(dbPath: string): number {
   const db = getDb(dbPath)
   const row = db.prepare("SELECT value FROM agent_monitor WHERE key = 'lastCheckedAt'").get() as { value: string } | undefined
-  return row ? parseInt(row.value, 10) : Math.floor(Date.now() / 1000) - 3600 // default: 1 hour ago
+  return row ? parseInt(row.value, 10) : Math.floor(Date.now() / 1000) // default: now (no backfill on first start)
 }
 
 export function setLastCheckedAt(dbPath: string, timestamp: number) {
