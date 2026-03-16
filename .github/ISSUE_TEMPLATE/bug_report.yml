@@ -20,6 +20,10 @@ body:
         - Contracts (InkdRegistry / InkdToken / InkdTreasury)
         - TypeScript SDK (@inkd/sdk)
         - CLI (@inkd/cli)
+        - API (api.inkdprotocol.com)
+        - Telegram Bot (@inkdbot)
+        - AgentKit (@inkd/agentkit)
+        - MCP (@inkd/mcp)
         - Subgraph (The Graph)
         - Documentation
         - Other
@@ -39,11 +43,16 @@ body:
     id: reproduction
     attributes:
       label: Steps to reproduce
-      description: Minimal steps to reproduce the issue.
+      description: Minimal reproducible example. Code is strongly preferred over prose.
+      render: typescript
       placeholder: |
-        1. Install @inkd/sdk v0.x.x
-        2. Call `client.registerProject({...})`
-        3. See error: `...`
+        // Minimal reproduction — paste runnable code if possible
+        import { ProjectsClient } from "@inkd/sdk";
+
+        const client = new ProjectsClient({ ... });
+        const result = await client.createProject({ ... });
+        // Expected: ...
+        // Got: Error: ...
     validations:
       required: true
 
