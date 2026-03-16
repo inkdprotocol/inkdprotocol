@@ -50,6 +50,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Build SDK first (CLI depends on it)
+        run: cd sdk && npm ci && npm run build
+
       - name: Install CLI dependencies
         run: cd cli && npm ci
 
