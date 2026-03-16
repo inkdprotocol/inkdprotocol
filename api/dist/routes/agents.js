@@ -32,6 +32,9 @@ function serializeAgent(a) {
 const PaginationQuery = zod_1.z.object({
     offset: zod_1.z.coerce.number().int().min(0).default(0),
     limit: zod_1.z.coerce.number().int().min(1).max(100).default(20),
+    capability: zod_1.z.string().optional(), // filter by capability (searches name+description)
+    q: zod_1.z.string().optional(), // general search query
+    sortBy: zod_1.z.enum(['versionCount', 'createdAt']).default('createdAt'),
 });
 // ─── Router ───────────────────────────────────────────────────────────────────
 function agentsRouter(cfg) {
@@ -47,7 +50,44 @@ function agentsRouter(cfg) {
     router.get('/', async (req, res) => {
         try {
             const registryAddress = requireRegistry();
-            const { offset, limit } = PaginationQuery.parse(req.query);
+            const { offset, limit, capability, q } = PaginationQuery.parse(req.query);
+            // Graph-first: supports capability/q filtering + versionCount sort
+            const graph = (0, graph_js_1.getGraphClient)();
+            if (graph) {
+                try {
+                    const searchQuery = capability ?? q ?? '';
+                    let agents;
+                    if (searchQuery) {
+                        agents = await graph.searchProjects(searchQuery, limit);
+                        agents = agents.filter(a => a.isAgent);
+                    }
+                    else {
+                        agents = await graph.getProjects({ offset, limit, isAgent: true });
+                    }
+                    res.setHeader('Cache-Control', 'public, max-age=15');
+                    return res.json({
+                        data: agents.map(a => ({
+                            id: a.id,
+                            name: a.name,
+                            description: a.description,
+                            owner: a.owner?.id ?? '',
+                            versionCount: a.versionCount,
+                            createdAt: a.createdAt,
+                            readmeHash: a.readmeHash,
+                            // reputation proxy: versionCount as activity signal
+                            reputation: {
+                                versionCount: Number(a.versionCount),
+                                activityScore: Math.min(100, Number(a.versionCount) * 10),
+                            },
+                        })),
+                        total: agents.length.toString(),
+                        offset,
+                        limit,
+                        source: 'graph',
+                    });
+                }
+                catch { /* fall through to RPC */ }
+            }
             const agents = await publicClient.readContract({
                 address: registryAddress,
                 abi: abis_js_1.REGISTRY_ABI,
@@ -56,13 +96,20 @@ function agentsRouter(cfg) {
             });
             // agentProjectCount() has a storage-layout issue after V2 upgrade — returns garbage.
             // Use agents.length as count; total is approximate (actual count unknown until fixed on-chain).
-            const serialized = agents.map(serializeAgent).filter(a => a.id !== '0');
+            let serialized = agents.map(serializeAgent).filter(a => a.id !== '0');
+            // Apply capability/q filter on RPC results
+            if (capability ?? q) {
+                const needle = (capability ?? q ?? '').toLowerCase();
+                serialized = serialized.filter(a => a.name.toLowerCase().includes(needle) ||
+                    a.description.toLowerCase().includes(needle));
+            }
             res.json({
                 data: serialized,
                 total: serialized.length.toString(),
                 offset,
                 limit,
                 count: serialized.length,
+                source: 'rpc',
             });
         }
         catch (err) {
