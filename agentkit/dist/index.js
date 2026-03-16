@@ -30,23 +30,23 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
 ));
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
-// node_modules/@x402/core/dist/esm/chunk-VE37GDG2.mjs
+// ../node_modules/@x402/core/dist/esm/chunk-VE37GDG2.mjs
 var x402Version;
 var init_chunk_VE37GDG2 = __esm({
-  "node_modules/@x402/core/dist/esm/chunk-VE37GDG2.mjs"() {
+  "../node_modules/@x402/core/dist/esm/chunk-VE37GDG2.mjs"() {
     "use strict";
     x402Version = 2;
   }
 });
 
-// node_modules/@x402/core/dist/esm/chunk-L2RJI3BI.mjs
-var init_chunk_L2RJI3BI = __esm({
-  "node_modules/@x402/core/dist/esm/chunk-L2RJI3BI.mjs"() {
+// ../node_modules/@x402/core/dist/esm/chunk-HRQUGJ3Y.mjs
+var init_chunk_HRQUGJ3Y = __esm({
+  "../node_modules/@x402/core/dist/esm/chunk-HRQUGJ3Y.mjs"() {
     "use strict";
   }
 });
 
-// node_modules/@x402/core/dist/esm/chunk-TDLQZ6MP.mjs
+// ../node_modules/@x402/core/dist/esm/chunk-TDLQZ6MP.mjs
 function safeBase64Encode(data) {
   if (typeof globalThis !== "undefined" && typeof globalThis.btoa === "function") {
     const bytes = new TextEncoder().encode(data);
@@ -69,7 +69,7 @@ function safeBase64Decode(data) {
 }
 var findSchemesByNetwork, findByNetworkAndScheme, Base64EncodedRegex;
 var init_chunk_TDLQZ6MP = __esm({
-  "node_modules/@x402/core/dist/esm/chunk-TDLQZ6MP.mjs"() {
+  "../node_modules/@x402/core/dist/esm/chunk-TDLQZ6MP.mjs"() {
     "use strict";
     findSchemesByNetwork = (map, network) => {
       let implementationsByScheme = map.get(network);
@@ -92,14 +92,14 @@ var init_chunk_TDLQZ6MP = __esm({
   }
 });
 
-// node_modules/@x402/core/dist/esm/chunk-BJTO5JO5.mjs
+// ../node_modules/@x402/core/dist/esm/chunk-BJTO5JO5.mjs
 var init_chunk_BJTO5JO5 = __esm({
-  "node_modules/@x402/core/dist/esm/chunk-BJTO5JO5.mjs"() {
+  "../node_modules/@x402/core/dist/esm/chunk-BJTO5JO5.mjs"() {
     "use strict";
   }
 });
 
-// node_modules/@x402/core/dist/esm/chunk-FHAPZPSN.mjs
+// ../node_modules/@x402/core/dist/esm/chunk-CM4FD6HG.mjs
 function encodePaymentSignatureHeader(paymentPayload) {
   return safeBase64Encode(JSON.stringify(paymentPayload));
 }
@@ -116,11 +116,11 @@ function decodePaymentResponseHeader(paymentResponseHeader) {
   return JSON.parse(safeBase64Decode(paymentResponseHeader));
 }
 var x402HTTPClient;
-var init_chunk_FHAPZPSN = __esm({
-  "node_modules/@x402/core/dist/esm/chunk-FHAPZPSN.mjs"() {
+var init_chunk_CM4FD6HG = __esm({
+  "../node_modules/@x402/core/dist/esm/chunk-CM4FD6HG.mjs"() {
     "use strict";
     init_chunk_VE37GDG2();
-    init_chunk_L2RJI3BI();
+    init_chunk_HRQUGJ3Y();
     init_chunk_TDLQZ6MP();
     init_chunk_BJTO5JO5();
     x402HTTPClient = class {
@@ -229,14 +229,14 @@ var init_chunk_FHAPZPSN = __esm({
   }
 });
 
-// node_modules/@x402/core/dist/esm/client/index.mjs
+// ../node_modules/@x402/core/dist/esm/client/index.mjs
 var x402Client;
 var init_client = __esm({
-  "node_modules/@x402/core/dist/esm/client/index.mjs"() {
+  "../node_modules/@x402/core/dist/esm/client/index.mjs"() {
     "use strict";
-    init_chunk_FHAPZPSN();
+    init_chunk_CM4FD6HG();
     init_chunk_VE37GDG2();
-    init_chunk_L2RJI3BI();
+    init_chunk_HRQUGJ3Y();
     init_chunk_TDLQZ6MP();
     init_chunk_BJTO5JO5();
     x402Client = class _x402Client {
@@ -553,19 +553,19 @@ var init_client = __esm({
   }
 });
 
-// node_modules/@x402/core/dist/esm/http/index.mjs
+// ../node_modules/@x402/core/dist/esm/http/index.mjs
 var init_http = __esm({
-  "node_modules/@x402/core/dist/esm/http/index.mjs"() {
+  "../node_modules/@x402/core/dist/esm/http/index.mjs"() {
     "use strict";
-    init_chunk_FHAPZPSN();
+    init_chunk_CM4FD6HG();
     init_chunk_VE37GDG2();
-    init_chunk_L2RJI3BI();
+    init_chunk_HRQUGJ3Y();
     init_chunk_TDLQZ6MP();
     init_chunk_BJTO5JO5();
   }
 });
 
-// node_modules/@x402/fetch/dist/esm/index.mjs
+// ../node_modules/@x402/fetch/dist/esm/index.mjs
 var esm_exports = {};
 __export(esm_exports, {
   decodePaymentResponseHeader: () => decodePaymentResponseHeader,
@@ -639,7 +639,7 @@ function wrapFetchWithPaymentFromConfig(fetch2, config) {
   return wrapFetchWithPayment(fetch2, client);
 }
 var init_esm = __esm({
-  "node_modules/@x402/fetch/dist/esm/index.mjs"() {
+  "../node_modules/@x402/fetch/dist/esm/index.mjs"() {
     "use strict";
     init_client();
     init_client();
@@ -654,6 +654,9 @@ __export(index_exports, {
   InkdActionProvider: () => InkdActionProvider
 });
 module.exports = __toCommonJS(index_exports);
+
+// src/provider.ts
+var import_zod2 = require("zod");
 
 // src/actions.ts
 var import_zod = require("zod");
@@ -708,7 +711,9 @@ var INKD_ACTIONS = {
   GET_PROJECT: "inkd_get_project",
   GET_LATEST_VERSION: "inkd_get_latest_version",
   LIST_AGENTS: "inkd_list_agents",
-  SEARCH_PROJECTS: "inkd_search_projects"
+  SEARCH_PROJECTS: "inkd_search_projects",
+  GET_BUYBACKS: "inkd_get_buybacks",
+  GET_STATS: "inkd_get_stats"
 };
 var GetLatestVersionSchema = import_zod.z.object({
   projectId: import_zod.z.string().describe("The numeric project ID to get the latest version for.")
@@ -739,7 +744,9 @@ var InkdActionProvider = class {
       this.getProjectAction(),
       this.getLatestVersionAction(),
       this.listAgentsAction(),
-      this.searchProjectsAction()
+      this.searchProjectsAction(),
+      this.getBuybacksAction(),
+      this.getStatsAction()
     ];
   }
   // ─── inkd_create_project ──────────────────────────────────────────────────
@@ -873,6 +880,39 @@ var InkdActionProvider = class {
           total,
           message: `Found ${total} projects matching "${params.query}". Showing ${data.length}.`
         };
+      }
+    };
+  }
+  // ─── inkd_get_buybacks ────────────────────────────────────────────────────
+  getBuybacksAction() {
+    return {
+      name: INKD_ACTIONS.GET_BUYBACKS,
+      description: "Get recent $INKD buyback events \u2014 USDC spent, $INKD received, Basescan links, and totals.",
+      schema: import_zod2.z.object({
+        limit: import_zod2.z.number().int().min(1).max(100).default(20).describe("Number of events to return"),
+        skip: import_zod2.z.number().int().min(0).default(0).describe("Offset for pagination")
+      }),
+      async invoke(params) {
+        const limit = params.limit ?? 20;
+        const skip = params.skip ?? 0;
+        const res = await globalThis.fetch(`https://api.inkdprotocol.com/v1/buybacks?limit=${limit}&skip=${skip}`);
+        if (!res.ok) throw new Error(`inkd getBuybacks failed: ${res.statusText}`);
+        const data = await res.json();
+        return { success: true, ...data };
+      }
+    };
+  }
+  // ─── inkd_get_stats ───────────────────────────────────────────────────────
+  getStatsAction() {
+    return {
+      name: INKD_ACTIONS.GET_STATS,
+      description: "Get protocol-wide stats: total projects, versions, USDC volume processed, $INKD token supply.",
+      schema: import_zod2.z.object({}),
+      async invoke() {
+        const res = await globalThis.fetch("https://api.inkdprotocol.com/v1/stats");
+        if (!res.ok) throw new Error(`inkd getStats failed: ${res.statusText}`);
+        const data = await res.json();
+        return { success: true, ...data };
       }
     };
   }

@@ -95,6 +95,8 @@ declare const INKD_ACTIONS: {
     readonly GET_LATEST_VERSION: "inkd_get_latest_version";
     readonly LIST_AGENTS: "inkd_list_agents";
     readonly SEARCH_PROJECTS: "inkd_search_projects";
+    readonly GET_BUYBACKS: "inkd_get_buybacks";
+    readonly GET_STATS: "inkd_get_stats";
 };
 declare const GetLatestVersionSchema: z.ZodObject<{
     projectId: z.ZodString;
@@ -285,12 +287,40 @@ declare class InkdActionProvider {
             total: string;
             message: string;
         }>;
+    } | {
+        name: "inkd_get_buybacks";
+        description: string;
+        schema: z.ZodObject<{
+            limit: z.ZodDefault<z.ZodNumber>;
+            skip: z.ZodDefault<z.ZodNumber>;
+        }, "strip", z.ZodTypeAny, {
+            limit: number;
+            skip: number;
+        }, {
+            limit?: number | undefined;
+            skip?: number | undefined;
+        }>;
+        invoke(params: {
+            limit?: number;
+            skip?: number;
+        }): Promise<{
+            success: boolean;
+        }>;
+    } | {
+        name: "inkd_get_stats";
+        description: string;
+        schema: z.ZodObject<{}, "strip", z.ZodTypeAny, {}, {}>;
+        invoke(): Promise<{
+            success: boolean;
+        }>;
     })[];
     private createProjectAction;
     private pushVersionAction;
     private getProjectAction;
     private getLatestVersionAction;
     private searchProjectsAction;
+    private getBuybacksAction;
+    private getStatsAction;
     private listAgentsAction;
     /**
      * Build an x402-enabled fetch if AgentKit wallet context is available.

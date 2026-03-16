@@ -61,6 +61,8 @@ export const INKD_ACTIONS = {
   GET_LATEST_VERSION: 'inkd_get_latest_version',
   LIST_AGENTS:        'inkd_list_agents',
   SEARCH_PROJECTS:    'inkd_search_projects',
+  GET_BUYBACKS:       'inkd_get_buybacks',
+  GET_STATS:          'inkd_get_stats',
 } as const
 
 export const GetLatestVersionSchema = z.object({

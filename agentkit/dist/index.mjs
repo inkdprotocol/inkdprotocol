@@ -1,5 +1,8 @@
 import "./chunk-WUKYLWAZ.mjs";
 
+// src/provider.ts
+import { z as z2 } from "zod";
+
 // src/actions.ts
 import { z } from "zod";
 var CreateProjectSchema = z.object({
@@ -53,7 +56,9 @@ var INKD_ACTIONS = {
   GET_PROJECT: "inkd_get_project",
   GET_LATEST_VERSION: "inkd_get_latest_version",
   LIST_AGENTS: "inkd_list_agents",
-  SEARCH_PROJECTS: "inkd_search_projects"
+  SEARCH_PROJECTS: "inkd_search_projects",
+  GET_BUYBACKS: "inkd_get_buybacks",
+  GET_STATS: "inkd_get_stats"
 };
 var GetLatestVersionSchema = z.object({
   projectId: z.string().describe("The numeric project ID to get the latest version for.")
@@ -84,7 +89,9 @@ var InkdActionProvider = class {
       this.getProjectAction(),
       this.getLatestVersionAction(),
       this.listAgentsAction(),
-      this.searchProjectsAction()
+      this.searchProjectsAction(),
+      this.getBuybacksAction(),
+      this.getStatsAction()
     ];
   }
   // ─── inkd_create_project ──────────────────────────────────────────────────
@@ -221,6 +228,39 @@ var InkdActionProvider = class {
       }
     };
   }
+  // ─── inkd_get_buybacks ────────────────────────────────────────────────────
+  getBuybacksAction() {
+    return {
+      name: INKD_ACTIONS.GET_BUYBACKS,
+      description: "Get recent $INKD buyback events \u2014 USDC spent, $INKD received, Basescan links, and totals.",
+      schema: z2.object({
+        limit: z2.number().int().min(1).max(100).default(20).describe("Number of events to return"),
+        skip: z2.number().int().min(0).default(0).describe("Offset for pagination")
+      }),
+      async invoke(params) {
+        const limit = params.limit ?? 20;
+        const skip = params.skip ?? 0;
+        const res = await globalThis.fetch(`https://api.inkdprotocol.com/v1/buybacks?limit=${limit}&skip=${skip}`);
+        if (!res.ok) throw new Error(`inkd getBuybacks failed: ${res.statusText}`);
+        const data = await res.json();
+        return { success: true, ...data };
+      }
+    };
+  }
+  // ─── inkd_get_stats ───────────────────────────────────────────────────────
+  getStatsAction() {
+    return {
+      name: INKD_ACTIONS.GET_STATS,
+      description: "Get protocol-wide stats: total projects, versions, USDC volume processed, $INKD token supply.",
+      schema: z2.object({}),
+      async invoke() {
+        const res = await globalThis.fetch("https://api.inkdprotocol.com/v1/stats");
+        if (!res.ok) throw new Error(`inkd getStats failed: ${res.statusText}`);
+        const data = await res.json();
+        return { success: true, ...data };
+      }
+    };
+  }
   // ─── inkd_list_agents ─────────────────────────────────────────────────────
   listAgentsAction() {
     return {
@@ -252,7 +292,7 @@ var InkdActionProvider = class {
   async buildFetch(context) {
     if (!context?.walletProvider) return this.fetch;
     try {
-      const { wrapFetchWithPayment } = await import("./esm-6LJN3Q6N.mjs");
+      const { wrapFetchWithPayment } = await import("./esm-U2YKRQY5.mjs");
       const { privateKeyToAccount } = await import("viem/accounts");
       const { base, baseSepolia } = await import("viem/chains");
       const privateKey = context.walletProvider?.privateKey;

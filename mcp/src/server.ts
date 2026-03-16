@@ -158,6 +158,23 @@ const TOOLS = [
     },
   },
   {
+    name:        'inkd_get_buybacks',
+    description: 'Get recent $INKD buyback events (USDC→$INKD swaps). Returns list with amounts in USD, formatted $INKD, and Basescan links.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        limit: { type: 'number', description: 'Number of events (1-100, default 20)' },
+        skip:  { type: 'number', description: 'Offset for pagination (default 0)' },
+      },
+      required: [],
+    },
+  },
+  {
+    name:        'inkd_get_stats',
+    description: 'Get protocol-wide stats: total projects, versions pushed, USDC volume processed, $INKD token supply.',
+    inputSchema: { type: 'object', properties: {}, required: [] },
+  },
+  {
     name:        'inkd_upload',
     description: 'Upload content to Arweave via Inkd. Returns an ar:// hash. Use this BEFORE inkd_push_version.',
     inputSchema: {
@@ -405,6 +422,20 @@ async function main() {
               text: `✅ Collaborator added!\n\nNew manifest hash: ${uploadResult.hash}\n\nUpdate your on-chain access manifest with setAccessManifest(projectId, "${uploadResult.hash}").`,
             }],
           }
+        }
+
+        case 'inkd_get_buybacks': {
+          const limit = (args as any).limit ?? 20
+          const skip  = (args as any).skip  ?? 0
+          const res   = await inkdFetch(`${API_URL}/v1/buybacks?limit=${limit}&skip=${skip}`)
+          const data  = await res.json()
+          return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] }
+        }
+
+        case 'inkd_get_stats': {
+          const res  = await inkdFetch(`${API_URL}/v1/stats`)
+          const data = await res.json()
+          return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] }
         }
 
         default:

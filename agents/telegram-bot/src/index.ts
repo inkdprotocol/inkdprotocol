@@ -630,14 +630,33 @@ bot.command('top', async ctx => {
 
 bot.command('stats', async ctx => {
   try {
-    const res = await fetch(`${process.env.INKD_API_URL ?? 'https://api.inkdprotocol.com'}/v1/status`)
-    const data = await res.json() as any
+    const apiBase = process.env.INKD_API_URL ?? 'https://api.inkdprotocol.com'
+    const [statsRes, buybacksRes] = await Promise.all([
+      fetch(`${apiBase}/v1/stats`),
+      fetch(`${apiBase}/v1/buybacks?limit=3`),
+    ])
+    const stats    = await statsRes.json()    as any
+    const buybacks = await buybacksRes.json() as any
+
+    const projectCount = stats.projects ?? 'n/a'
+    const versions     = stats.totalVersions ?? 'n/a'
+    const usdcVol      = stats.totalUsdcVolumeUsd ?? '$0.00'
+    const supply       = stats.tokenSupply ? `${Number(stats.tokenSupply).toLocaleString()} $INKD` : 'n/a'
+
+    let buybackLines = ''
+    if (buybacks.data?.length > 0) {
+      buybackLines = '\n\n*Recent Buybacks*\n' + buybacks.data.slice(0, 3).map((b: any) =>
+        `↻ ${b.usdcInUsd} → ${b.inkdOutFormatted} $INKD`
+      ).join('\n')
+    }
+
     await ctx.reply(
-      `📊 *inkd Protocol Stats*\n\n` +
-      `Projects: ${data.protocol?.projectCount ?? 'n/a'}\n` +
-      `Token supply: ${data.protocol?.totalSupply ?? 'n/a'}\n` +
-      `Network: ${data.network ?? 'base'}\n` +
-      `API uptime: ${Math.floor((data.server?.uptimeMs ?? 0) / 60000)} min`,
+      `📊 *inkd Protocol*\n\n` +
+      `Projects: ${projectCount}\n` +
+      `Versions: ${versions}\n` +
+      `USDC Volume: ${usdcVol}\n` +
+      `Token supply: ${supply}` +
+      buybackLines,
       { parse_mode: 'Markdown', reply_markup: new InlineKeyboard().text('🏠 Home', 'nav_home') }
     )
   } catch (err) {

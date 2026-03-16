@@ -61,6 +61,8 @@ export class InkdActionProvider {
       this.getLatestVersionAction(),
       this.listAgentsAction(),
       this.searchProjectsAction(),
+      this.getBuybacksAction(),
+      this.getStatsAction(),
     ]
   }
 
@@ -224,6 +226,43 @@ export class InkdActionProvider {
           total,
           message: `Found ${total} projects matching "${params.query}". Showing ${data.length}.`,
         }
+      },
+    }
+  }
+
+  // ─── inkd_get_buybacks ────────────────────────────────────────────────────
+
+  private getBuybacksAction() {
+    return {
+      name:        INKD_ACTIONS.GET_BUYBACKS,
+      description: 'Get recent $INKD buyback events — USDC spent, $INKD received, Basescan links, and totals.',
+      schema:      z.object({
+        limit: z.number().int().min(1).max(100).default(20).describe('Number of events to return'),
+        skip:  z.number().int().min(0).default(0).describe('Offset for pagination'),
+      }),
+      async invoke(params: { limit?: number; skip?: number }) {
+        const limit = params.limit ?? 20
+        const skip  = params.skip  ?? 0
+        const res   = await globalThis.fetch(`https://api.inkdprotocol.com/v1/buybacks?limit=${limit}&skip=${skip}`)
+        if (!res.ok) throw new Error(`inkd getBuybacks failed: ${res.statusText}`)
+        const data = await res.json() as Record<string, unknown>
+        return { success: true, ...data }
+      },
+    }
+  }
+
+  // ─── inkd_get_stats ───────────────────────────────────────────────────────
+
+  private getStatsAction() {
+    return {
+      name:        INKD_ACTIONS.GET_STATS,
+      description: 'Get protocol-wide stats: total projects, versions, USDC volume processed, $INKD token supply.',
+      schema:      z.object({}),
+      async invoke() {
+        const res  = await globalThis.fetch('https://api.inkdprotocol.com/v1/stats')
+        if (!res.ok) throw new Error(`inkd getStats failed: ${res.statusText}`)
+        const data = await res.json() as Record<string, unknown>
+        return { success: true, ...data }
       },
     }
   }
