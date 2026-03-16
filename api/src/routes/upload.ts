@@ -111,11 +111,38 @@ export function buildUploadRouter(cfg: ApiConfig): Router {
         extraTags,
       )
 
+      // IPFS dual-storage (optional, requires IPFS_GATEWAY_URL + IPFS_TOKEN env vars)
+      let ipfsHash: string | undefined
+      const ipfsGateway = process.env['IPFS_GATEWAY_URL']
+      const ipfsToken   = process.env['IPFS_TOKEN']
+      if (ipfsGateway && ipfsToken) {
+        try {
+          const ipfsRes = await fetch('https://api.web3.storage/upload', {
+            method:  'POST',
+            headers: {
+              Authorization:  `Bearer ${ipfsToken}`,
+              'Content-Type': contentType,
+            },
+            body: new Uint8Array(data),
+            signal: AbortSignal.timeout(30000),
+          })
+          if (ipfsRes.ok) {
+            const ipfsJson = await ipfsRes.json() as { cid?: string }
+            if (ipfsJson.cid) ipfsHash = `ipfs://${ipfsJson.cid}`
+          } else {
+            console.warn('[upload] IPFS pin failed:', ipfsRes.status, await ipfsRes.text().catch(() => ''))
+          }
+        } catch (ipfsErr) {
+          console.warn('[upload] IPFS pin error:', ipfsErr instanceof Error ? ipfsErr.message : String(ipfsErr))
+        }
+      }
+
       res.status(201).json({
         hash:  `ar://${txId}`,
         txId,
         url,
         bytes: data.length,
+        ...(ipfsHash ? { ipfsHash } : {}),
         cost:  {
           usdc: costUsdc,
           usd:  `$${(Number(costUsdc) / 1e6).toFixed(4)}`,

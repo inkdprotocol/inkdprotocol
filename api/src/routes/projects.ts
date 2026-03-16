@@ -18,6 +18,7 @@ import { getPayerAddress, getPaymentAmount, getPaymentAuthorizationData } from '
 import { REGISTRY_ABI, TREASURY_ABI, USDC_ABI } from '../abis.js'
 import { getArweaveCostUsdc, calculateCharge } from '../arweave.js'
 import { sendError, NotFoundError, BadRequestError, ServiceUnavailableError } from '../errors.js'
+import { broadcastEvent } from './events.js'
 // Note: IndexerClient types are inlined to avoid importing better-sqlite3 at bundle time
 interface IndexerProject {
   id: number; name: string; description: string; license: string; readme_hash: string;
@@ -230,6 +231,48 @@ async function withNonceRetry<T>(
       }
       throw err
     }
+  }
+}
+
+// ─── Arweave diff helper ──────────────────────────────────────────────────────
+
+async function computeArweaveDiff(
+  prevHash: string,
+  newHash: string,
+): Promise<{ linesAdded: number; linesRemoved: number; summary: string } | null> {
+  const MAX_SIZE = 1024 * 1024 // 1 MB
+  const TIMEOUT  = 5000
+
+  try {
+    const [prevRes, newRes] = await Promise.all([
+      fetch(`https://arweave.net/${prevHash}`, { signal: AbortSignal.timeout(TIMEOUT) }),
+      fetch(`https://arweave.net/${newHash}`,  { signal: AbortSignal.timeout(TIMEOUT) }),
+    ])
+
+    if (!prevRes.ok || !newRes.ok) return null
+
+    // Bail on large files
+    const prevLen = parseInt(prevRes.headers.get('content-length') ?? '0', 10)
+    const newLen  = parseInt(newRes.headers.get('content-length')  ?? '0', 10)
+    if ((prevLen && prevLen > MAX_SIZE) || (newLen && newLen > MAX_SIZE)) return null
+
+    const [prevText, newText] = await Promise.all([prevRes.text(), newRes.text()])
+
+    // Guard against binary content
+    if (prevText.length > MAX_SIZE || newText.length > MAX_SIZE) return null
+
+    const prevLines = prevText.split('\n')
+    const newLines  = newText.split('\n')
+    const prevSet   = new Set(prevLines)
+    const newSet    = new Set(newLines)
+
+    const added   = newLines.filter(l => !prevSet.has(l))
+    const removed = prevLines.filter(l => !newSet.has(l))
+    const summary = added.slice(0, 20).join('\n').slice(0, 500)
+
+    return { linesAdded: added.length, linesRemoved: removed.length, summary }
+  } catch {
+    return null
   }
 }
 
@@ -543,6 +586,15 @@ export function projectsRouter(cfg: ApiConfig): Router {
         functionName: 'projectCount',
       }) as bigint
 
+      // Broadcast SSE event
+      broadcastEvent({
+        type: 'project_created',
+        projectId: Number(total),
+        name,
+        owner: payerAddress ?? walletAddress,
+        timestamp: Date.now(),
+      })
+
       res.status(201).json({
         txHash:    hash,
         projectId: total.toString(),
@@ -655,6 +707,42 @@ export function projectsRouter(cfg: ApiConfig): Router {
     }
   })
 
+  // ── GET /v1/projects/:id/versions/diff?from=1&to=2 ──────────────────────────
+  router.get('/:id/versions/diff', async (req, res) => {
+    try {
+      const id  = parseInt(req.params['id'] ?? '', 10)
+      if (isNaN(id) || id < 1) throw new BadRequestError('Project id must be a positive integer')
+
+      const fromIdx = parseInt(req.query['from'] as string ?? '', 10)
+      const toIdx   = parseInt(req.query['to']   as string ?? '', 10)
+      if (isNaN(fromIdx) || isNaN(toIdx)) throw new BadRequestError('from and to version indices are required')
+
+      const graph = getGraphClient()
+      if (!graph) throw new ServiceUnavailableError('Graph client not available')
+
+      const versions = await graph.getProjectVersions(id, 50)
+      const fromVer  = versions.find(v => Number(v.versionIndex) === fromIdx)
+      const toVer    = versions.find(v => Number(v.versionIndex) === toIdx)
+
+      if (!fromVer) throw new NotFoundError(`Version index ${fromIdx} not found`)
+      if (!toVer)   throw new NotFoundError(`Version index ${toIdx} not found`)
+
+      const prevHash = fromVer.arweaveHash.replace('ar://', '')
+      const newHash  = toVer.arweaveHash.replace('ar://', '')
+
+      const diff = await computeArweaveDiff(prevHash, newHash)
+
+      res.json({
+        projectId: id.toString(),
+        from: { versionIndex: fromIdx, arweaveHash: fromVer.arweaveHash, versionTag: fromVer.versionTag },
+        to:   { versionIndex: toIdx,   arweaveHash: toVer.arweaveHash,   versionTag: toVer.versionTag },
+        diff,
+      })
+    } catch (err) {
+      sendError(res, err)
+    }
+  })
+
   // ── POST /v1/projects/:id/versions ──────────────────────────────────────────
   router.post('/:id/versions', async (req, res) => {
     try {
@@ -729,6 +817,36 @@ export function projectsRouter(cfg: ApiConfig): Router {
 
       const receipt = await publicClient.waitForTransactionReceipt({ hash })
 
+      // Compute diff against previous version (best-effort, non-blocking)
+      let diff: { linesAdded: number; linesRemoved: number; summary: string } | null = null
+      try {
+        const graph = getGraphClient()
+        if (graph) {
+          const prevVersions = await graph.getProjectVersions(id, 50).catch(() => [])
+          const prevVersion  = prevVersions.length >= 1 ? prevVersions[prevVersions.length - 1] : null
+          if (prevVersion) {
+            const prevHash = prevVersion.arweaveHash.replace('ar://', '')
+            const newHash  = arweaveHash.replace('ar://', '')
+            diff = await computeArweaveDiff(prevHash, newHash)
+          }
+        }
+      } catch { /* non-fatal */ }
+
+      // Broadcast SSE event (best-effort)
+      try {
+        const versionCount = await publicClient.readContract({
+          address: registryAddress, abi: REGISTRY_ABI, functionName: 'getVersionCount', args: [BigInt(id)],
+        }) as bigint
+        broadcastEvent({
+          type: 'version_pushed',
+          projectId: id,
+          versionIndex: Number(versionCount) - 1,
+          arweaveHash,
+          pushedBy: payerAddress ?? walletAddress,
+          timestamp: Date.now(),
+        })
+      } catch { /* non-fatal */ }
+
       res.status(201).json({
         txHash:      hash,
         projectId:   id.toString(),
@@ -738,6 +856,7 @@ export function projectsRouter(cfg: ApiConfig): Router {
         pusher:      walletAddress,
         status:      receipt.status,
         blockNumber: receipt.blockNumber.toString(),
+        diff,
       })
     } catch (err) {
       sendError(res, err)

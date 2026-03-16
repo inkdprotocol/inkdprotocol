@@ -42,6 +42,7 @@ import { cmdWatch }   from './commands/watch.js'
 import { cmdSearch }  from './commands/search.js'
 import { cmdAgentd }  from './commands/agentd.js'
 import { cmdToken }   from './commands/token.js'
+import { cmdRun }     from './commands/run.js'
 
 // ─── Help ─────────────────────────────────────────────────────────────────────
 
@@ -113,6 +114,13 @@ function showHelp(): void {
       ${DIM}--json${RESET}                       JSON output (for scripting)
 
   ${BOLD}DAEMON${RESET}
+  ${BOLD}RUN${RESET}
+    ${CYAN}run${RESET} <id>[@version]            Fetch and execute a project from INKD registry
+      ${DIM}inkd run 42${RESET}                  Run latest version of project #42
+      ${DIM}inkd run 42@v1.0.0${RESET}           Run specific version
+      ${DIM}inkd run my-agent${RESET}            Run by project name
+      ${DIM}inkd run 42 -- --arg1 val${RESET}    Pass args to the script
+
     ${CYAN}agentd start${RESET}                  Run autonomous agent daemon (long-running)
       ${DIM}--interval <ms>${RESET}              Sync interval in ms (default: 60000)
       ${DIM}--dry-run${RESET}                    Simulate only — no on-chain transactions
@@ -249,6 +257,10 @@ export async function main(): Promise<void> {
 
     case 'agentd':
       await cmdAgentd(rest)
+      break
+
+    case 'run':
+      await cmdRun(rest)
       break
 
     default:
