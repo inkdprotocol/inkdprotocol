@@ -193,7 +193,7 @@ function projectsRouter(cfg) {
         try {
             const registryAddress = requireRegistry();
             const { offset, limit, owner, isAgent } = PaginationQuery.parse(req.query);
-            // 1. Graph-first
+            // 1. Graph-first (mandatory when owner filter is used — RPC doesn't support efficient owner queries)
             const graph = (0, graph_js_1.getGraphClient)();
             if (graph) {
                 try {
@@ -203,9 +203,20 @@ function projectsRouter(cfg) {
                     return res.json({ data: rows.map(serializeGraphProject), total: total.toString(), offset, limit, source: 'graph' });
                 }
                 catch (graphErr) {
-                    console.error('[graph] getProjects failed:', graphErr instanceof Error ? graphErr.message : graphErr);
-                    /* fall through to RPC */
+                    const errMsg = graphErr instanceof Error ? graphErr.message : String(graphErr);
+                    console.error('[graph] getProjects failed:', errMsg);
+                    // If owner filter was requested and graph failed, return error — don't do inefficient RPC scan
+                    if (owner) {
+                        res.status(503).json({ error: { code: 'GRAPH_ERROR', message: `Graph query failed: ${errMsg}` } });
+                        return;
+                    }
+                    /* fall through to RPC for unfiltered queries */
                 }
+            }
+            else if (owner) {
+                // No graph client — owner filter not supported without graph
+                res.status(503).json({ error: { code: 'GRAPH_UNAVAILABLE', message: 'Owner filter requires Graph indexer' } });
+                return;
             }
             // 2. Indexer fallback
             if (indexer) {
