@@ -158,12 +158,18 @@ bot.callbackQuery('home_archived', async ctx => {
     await ctx.reply('No archived projects.', { reply_markup: new InlineKeyboard().text('◀️ My Files', 'home_files') })
     return
   }
+  // Fetch names for each hidden project
   const kb = new InlineKeyboard()
   for (const projectId of hidden) {
-    kb.text(`↩️ Restore #${projectId}`, `unhide_project:${projectId}`).row()
+    let name = `#${projectId}`
+    try {
+      const p = await getProjectById(Number(projectId))
+      if (p?.name) name = p.name
+    } catch { /* keep id fallback */ }
+    kb.text(`↩️ ${name}`, `unhide_project:${projectId}`).row()
   }
   kb.text('◀️ My Files', 'home_files').text('🏠 Home', 'nav_home')
-  await ctx.reply(`*Archived projects* (${hidden.size})\n\nTap to restore:`, { parse_mode: 'Markdown', reply_markup: kb })
+  await ctx.reply(`*Archived* (${hidden.size})`, { parse_mode: 'Markdown', reply_markup: kb })
 })
 
 bot.callbackQuery(/^unhide_project:(\d+)$/, async ctx => {
