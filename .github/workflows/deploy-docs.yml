@@ -1,0 +1,29 @@
+name: Deploy Docs to Vercel
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs-site/**'
+
+jobs:
+  deploy:
+    name: Deploy inkdprotocol.com
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel@latest
+
+      - name: Deploy Docs to Vercel Production
+        run: vercel --prod --token ${{ secrets.VERCEL_TOKEN }} --yes
+        working-directory: docs-site
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: prj_W3V9ok9NvXxWxPHhRZFXe8OCvTVS
