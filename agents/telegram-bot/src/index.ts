@@ -453,6 +453,28 @@ bot.command('cancel', async ctx => {
   await ctx.reply('Cancelled.', { reply_markup: new InlineKeyboard().text('🏠 Home', 'nav_home') })
 })
 
+bot.callbackQuery('wallet_export_key', async ctx => {
+  await ctx.answerCallbackQuery()
+  if (!ctx.session.encryptedKey) {
+    await ctx.reply('No bot-managed wallet.')
+    return
+  }
+  await ctx.reply(
+    `⚠️ *SECURITY WARNING*\n\n` +
+    `Your private key gives *full access* to your wallet.\n\n` +
+    `• Never share it with anyone\n` +
+    `• Store it offline securely\n` +
+    `• Delete this message after saving\n\n` +
+    `Are you sure you want to view your private key?`,
+    {
+      parse_mode: 'Markdown',
+      reply_markup: new InlineKeyboard()
+        .text('Yes, show key 🔓', 'export_key_confirm')
+        .text('Cancel', 'export_key_cancel')
+    }
+  )
+})
+
 bot.command('export_key', async ctx => {
   if (!ctx.session.encryptedKey) {
     await ctx.reply('No bot-managed wallet. External wallets manage their own keys.\n\nCreate a bot wallet with /start → "🆕 New Wallet".')
@@ -1192,9 +1214,13 @@ async function showWalletInfo(ctx: MyContext) {
         : ``),
       {
         parse_mode: 'Markdown',
-        reply_markup: new InlineKeyboard()
-          .text('📥 Add Funds', 'wallet_deposit').text('💸 Send', 'wallet_withdraw').row()
-          .text('🏠 Home', 'nav_home'),
+        reply_markup: (() => {
+          const kb = new InlineKeyboard()
+            .text('📥 Add Funds', 'wallet_deposit').text('💸 Send', 'wallet_withdraw').row()
+          if (!isExternal) kb.text('🔑 Export Key', 'wallet_export_key').row()
+          kb.text('🏠 Home', 'nav_home')
+          return kb
+        })(),
       }
     )
     
