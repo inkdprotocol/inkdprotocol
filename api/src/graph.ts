@@ -27,7 +27,7 @@ export interface GraphProject {
 export interface GraphVersion {
   id: string
   versionIndex: string
-  readmeHash: string
+  arweaveHash: string
   versionTag: string
   pushedBy: { id: string }
   agentAddress: { id: string } | null
@@ -161,7 +161,7 @@ export class GraphClient {
           orderBy: versionIndex
           orderDirection: asc
         ) {
-          id versionIndex readmeHash versionTag createdAt
+          id versionIndex arweaveHash versionTag createdAt
           pushedBy { id }
           agentAddress { id }
         }

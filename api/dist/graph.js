@@ -107,7 +107,7 @@ class GraphClient {
           orderBy: versionIndex
           orderDirection: asc
         ) {
-          id versionIndex readmeHash versionTag createdAt
+          id versionIndex arweaveHash versionTag createdAt
           pushedBy { id }
           agentAddress { id }
         }

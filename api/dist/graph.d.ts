@@ -27,7 +27,7 @@ export interface GraphProject {
 export interface GraphVersion {
     id: string;
     versionIndex: string;
-    readmeHash: string;
+    arweaveHash: string;
     versionTag: string;
     pushedBy: {
         id: string;
