@@ -1578,19 +1578,7 @@ process.on('uncaughtException', (err) => {
 export async function start() {
   // Register commands with BotFather
   await bot.api.setMyCommands([
-    { command: 'start',        description: 'Connect or create a wallet' },
-    { command: 'wallet',       description: 'Show wallet address & USDC balance' },
-    { command: 'upload_text',  description: 'Upload text content to Arweave' },
-    { command: 'upload_repo',  description: 'Upload a GitHub repo to Arweave' },
-    { command: 'my_projects',  description: 'View your projects' },
-    { command: 'history',      description: 'View recent uploads' },
-    { command: 'stats',        description: 'Protocol stats' },
-    { command: 'estimate',     description: 'Calculate upload cost: /estimate 500kb' },
-    { command: 'export_key',   description: 'Export your private key (bot wallets only)' },
-    { command: 'tutorial',     description: 'Interactive guided tour' },
-
-    { command: 'cancel',       description: 'Cancel current action' },
-    { command: 'help',         description: 'Show all commands' },
+    { command: 'start', description: 'Open inkd' },
   ])
 
   const USE_WEBHOOK = process.env.BOT_WEBHOOK_URL
