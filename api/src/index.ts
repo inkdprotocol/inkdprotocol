@@ -70,6 +70,12 @@ if (process.env['VERCEL'] !== '1') {
 // Rate limiting (all routes)
 app.use(rateLimitMiddleware(cfg.rateLimitWindowMs, cfg.rateLimitMax))
 
+// ─── Init Graph client (before all routes) ────────────────────────────────────
+
+if (cfg.graphEndpoint) {
+  initGraphClient(cfg.graphEndpoint)
+}
+
 // ─── Health routes (no auth) ──────────────────────────────────────────────────
 
 app.use('/v1', healthRouter(cfg))
@@ -104,11 +110,6 @@ if (cfg.x402Enabled && cfg.treasuryAddress) {
 }
 
 // ─── API routes ───────────────────────────────────────────────────────────────
-
-// ─── The Graph ────────────────────────────────────────────────────────────────
-if (cfg.graphEndpoint) {
-  initGraphClient(cfg.graphEndpoint)
-}
 
 app.use('/v1/projects', projectsRouter(cfg))
 app.use('/v1/agents',   agentsRouter(cfg))

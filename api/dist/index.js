@@ -66,6 +66,10 @@ if (process.env['VERCEL'] !== '1') {
 }
 // Rate limiting (all routes)
 app.use((0, rateLimit_js_1.rateLimitMiddleware)(cfg.rateLimitWindowMs, cfg.rateLimitMax));
+// ─── Init Graph client (before all routes) ────────────────────────────────────
+if (cfg.graphEndpoint) {
+    (0, graph_js_1.initGraphClient)(cfg.graphEndpoint);
+}
 // ─── Health routes (no auth) ──────────────────────────────────────────────────
 app.use('/v1', (0, health_js_1.healthRouter)(cfg));
 // ─── x402 Payment middleware (wallet = identity) ──────────────────────────────
@@ -97,10 +101,6 @@ else {
     console.log('  [x402] Disabled — using legacy auth (dev mode)');
 }
 // ─── API routes ───────────────────────────────────────────────────────────────
-// ─── The Graph ────────────────────────────────────────────────────────────────
-if (cfg.graphEndpoint) {
-    (0, graph_js_1.initGraphClient)(cfg.graphEndpoint);
-}
 app.use('/v1/projects', (0, projects_js_1.projectsRouter)(cfg));
 app.use('/v1/agents', (0, agents_js_1.agentsRouter)(cfg));
 app.use('/v1/upload', (0, upload_js_1.buildUploadRouter)(cfg)); // Arweave upload (free, no x402)
