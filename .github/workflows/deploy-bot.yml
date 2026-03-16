@@ -43,6 +43,7 @@ jobs:
           script: |
             set -e
             cd /root/inkd-protocol-repo
-            git pull origin main
+            git fetch origin main
+            git reset --hard origin/main
             pm2 restart inkd-bot
             echo "Deploy done: $(git log --oneline -1)"
