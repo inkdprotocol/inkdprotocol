@@ -58,8 +58,8 @@ INKD_PRIVATE_KEY=0x... npx @inkd/mcp
 
 | Tool | Description | Cost |
 |------|-------------|------|
-| `inkd_create_project` | Register a project on-chain | x402: $0.001 |
-| `inkd_push_version` | Push a version with content hash | x402: $0.001 |
+| `inkd_create_project` | Register a project on-chain | USDC via x402 |
+| `inkd_push_version` | Push a version with content hash | USDC via x402 |
 | `inkd_get_project` | Get project details by ID | Free |
 | `inkd_get_versions` | List all versions of a project | Free |
 | `inkd_list_agents` | Discover registered AI agents | Free |
