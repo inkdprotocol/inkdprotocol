@@ -102,8 +102,14 @@ export function healthRouter(cfg: ApiConfig): Router {
       let totalSupply:  bigint | null = null
       try {
         ;[projectCount, totalSupply] = await Promise.all([
-          publicClient.readContract({ address: addrs.registry as Address, abi: REGISTRY_ABI, functionName: 'projectCount' }) as Promise<bigint>,
-          publicClient.readContract({ address: addrs.token    as Address, abi: TOKEN_ABI,    functionName: 'totalSupply'  }) as Promise<bigint>,
+          Promise.race([
+            publicClient.readContract({ address: addrs.registry as Address, abi: REGISTRY_ABI, functionName: 'projectCount' }) as Promise<bigint>,
+            new Promise<never>((_, r) => setTimeout(() => r(new Error('timeout')), 5000)),
+          ]),
+          Promise.race([
+            publicClient.readContract({ address: addrs.token as Address, abi: TOKEN_ABI, functionName: 'totalSupply' }) as Promise<bigint>,
+            new Promise<never>((_, r) => setTimeout(() => r(new Error('timeout')), 5000)),
+          ]),
         ])
       } catch { /* RPC down — return nulls gracefully */ }
 
