@@ -193,6 +193,7 @@ export async function cmdProjectFork(args: string[]): Promise<void> {
   // Fetch source project
   const sourceRes = await fetch(`${API_URL}/v1/projects/${forkOfId}`)
   if (!sourceRes.ok) error(`Project #${forkOfId} not found`)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const source = (await sourceRes.json() as any).data
 
   info(`Forking ${BOLD}${source.name}${RESET} (${forkOfId}) → ${CYAN}${name}${RESET}`)
