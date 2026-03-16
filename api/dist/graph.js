@@ -46,7 +46,7 @@ class GraphClient {
         const data = await this.query(`
       query GetProjects($skip: Int!, $first: Int!) {
         projects(skip: $skip, first: $first, orderBy: createdAt, orderDirection: desc, ${filter}) {
-          id name description isAgent versionCount createdAt arweaveHash metadataUri tags
+          id name description isAgent versionCount createdAt readmeHash metadataUri
           owner { id }
           forkOf { id }
         }
@@ -59,7 +59,7 @@ class GraphClient {
         const data = await this.query(`
       query GetProject($id: ID!) {
         project(id: $id) {
-          id name description isAgent versionCount createdAt arweaveHash metadataUri tags
+          id name description isAgent versionCount createdAt readmeHash metadataUri
           owner { id }
           forkOf { id }
         }
@@ -72,7 +72,7 @@ class GraphClient {
         const data = await this.query(`
       query GetProjectByName($name: String!) {
         projects(where: { name: $name }, first: 1) {
-          id name description isAgent versionCount createdAt arweaveHash metadataUri tags
+          id name description isAgent versionCount createdAt readmeHash metadataUri
           owner { id }
           forkOf { id }
         }
@@ -90,7 +90,7 @@ class GraphClient {
           orderBy: versionCount
           orderDirection: desc
         ) {
-          id name description isAgent versionCount createdAt arweaveHash metadataUri tags
+          id name description isAgent versionCount createdAt readmeHash metadataUri
           owner { id }
         }
       }
@@ -107,7 +107,7 @@ class GraphClient {
           orderBy: versionIndex
           orderDirection: asc
         ) {
-          id versionIndex arweaveHash versionTag createdAt
+          id versionIndex readmeHash versionTag createdAt
           pushedBy { id }
           agentAddress { id }
         }
@@ -120,7 +120,7 @@ class GraphClient {
         const data = await this.query(`
       query GetProjectsByOwner($owner: String!, $first: Int!) {
         projects(where: { owner: $owner }, first: $first, orderBy: createdAt, orderDirection: desc) {
-          id name description isAgent versionCount createdAt arweaveHash metadataUri tags
+          id name description isAgent versionCount createdAt readmeHash metadataUri
           owner { id }
         }
       }

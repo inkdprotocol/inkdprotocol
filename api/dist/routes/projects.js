@@ -112,7 +112,7 @@ function serializeGraphProject(p) {
         name: p.name,
         description: p.description,
         license: '',
-        readmeHash: p.arweaveHash,
+        readmeHash: p.readmeHash,
         owner: p.owner?.id ?? '',
         isPublic: true,
         isAgent: p.isAgent,

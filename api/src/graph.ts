@@ -19,16 +19,16 @@ export interface GraphProject {
   isAgent: boolean
   versionCount: string
   createdAt: string
-  arweaveHash: string
+  readmeHash: string
   metadataUri: string
   forkOf: { id: string } | null
-  tags: string
+ : string
 }
 
 export interface GraphVersion {
   id: string
   versionIndex: string
-  arweaveHash: string
+  readmeHash: string
   versionTag: string
   pushedBy: { id: string }
   agentAddress: { id: string } | null
@@ -42,7 +42,7 @@ export interface GraphAgent {
   owner: { id: string }
   versionCount: string
   createdAt: string
-  arweaveHash: string
+  readmeHash: string
 }
 
 export interface GraphStats {
@@ -93,7 +93,7 @@ export class GraphClient {
     const data = await this.query<{ projects: GraphProject[] }>(`
       query GetProjects($skip: Int!, $first: Int!) {
         projects(skip: $skip, first: $first, orderBy: createdAt, orderDirection: desc, ${filter}) {
-          id name description isAgent versionCount createdAt arweaveHash metadataUri tags
+          id name description isAgent versionCount createdAt readmeHash metadataUri
           owner { id }
           forkOf { id }
         }
@@ -108,7 +108,7 @@ export class GraphClient {
     const data = await this.query<{ project: GraphProject | null }>(`
       query GetProject($id: ID!) {
         project(id: $id) {
-          id name description isAgent versionCount createdAt arweaveHash metadataUri tags
+          id name description isAgent versionCount createdAt readmeHash metadataUri
           owner { id }
           forkOf { id }
         }
@@ -123,7 +123,7 @@ export class GraphClient {
     const data = await this.query<{ projects: GraphProject[] }>(`
       query GetProjectByName($name: String!) {
         projects(where: { name: $name }, first: 1) {
-          id name description isAgent versionCount createdAt arweaveHash metadataUri tags
+          id name description isAgent versionCount createdAt readmeHash metadataUri
           owner { id }
           forkOf { id }
         }
@@ -143,7 +143,7 @@ export class GraphClient {
           orderBy: versionCount
           orderDirection: desc
         ) {
-          id name description isAgent versionCount createdAt arweaveHash metadataUri tags
+          id name description isAgent versionCount createdAt readmeHash metadataUri
           owner { id }
         }
       }
@@ -162,7 +162,7 @@ export class GraphClient {
           orderBy: versionIndex
           orderDirection: asc
         ) {
-          id versionIndex arweaveHash versionTag createdAt
+          id versionIndex readmeHash versionTag createdAt
           pushedBy { id }
           agentAddress { id }
         }
@@ -177,7 +177,7 @@ export class GraphClient {
     const data = await this.query<{ projects: GraphProject[] }>(`
       query GetProjectsByOwner($owner: String!, $first: Int!) {
         projects(where: { owner: $owner }, first: $first, orderBy: createdAt, orderDirection: desc) {
-          id name description isAgent versionCount createdAt arweaveHash metadataUri tags
+          id name description isAgent versionCount createdAt readmeHash metadataUri
           owner { id }
         }
       }

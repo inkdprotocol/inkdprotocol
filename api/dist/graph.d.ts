@@ -18,17 +18,17 @@ export interface GraphProject {
     isAgent: boolean;
     versionCount: string;
     createdAt: string;
-    arweaveHash: string;
+    readmeHash: string;
     metadataUri: string;
     forkOf: {
         id: string;
     } | null;
-    tags: string;
+    string: any;
 }
 export interface GraphVersion {
     id: string;
     versionIndex: string;
-    arweaveHash: string;
+    readmeHash: string;
     versionTag: string;
     pushedBy: {
         id: string;
@@ -47,7 +47,7 @@ export interface GraphAgent {
     };
     versionCount: string;
     createdAt: string;
-    arweaveHash: string;
+    readmeHash: string;
 }
 export interface GraphStats {
     totalProjects: number;
