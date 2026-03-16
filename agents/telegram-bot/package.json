@@ -1,7 +1,7 @@
 {
   "name": "@inkd/telegram-bot",
   "version": "1.0.0",
-  "description": "Inkd Protocol Telegram bot — upload to Arweave, register on Base, pay in USDC.",
+  "description": "Inkd Protocol Telegram bot \u2014 upload to Arweave, register on Base, pay in USDC.",
   "main": "dist/index.js",
   "scripts": {
     "dev": "ts-node src/index.ts",
@@ -13,7 +13,6 @@
   "license": "ISC",
   "dependencies": {
     "@ardrive/turbo-sdk": "^1.41.0",
-    "@irys/sdk": "^0.2.5",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^25.3.5",
     "@types/qrcode": "^1.5.6",
@@ -29,5 +28,11 @@
   },
   "devDependencies": {
     "ts-node": "^10.9.2"
+  },
+  "overrides": {
+    "elliptic": "^6.6.1",
+    "ws": "^8.18.0",
+    "undici": "^6.0.0",
+    "secp256k1": "5.0.1"
   }
 }
