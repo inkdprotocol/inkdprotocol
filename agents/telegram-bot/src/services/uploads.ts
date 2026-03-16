@@ -315,7 +315,7 @@ export async function beginFileUpload(
     mimeType,
     fileSize,
   }
-  await ctx.reply(`📎 *${fileName}* received · ${formatBytes(fileSize)}\n\n📁 What should we call this file?\n\nGive it a short name like \`my-resume\` or \`q4-report\`:`, { parse_mode: 'Markdown' })
+  await ctx.reply(`📎 *${fileName}* received · ${formatBytes(fileSize)}\n\n📁 Give this a name\n\nJust a label to find it later — like \`my-resume\` or \`q4-report\`:`, { parse_mode: 'Markdown' })
 }
 
 // ─── Begin Version Push Flow ──────────────────────────────────────────────────
@@ -645,7 +645,7 @@ export async function handleUploadMessage(ctx: MyContext) {
     if (upload.type === 'repo') {
       await ctx.reply('🔗 Paste the GitHub repo URL:\n\n`owner/repo` or `https://github.com/owner/repo`', { parse_mode: 'Markdown' })
     } else {
-      await ctx.reply('✏️ Paste the text you want to store permanently:')
+      await ctx.reply('✏️ Type or paste anything — a note, code snippet, or any text. It will be stored on Arweave permanently:')
     }
     return true
   }

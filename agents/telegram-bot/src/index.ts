@@ -338,9 +338,9 @@ bot.callbackQuery('skip_description', async ctx => {
   ;(ctx.session.upload as any).awaitingDescription = false
   const type = ctx.session.upload?.type
   if (type === 'text') {
-    await ctx.reply('✏️ Paste the text you want to store permanently:')
+    await ctx.reply('✏️ Type or paste anything — a note, code snippet, or any text. It will be stored on Arweave permanently:')
   } else if (type === 'file') {
-    await ctx.reply('Send the file now.')
+    await ctx.reply('Send the file and it will be uploaded to Arweave permanently.')
   }
 })
 
