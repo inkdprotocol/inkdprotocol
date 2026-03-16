@@ -25,7 +25,7 @@ import {
   handleGithubRepoSelected,
   type PendingVersionPush,
 } from './services/uploads'
-import { SqliteStorage } from './services/session'
+import { SqliteStorage, hideProject, unhideProject, getHiddenProjects } from './services/session'
 import { generateWallet, encryptPrivateKey, decryptPrivateKey, getWalletBalance } from './services/wallet'
 
 import { listProjectsByOwner, getProjectById, listVersions, getVersion, searchProjects, findProjectByOwnerAndName, getUploadPriceEstimate, type ApiProject, type ApiVersion } from './services/api'
@@ -125,7 +125,9 @@ bot.callbackQuery('home_files', async ctx => {
   }
   const homeBtn = new InlineKeyboard().text('🏠 Home', 'nav_home')
   try {
-    const projects = await listProjectsByOwner(ctx.session.wallet, 10)
+    const allProjects = await listProjectsByOwner(ctx.session.wallet, 50)
+    const hidden = getHiddenProjects(sessionDbPath, String(ctx.from?.id))
+    const projects = allProjects.filter(p => !hidden.has(String(p.id)))
     if (!projects.length) {
       await ctx.reply('No uploads yet.\n\nSend any file or use /upload\\_text to get started.', { parse_mode: 'Markdown', reply_markup: homeBtn })
       return
@@ -1002,12 +1004,38 @@ bot.callbackQuery(/^project:(\d+)$/, async ctx => {
         .row()
     }
 
-    keyboard.text('◀️ My Files', 'home_files').text('🏠 Home', 'nav_home')
+    keyboard
+      .text('🗑 Hide', `hide_project:${projectId}`)
+      .text('◀️ My Files', 'home_files')
+      .text('🏠 Home', 'nav_home')
 
     await ctx.reply(message, { reply_markup: keyboard })
   } catch (err) {
     await ctx.reply(formatApiError(err))
   }
+})
+
+bot.callbackQuery(/^hide_project:(\d+)$/, async ctx => {
+  await ctx.answerCallbackQuery()
+  const projectId = ctx.match[1]
+  const userId = String(ctx.from.id)
+  hideProject(sessionDbPath, userId, projectId)
+  await ctx.reply(`Hidden. The project won't appear in My Files anymore.\n\nTo restore it, use /unhide ${projectId}`, {
+    reply_markup: new InlineKeyboard().text('◀️ My Files', 'home_files').text('🏠 Home', 'nav_home'),
+  })
+})
+
+bot.command('unhide', async ctx => {
+  const projectId = ctx.match?.trim()
+  if (!projectId) {
+    await ctx.reply('Usage: /unhide <project_id>')
+    return
+  }
+  const userId = String(ctx.from?.id)
+  unhideProject(sessionDbPath, userId, projectId)
+  await ctx.reply(`Project ${projectId} is visible again in My Files.`, {
+    reply_markup: new InlineKeyboard().text('◀️ My Files', 'home_files'),
+  })
 })
 
 const MAX_DIRECT_BYTES = 48 * 1024 * 1024 // 48 MB Telegram bot API limit
