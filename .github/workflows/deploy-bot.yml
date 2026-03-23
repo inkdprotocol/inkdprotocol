@@ -35,7 +35,7 @@ jobs:
           strip_components: 3
 
       - name: Restart bot via SSH
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.BOT_DEPLOY_HOST }}
           username: root
