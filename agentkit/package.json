@@ -34,7 +34,7 @@
     "@coinbase/agentkit": ">=0.1.0"
   },
   "dependencies": {
-    "viem": "^2.0.0",
+    "viem": "^2.47.6",
     "zod": "^3.0.0"
   },
   "devDependencies": {

@@ -47,7 +47,7 @@
   },
   "dependencies": {
     "@inkd/sdk": "^1.0.0",
-    "viem": "^2.47.4"
+    "viem": "^2.47.6"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
